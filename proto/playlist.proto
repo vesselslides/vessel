@@ -1,0 +1,70 @@
+// Playlist files: a running order of presentations and headers, possibly in folders.
+//
+// Only the parts Vessel uses are described; other data in a file is kept
+// unchanged when Vessel saves it.
+
+syntax = "proto3";
+
+package vessel.format;
+
+import "common.proto";
+import "presentation.proto";
+
+message PlaylistItem {
+  // A heading in the running order ("Worship", "Sermon").
+  message Header {
+    Color color = 1;
+  }
+  // A presentation in the running order, and which arrangement to use.
+  message Presentation {
+    URL document_path = 1;
+    UUID arrangement = 2;
+    string arrangement_name = 5;
+  }
+  UUID uuid = 1;
+  string name = 2;
+  oneof ItemType {
+    Header header = 3;
+    Presentation presentation = 4;
+    // A single slide placed straight in the running order.
+    Cue cue = 5;
+  }
+}
+
+// A playlist, or a folder of playlists.
+message Playlist {
+  enum Type {
+    TYPE_UNKNOWN = 0;
+    TYPE_PLAYLIST = 1;
+    TYPE_GROUP = 2;
+    TYPE_SMART = 3;
+    TYPE_ROOT = 4;
+  }
+  message PlaylistArray {
+    repeated Playlist playlists = 1;
+  }
+  message PlaylistItems {
+    repeated PlaylistItem items = 1;
+  }
+  UUID uuid = 1;
+  string name = 2;
+  Type type = 3;
+  bool expanded = 4;
+  oneof ChildrenType {
+    PlaylistArray playlists = 12;
+    PlaylistItems items = 13;
+  }
+}
+
+// A whole playlist file, with its folders and playlists under one root.
+message PlaylistDocument {
+  enum Type {
+    TYPE_UNKNOWN = 0;
+    TYPE_PRESENTATION = 1;
+    TYPE_MEDIA = 2;
+    TYPE_AUDIO = 3;
+  }
+  ApplicationInfo application_info = 1;
+  Type type = 2;
+  Playlist root_node = 3;
+}

@@ -1,0 +1,84 @@
+// Small building blocks shared by Vessel's presentation and playlist files.
+//
+// Vessel reads and writes presentation files that other worship software can
+// open too. These definitions describe only the parts Vessel uses; anything
+// else found in a file is kept as it is and written back unchanged.
+
+syntax = "proto3";
+
+package vessel.format;
+
+// An identifier, stored as text (a UUID such as "3F2504E0-4F89-...").
+message UUID {
+  string string = 1;
+}
+
+// A colour with each channel from 0 to 1.
+message Color {
+  float red = 1;
+  float green = 2;
+  float blue = 3;
+  float alpha = 4;
+}
+
+message Version {
+  uint32 major_version = 1;
+  uint32 minor_version = 2;
+  uint32 patch_version = 3;
+  string build = 4;
+}
+
+// Which app and computer wrote a file.
+message ApplicationInfo {
+  enum Platform {
+    PLATFORM_UNDEFINED = 0;
+    PLATFORM_MACOS = 1;
+    PLATFORM_WINDOWS = 2;
+  }
+  enum Application {
+    APPLICATION_UNDEFINED = 0;
+  }
+  Platform platform = 1;
+  Version platform_version = 2;
+  Application application = 3;
+  Version application_version = 4;
+}
+
+// Where a file is: a full file:// address, or a path relative to a known folder.
+message URL {
+  enum Platform {
+    PLATFORM_UNKNOWN = 0;
+    PLATFORM_MACOS = 1;
+    PLATFORM_WIN32 = 2;
+    PLATFORM_WEB = 3;
+  }
+  // A path below one of the user's folders (Documents, Music…); Vessel reads the path only.
+  message LocalRelativePath {
+    int32 root = 1;
+    string path = 2;
+  }
+  // A path on another drive; Vessel reads the path only.
+  message ExternalRelativePath {
+    string path = 3;
+  }
+  oneof Storage {
+    string absolute_string = 1;
+    string relative_path = 2;
+  }
+  Platform platform = 3;
+  oneof RelativeFilePath {
+    LocalRelativePath local = 4;
+    ExternalRelativePath external = 5;
+  }
+}
+
+// A numbered range, e.g. chapters 3 to 4.
+message IntRange {
+  int32 start = 1;
+  int32 end = 2;
+}
+
+// Where a media file lives on this computer.
+message FileProperties {
+  URL local_url = 1;
+}

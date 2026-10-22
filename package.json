@@ -1,0 +1,98 @@
+{
+  "name": "vessel-presenter",
+  "productName": "Vessel",
+  "version": "0.1.0",
+  "description": "Cross-platform worship presentation app",
+  "private": true,
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "gen:proto": "buf generate",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win && node -e \"for (const f of require('fs').readdirSync('dist')) if (/-win-arm64\\.exe/.test(f)) require('fs').rmSync('dist/' + f)\""
+  },
+  "build": {
+    "appId": "com.vessel.presenter",
+    "productName": "Vessel",
+    "files": [
+      "out/**/*"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "nsis": {
+      "useZip": true,
+      "differentialPackage": false
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "fileAssociations": [
+      {
+        "ext": "pro",
+        "name": "Presentation",
+        "role": "Editor"
+      },
+      {
+        "ext": [
+          "pro6",
+          "pro6x",
+          "pro5",
+          "pro5x"
+        ],
+        "name": "Presentation (version 5/6)",
+        "role": "Viewer"
+      },
+      {
+        "ext": "proPlaylist",
+        "name": "Playlist",
+        "role": "Editor"
+      }
+    ],
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.16.0",
+    "fast-xml-parser": "^5.11.2",
+    "fflate": "^0.8.3"
+  },
+  "devDependencies": {
+    "@bufbuild/buf": "^1.75.0",
+    "@bufbuild/protoc-gen-es": "^2.16.0",
+    "@types/node": "^26.6.5",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^6.0.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

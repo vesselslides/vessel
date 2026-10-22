@@ -1,0 +1,151 @@
+// A presentation (a song, a passage, a set of notices): its slides, the groups
+// they belong to (Verse 1, Chorus…), the orders they're sung in, and details
+// such as copyright information.
+//
+// Only the parts Vessel uses are described; other data in a file is kept
+// unchanged when Vessel saves it.
+
+syntax = "proto3";
+
+package vessel.format;
+
+import "common.proto";
+import "graphics.proto";
+
+// One slide: the elements on it, in drawing order (back to front), and its size.
+message Slide {
+  message Element {
+    // Flags; 2 marks a text box.
+    enum Info {
+      INFO_NONE = 0;
+      INFO_IS_TEXT_ELEMENT = 2;
+    }
+    Graphics.Element element = 1;
+    uint32 info = 4;
+  }
+  repeated Element elements = 1;
+  bool draws_background_color = 4;
+  Color background_color = 5;
+  Graphics.Size size = 6;
+  UUID uuid = 7;
+}
+
+message PresentationSlide {
+  Slide base_slide = 1;
+}
+
+// Something a slide does when it's shown: show its own content, or put media on a layer.
+message Action {
+  enum ActionType {
+    ACTION_TYPE_UNKNOWN = 0;
+    ACTION_TYPE_MEDIA = 2;
+    ACTION_TYPE_PRESENTATION_SLIDE = 11;
+  }
+  enum LayerType {
+    LAYER_TYPE_BACKGROUND = 0;
+    LAYER_TYPE_FOREGROUND = 1;
+  }
+  message MediaType {
+    Media element = 5;
+    LayerType layer_type = 10;
+  }
+  message SlideType {
+    oneof Slide {
+      PresentationSlide presentation = 2;
+    }
+  }
+  UUID uuid = 1;
+  string name = 2;
+  bool isEnabled = 6;
+  ActionType type = 9;
+  oneof ActionTypeData {
+    MediaType media = 20;
+    SlideType slide = 23;
+  }
+}
+
+// A keyboard shortcut; codes 1–26 are the letters A–Z.
+message HotKey {
+  int32 code = 1;
+}
+
+// A named, coloured section of a presentation: "Verse 1", "Chorus"…
+message Group {
+  UUID uuid = 1;
+  string name = 2;
+  Color color = 3;
+  HotKey hotKey = 4;
+}
+
+// A slide in the presentation, with what happens when it's shown and when it moves on.
+message Cue {
+  // Where a slide's own timer goes when it runs out.
+  enum CompletionTargetType {
+    COMPLETION_TARGET_TYPE_NONE = 0;
+    COMPLETION_TARGET_TYPE_NEXT = 1;
+    COMPLETION_TARGET_TYPE_RANDOM = 2;
+    COMPLETION_TARGET_TYPE_CUE = 3;
+    COMPLETION_TARGET_TYPE_FIRST = 4;
+  }
+  // What the timer waits for; Vessel uses "after time".
+  enum CompletionActionType {
+    COMPLETION_ACTION_TYPE_FIRST = 0;
+    COMPLETION_ACTION_TYPE_LAST = 1;
+    COMPLETION_ACTION_TYPE_AFTER_ACTION = 2;
+    COMPLETION_ACTION_TYPE_AFTER_TIME = 3;
+  }
+  UUID uuid = 1;
+  string name = 2;
+  CompletionTargetType completion_target_type = 3;
+  UUID completion_target_uuid = 4;
+  CompletionActionType completion_action_type = 5;
+  repeated Action actions = 10;
+  bool isEnabled = 12;
+  // Seconds, for the slide timer.
+  double completion_time = 13;
+}
+
+message Presentation {
+  // Song details for copyright notices and CCLI reports.
+  message CCLI {
+    string author = 1;
+    string artist_credits = 2;
+    string song_title = 3;
+    string publisher = 4;
+    uint32 copyright_year = 5;
+    uint32 song_number = 6;
+    bool display = 7;
+    string album = 8;
+    bytes artwork = 9;
+  }
+  // Marks a presentation as a Bible passage.
+  message BibleReference {
+    uint32 book_index = 1;
+    string book_name = 2;
+    IntRange chapter_range = 3;
+    IntRange verse_range = 4;
+    string translation_name = 5;
+    string translation_internal_abbreviation = 7;
+  }
+  // An order to sing the groups in, e.g. Verse 1, Chorus, Verse 2, Chorus.
+  message Arrangement {
+    UUID uuid = 1;
+    string name = 2;
+    repeated UUID group_identifiers = 3;
+  }
+  // A group and the slides (cues) in it.
+  message CueGroup {
+    Group group = 1;
+    repeated UUID cue_identifiers = 2;
+  }
+  ApplicationInfo application_info = 1;
+  UUID uuid = 2;
+  string name = 3;
+  string notes = 7;
+  UUID selected_arrangement = 10;
+  repeated Arrangement arrangements = 11;
+  repeated CueGroup cue_groups = 12;
+  repeated Cue cues = 13;
+  CCLI ccli = 14;
+  BibleReference bible_reference = 15;
+}

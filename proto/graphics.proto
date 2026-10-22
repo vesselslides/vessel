@@ -1,0 +1,194 @@
+// What's drawn on a slide: boxes of text, pictures and shapes, and the media
+// (pictures and videos) used for them and for backgrounds.
+//
+// Only the parts Vessel uses are described; other data in a file is kept
+// unchanged when Vessel saves it.
+
+syntax = "proto3";
+
+package vessel.format;
+
+import "common.proto";
+
+message Font {
+  string name = 1;
+  double size = 2;
+  bool italic = 4;
+  bool bold = 8;
+  string family = 9;
+  string face = 10;
+}
+
+// A picture or video file and how it's drawn and played.
+message Media {
+  enum ScaleBehavior {
+    SCALE_BEHAVIOR_FIT = 0;
+    SCALE_BEHAVIOR_FILL = 1;
+    SCALE_BEHAVIOR_STRETCH = 2;
+  }
+  message Metadata {
+    // The file's extension, e.g. "jpg" or "mp4".
+    string format = 5;
+  }
+  message DrawingProperties {
+    ScaleBehavior scale_behavior = 1;
+  }
+  message TransportProperties {
+    enum PlaybackBehavior {
+      PLAYBACK_BEHAVIOR_STOP = 0;
+      PLAYBACK_BEHAVIOR_LOOP = 1;
+    }
+    double play_rate = 1;
+    PlaybackBehavior playback_behavior = 12;
+  }
+  message ImageTypeProperties {
+    DrawingProperties drawing = 1;
+    FileProperties file = 2;
+  }
+  message VideoTypeProperties {
+    DrawingProperties drawing = 1;
+    TransportProperties transport = 3;
+    FileProperties file = 5;
+  }
+  UUID uuid = 1;
+  // Older files keep the file's address here.
+  URL url = 2;
+  Metadata metadata = 3;
+  oneof TypeProperties {
+    ImageTypeProperties image = 5;
+    VideoTypeProperties video = 6;
+  }
+}
+
+message Graphics {
+  message Point {
+    double x = 1;
+    double y = 2;
+  }
+  message Size {
+    double width = 1;
+    double height = 2;
+  }
+  message Rect {
+    Point origin = 1;
+    Size size = 2;
+  }
+
+  // The outline of an element. Vessel draws rectangles, rounded rectangles and ellipses.
+  message Path {
+    message Shape {
+      enum Type {
+        TYPE_UNKNOWN = 0;
+        TYPE_RECTANGLE = 1;
+        TYPE_ELLIPSE = 2;
+        TYPE_ROUNDED_RECTANGLE = 11;
+      }
+      message RoundedRectangle {
+        // 0 to 1, how round the corners are.
+        double roundness = 1;
+      }
+      Type type = 1;
+      oneof AdditionalData {
+        RoundedRectangle rounded_rectangle = 2;
+      }
+    }
+    // A corner or curve point; Vessel writes the four corners of a rectangle (0–1 across the element).
+    message BezierPoint {
+      Point point = 1;
+      Point q0 = 2;
+      Point q1 = 3;
+      bool curved = 4;
+    }
+    bool closed = 1;
+    repeated BezierPoint points = 2;
+    Shape shape = 3;
+  }
+
+  // What fills an element: a colour or a picture.
+  message Fill {
+    oneof FillType {
+      Color color = 1;
+      Media media = 3;
+    }
+    bool enable = 4;
+  }
+
+  message Shadow {
+    double angle = 2;
+    double offset = 3;
+    double radius = 4;
+    Color color = 5;
+    double opacity = 6;
+    bool enable = 7;
+  }
+
+  message Stroke {
+    double width = 2;
+    Color color = 3;
+    bool enable = 5;
+  }
+
+  message Text {
+    enum VerticalAlignment {
+      VERTICAL_ALIGNMENT_TOP = 0;
+      VERTICAL_ALIGNMENT_MIDDLE = 1;
+      VERTICAL_ALIGNMENT_BOTTOM = 2;
+    }
+    enum ScaleBehavior {
+      SCALE_BEHAVIOR_NONE = 0;
+      SCALE_BEHAVIOR_ADJUST_CONTAINER_HEIGHT = 1;
+      SCALE_BEHAVIOR_SCALE_FONT_DOWN = 2;
+      SCALE_BEHAVIOR_SCALE_FONT_UP = 3;
+      SCALE_BEHAVIOR_SCALE_FONT_UP_DOWN = 4;
+    }
+    // The text box's own style settings, alongside the styled text itself (rtf_data).
+    message Attributes {
+      enum Capitalization {
+        CAPITALIZATION_NONE = 0;
+        CAPITALIZATION_ALL_CAPS = 1;
+        CAPITALIZATION_SMALL_CAPS = 2;
+        CAPITALIZATION_TITLE_CASE = 3;
+        CAPITALIZATION_START_CASE = 4;
+      }
+      enum Alignment {
+        ALIGNMENT_LEFT = 0;
+        ALIGNMENT_RIGHT = 1;
+        ALIGNMENT_CENTER = 2;
+        ALIGNMENT_JUSTIFIED = 3;
+        ALIGNMENT_NATURAL = 4;
+      }
+      message Paragraph {
+        Alignment alignment = 1;
+      }
+      Font font = 1;
+      Capitalization capitalization = 2;
+      oneof fill {
+        Color text_solid_fill = 3;
+      }
+      Paragraph paragraph_style = 6;
+      double stroke_width = 11;
+      Color stroke_color = 12;
+    }
+    Attributes attributes = 3;
+    Shadow shadow = 4;
+    // The text with its fonts and colours, as RTF.
+    bytes rtf_data = 5;
+    VerticalAlignment vertical_alignment = 6;
+    ScaleBehavior scale_behavior = 7;
+  }
+
+  // One thing on a slide: a text box, picture or shape, where it sits and how it looks.
+  message Element {
+    UUID uuid = 1;
+    string name = 2;
+    Rect bounds = 3;
+    double rotation = 4;
+    double opacity = 5;
+    Path path = 8;
+    Fill fill = 9;
+    Stroke stroke = 10;
+    Shadow shadow = 11;
+    Text text = 13;
+    bool hidden = 16;
+  }
+}
