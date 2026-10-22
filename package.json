@@ -11,9 +11,10 @@
     "start": "electron-vite preview",
     "gen:proto": "buf generate",
     "typecheck": "tsc --noEmit",
+    "ndi-binaries": "node scripts/koffi-binaries.mjs",
     "test": "vitest run",
-    "dist:mac": "npm run build && electron-builder --mac",
-    "dist:win": "npm run build && electron-builder --win && node -e \"for (const f of require('fs').readdirSync('dist')) if (/-win-arm64\\.exe/.test(f)) require('fs').rmSync('dist/' + f)\""
+    "dist:mac": "npm run build && npm run ndi-binaries -- darwin-x64 darwin-arm64 && electron-builder --mac",
+    "dist:win": "npm run build && npm run ndi-binaries -- win32-x64 win32-arm64 && electron-builder --win && node -e \"for (const f of require('fs').readdirSync('dist')) if (/-win-arm64\\.exe/.test(f)) require('fs').rmSync('dist/' + f)\""
   },
   "build": {
     "appId": "com.vessel.presenter",
@@ -75,7 +76,8 @@
   "dependencies": {
     "@bufbuild/protobuf": "^2.16.0",
     "fast-xml-parser": "^5.11.2",
-    "fflate": "^0.8.3"
+    "fflate": "^0.8.3",
+    "koffi": "3.3.2"
   },
   "devDependencies": {
     "@bufbuild/buf": "^1.75.0",

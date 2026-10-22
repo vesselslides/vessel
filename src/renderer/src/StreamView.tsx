@@ -21,7 +21,7 @@ export function StreamView({ live, look }: { live: LiveState; look: StreamLook }
   const words = useMemo<Words>(() => (hidden ? { text: '', layout: null } : { text: live.text, layout: live.layout }), [hidden, live.text, live.layout]);
   const texts = useCrossfade(words, sameWords, ms);
   const backgrounds = useCrossfade(look.media && !live.blackout ? live.background : null, sameBackground, ms);
-  const style = { '--fade': `${ms}ms`, background: KEY_COLOURS[look.background].css } as CSSProperties;
+  const style = { '--fade': `${ms}ms`, background: look.background === 'none' ? 'transparent' : KEY_COLOURS[look.background].css } as CSSProperties;
 
   return (
     <div className={`stage stream-view stream-${look.style}`} style={style}>

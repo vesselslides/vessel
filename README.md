@@ -287,6 +287,20 @@ else is running slides from a phone, turn on *Remote* and give them the PIN.
   picker, or drag media from the bin onto it. Undo/redo with ⌘Z / ⇧⌘Z
   (Ctrl+Z / Ctrl+Y), save with ⌘S / Ctrl+S.
 
+## Streaming, NDI® and Planning Center
+
+- **Stream output** (Screens ▸ Stream Output): the words on a key colour, in a
+  window called "Vessel Stream Output" for OBS or vMix, or full screen on a display.
+- **NDI® output** (Preferences ▸ Screens): sends the stream picture over the
+  network, see-through if you like. It needs the free NDI Tools from
+  [ndi.video](https://ndi.video/tools/) on the computer; Vessel doesn't include
+  NDI itself. NDI® is a registered trademark of Vizrt NDI AB.
+- **Planning Center** (Tools ▸ Planning Center): connect with a Personal Access
+  Token, pick an upcoming plan, and it becomes a service playlist. Songs already
+  in the library are used; others are made from Planning Center's lyrics. The
+  secret is kept encrypted on the computer and isn't put in backups.
+- **MIDI, Stream Deck and Companion**: Preferences ▸ MIDI and Stream Deck.
+
 ## Layout
 
 | Path | What |
@@ -319,5 +333,5 @@ unchanged when Vessel saves it.
 ## Roadmap
 
 1. Your own app icon (replace the placeholder `build/icon.png`).
-2. SongSelect and Planning Center (each needs its own agreement).
-3. NDI and MIDI control.
+2. SongSelect (needs its own agreement with CCLI).
+3. NDI audio, and sending the audience output (not just the stream) over NDI.

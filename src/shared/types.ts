@@ -14,6 +14,8 @@ import { INITIAL_TIMER, type TimerState } from './timer';
 import type { VideoClock } from './videoClock';
 import type { MidiSettings } from './control';
 import type { StreamLook, StreamTarget } from './stream';
+import type { NdiSettings, NdiStatus } from './ndi';
+import type { PcoItem, PcoPlan, PcoServiceType } from './planningCenter';
 
 /** Media that can be a background or a picture on a slide. */
 export type MediaKind = 'image' | 'video';
@@ -341,6 +343,8 @@ export interface Settings {
   /** The stream output: where it shows (off, a window, or a display) and how it looks. */
   streamOutput?: StreamTarget;
   streamLook?: StreamLook;
+  /** NDI® output of the stream picture. */
+  ndi?: NdiSettings;
   /** MIDI control: on or off, which device, and which note or controller runs what. */
   midi?: MidiSettings;
   /** Look for a newer Vessel once a day when it starts. On unless turned off. */
@@ -350,6 +354,13 @@ export interface Settings {
   skippedVersion?: string;
   /** Save changes to presentations by themselves, shortly after each edit. On unless turned off. */
   autosave?: boolean;
+}
+
+/** Planning Center connection, as the operator sees it. */
+export interface PcoConnection {
+  connected: boolean;
+  organization: string;
+  canStore: boolean;
 }
 
 /** API exposed to renderers by the preload script as window.vessel. */
@@ -446,6 +457,19 @@ export interface VesselApi {
   restoreBackup(): Promise<void>;
   /** Show the stream output in a window, on a display, or not at all; returns the settings with it saved. */
   setStreamOutput(target: StreamTarget): Promise<Settings>;
+  /** Planning Center: whether it's connected (the secret never comes back here). */
+  pcoStatus(): Promise<PcoConnection>;
+  pcoConnect(appId: string, secret: string): Promise<PcoConnection>;
+  /** Open Planning Center's Personal Access Tokens page in the browser. */
+  openPlanningCenterTokens(): Promise<void>;
+  pcoDisconnect(): Promise<PcoConnection>;
+  pcoServiceTypes(): Promise<PcoServiceType[]>;
+  pcoPlans(serviceTypeId: string): Promise<PcoPlan[]>;
+  pcoPlanItems(serviceTypeId: string, planId: string): Promise<PcoItem[]>;
+  /** Whether NDI is sending, and to how many receivers. */
+  ndiStatus(): Promise<NdiStatus>;
+  /** Open ndi.video, where the free NDI Tools (with the runtime) are. */
+  openNdiSite(): Promise<void>;
   /** The stream window hears how it should look. */
   onStreamLook(listener: (look: StreamLook) => void): () => void;
   /** Look for a newer Vessel now and say what was found. */

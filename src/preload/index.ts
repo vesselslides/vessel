@@ -104,6 +104,15 @@ const api: VesselApi = {
   restoreBackup: () => ipcRenderer.invoke('backup:restore'),
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
   setStreamOutput: (target) => ipcRenderer.invoke('stream-output:set', target),
+  ndiStatus: () => ipcRenderer.invoke('ndi:status'),
+  pcoStatus: () => ipcRenderer.invoke('pco:status'),
+  pcoConnect: (appId, secret) => ipcRenderer.invoke('pco:connect', appId, secret),
+  pcoDisconnect: () => ipcRenderer.invoke('pco:disconnect'),
+  openPlanningCenterTokens: () => ipcRenderer.invoke('pco:open-tokens'),
+  pcoServiceTypes: () => ipcRenderer.invoke('pco:service-types'),
+  pcoPlans: (serviceTypeId) => ipcRenderer.invoke('pco:plans', serviceTypeId),
+  pcoPlanItems: (serviceTypeId, planId) => ipcRenderer.invoke('pco:items', serviceTypeId, planId),
+  openNdiSite: () => ipcRenderer.invoke('ndi:open-site'),
   onStreamLook: (listener) => {
     const handler = (_e: Electron.IpcRendererEvent, look: StreamLook): void => listener(look);
     ipcRenderer.on('stream:look', handler);

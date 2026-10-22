@@ -9,6 +9,7 @@ import { presetOf, STAGE_PRESETS, type StageLayout } from '../../shared/stage';
 import type { DisplayInfo, MediaItem, MediaScale, Settings } from '../../shared/types';
 import type { RemoteStatus } from '../../shared/remote';
 import { ControlPrefs } from './ControlPrefs';
+import { NdiPrefs } from './NdiPrefs';
 import { KEY_COLOURS, normalizeStreamLook, normalizeStreamTarget, type StreamLook, type StreamTarget } from '../../shared/stream';
 
 export type Section = 'general' | 'screens' | 'appearance' | 'groups' | 'sound' | 'media' | 'stage' | 'import' | 'ccli' | 'remote' | 'control';
@@ -307,6 +308,7 @@ export function PreferencesDialog({
                 <input type="checkbox" checked={streamLook.overlays} onChange={(e) => look({ overlays: e.target.checked })} />
                 Show lower thirds and messages
               </label>
+              <NdiPrefs settings={settings} onSettings={onSettings} />
               <h3>Slides</h3>
               <label className="pref-field">
                 Slide size for new presentations

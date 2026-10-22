@@ -19,7 +19,7 @@ let operator: () => BrowserWindow | null = () => null;
 let stream: { get: () => StreamTarget; set: (t: StreamTarget) => void } = { get: () => null, set: () => undefined };
 let iconPath = '';
 
-const ABOUT = 'Presentation software for worship.';
+const ABOUT = 'Presentation software for worship.\n\nNDI® is a registered trademark of Vizrt NDI AB. NDI output uses the NDI Runtime from ndi.video.';
 
 /** Windows has no standard About panel, so it gets a small window of its own. */
 function showAbout(): void {
@@ -185,6 +185,7 @@ export function rebuildAppMenu(): void {
         { label: 'Bible…', accelerator: 'CmdOrCtrl+B', click: send('bible') },
         { label: 'Themes…', click: send('themes') },
         { label: 'CCLI (copyright and reporting)…', click: send('ccli') },
+        { label: 'Planning Center…', click: send('planning-center') },
         ...(isMac ? [] : [{ type: 'separator' as const }, { label: 'Preferences…', accelerator: 'Ctrl+,', click: send('preferences') }]),
         { label: 'Remote Control…', click: send('remote') }
       ]

@@ -18,7 +18,10 @@ import { migrateFromLumen, type MigrationReport } from './migrate';
 import { setupRemote, shutdownRemote } from './remote';
 import { setupContextMenu } from './contextMenu';
 import { rebuildAppMenu, setupAppMenu } from './appMenu';
-import { normalizeStreamLook, normalizeStreamTarget, type StreamTarget } from '../shared/stream';
+import { normalizeStreamLook, normalizeStreamTarget, type StreamLook, type StreamTarget } from '../shared/stream';
+import { NdiSender } from './ndi';
+import { pcoConnect, pcoDisconnect, pcoPlanItems, pcoPlans, pcoServiceTypes, pcoStatus } from './planningCenter';
+import { NDI_SITE, NDI_SIZES, normalizeNdi, type NdiStatus } from '../shared/ndi';
 import appIcon from '../../build/icon.png?asset';
 import type { ThemeLibrary } from '../shared/theme';
 import { addToMediaBin, createMediaFolder, deleteMediaFolder, handleMediaProtocol, loadMediaBin, loadMediaFolders, moveMedia, registerMediaScheme, relinkMediaBin, removeFromMediaBin, renameMediaFolder, setMediaMuted } from './media';
@@ -52,10 +55,10 @@ app.on('second-instance', () => {
 
 const preload = join(__dirname, '../preload/index.js');
 
-function loadPage(win: BrowserWindow, page: 'index' | 'output' | 'stage' | 'stream'): void {
+function loadPage(win: BrowserWindow, page: 'index' | 'output' | 'stage' | 'stream', hash = ''): void {
   const devUrl = process.env['ELECTRON_RENDERER_URL'];
-  if (!app.isPackaged && devUrl) void win.loadURL(`${devUrl}/${page}.html`);
-  else void win.loadFile(join(__dirname, `../renderer/${page}.html`));
+  if (!app.isPackaged && devUrl) void win.loadURL(`${devUrl}/${page}.html${hash ? `#${hash}` : ''}`);
+  else void win.loadFile(join(__dirname, `../renderer/${page}.html`), hash ? { hash } : undefined);
 }
 
 function createOperatorWindow(): void {
@@ -143,7 +146,44 @@ let streamWindow: BrowserWindow | null = null;
 let streamTarget: StreamTarget = null;
 
 async function sendStreamLook(): Promise<void> {
-  streamWindow?.webContents.send('stream:look', normalizeStreamLook((await getSettings()).streamLook));
+  const s = await getSettings();
+  const look = normalizeStreamLook(s.streamLook);
+  streamWindow?.webContents.send('stream:look', look);
+  // NDI can carry a see-through background, so the key colour isn't needed there.
+  const ndiLook: StreamLook = normalizeNdi(s.ndi).transparent ? { ...look, background: 'none', media: false } : look;
+  ndiSender?.window?.webContents.send('stream:look', ndiLook);
+}
+
+// ---- NDI® output: the stream picture over the network (needs the free NDI Runtime).
+
+let ndiSender: NdiSender | null = null;
+let ndiStatus: NdiStatus = { state: 'off' };
+
+function applyNdi(settings: Settings): void {
+  ndiSender?.stop();
+  ndiSender = null;
+  const ndi = normalizeNdi(settings.ndi);
+  if (!ndi.enabled) {
+    ndiStatus = { state: 'off' };
+    return;
+  }
+  const sender = new NdiSender({
+    name: ndi.name,
+    ...NDI_SIZES[ndi.resolution],
+    seeThrough: ndi.transparent,
+    preload,
+    load: (win) => {
+      // See-through from the first paint, before the look arrives.
+      loadPage(win, 'stream', ndi.transparent ? 'see-through' : '');
+      win.webContents.on('did-finish-load', () => {
+        win.webContents.send('live:update', liveState);
+        void sendStreamLook();
+      });
+    }
+  });
+  ndiStatus = sender.start();
+  if (ndiStatus.state === 'sending') ndiSender = sender;
+  else sender.stop();
 }
 
 function setStreamOutput(target: StreamTarget): void {
@@ -331,6 +371,7 @@ function registerIpc(): void {
     // Imports made here colour their groups from the church's list.
     if (patch.groups) setGroupDefinitions(next.groups);
     if (patch.streamLook) void sendStreamLook();
+    if (patch.ndi) applyNdi(next);
     return next;
   });
   ipcMain.handle('library:add-folder', async () => {
@@ -423,6 +464,15 @@ function registerIpc(): void {
   ipcMain.handle('output:set', (_e, displayId: number | null) => setOutput(displayId));
   ipcMain.handle('stage-output:set', (_e, displayId: number | null) => setStageOutput(displayId));
   ipcMain.handle('stream-output:set', (_e, target: unknown) => chooseStreamOutput(normalizeStreamTarget(target)));
+  ipcMain.handle('pco:status', () => pcoStatus());
+  ipcMain.handle('pco:open-tokens', () => shell.openExternal('https://api.planningcenteronline.com/oauth/applications'));
+  ipcMain.handle('pco:connect', (_e, appId: unknown, secret: unknown) => pcoConnect(appId, secret));
+  ipcMain.handle('pco:disconnect', () => pcoDisconnect());
+  ipcMain.handle('pco:service-types', () => pcoServiceTypes());
+  ipcMain.handle('pco:plans', (_e, serviceType: unknown) => pcoPlans(serviceType));
+  ipcMain.handle('pco:items', (_e, serviceType: unknown, plan: unknown) => pcoPlanItems(serviceType, plan));
+  ipcMain.handle('ndi:status', () => (ndiSender ? (ndiStatus = ndiSender.status()) : ndiStatus));
+  ipcMain.handle('ndi:open-site', () => shell.openExternal(NDI_SITE));
 
   ipcMain.on('stage:set', (_e, state: StageState) => {
     stageState = state;
@@ -434,6 +484,7 @@ function registerIpc(): void {
     liveState = state;
     outputWindow?.webContents.send('live:update', state);
     streamWindow?.webContents.send('live:update', state);
+    ndiSender?.window?.webContents.send('live:update', state);
     operatorWindow?.webContents.send('live:update', state);
   });
 }
@@ -466,6 +517,8 @@ app.whenReady().then(async () => {
   setGroupDefinitions((await getSettings()).groups);
   createOperatorWindow();
   void checkForUpdatesOnLaunch(() => operatorWindow);
+  void getSettings().then(applyNdi);
+  app.on('before-quit', () => ndiSender?.stop());
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createOperatorWindow();
   });

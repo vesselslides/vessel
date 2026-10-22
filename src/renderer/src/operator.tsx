@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Presentation } from '../../shared/gen/presentation_pb';
-import { applyTheme } from '../../shared/pro/edit';
+import { applyLyrics, applyTheme } from '../../shared/pro/edit';
 import { parsePlaylistFile, playlistViews } from '../../shared/pro/playlist';
 import { decodeService, encodeService, newServiceId, type Service, type ServiceItem } from '../../shared/pro/service';
 import {
@@ -43,7 +43,7 @@ import { dropSlideOn, openGroupMenu, openSlideMenu, SLIDE_DRAG } from './slideMe
 import { RemoteDialog } from './RemoteDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { ImportDialog } from './ImportDialog';
-import { copyrightLine, hasCopyrightDetails, isScripture, localDate, showsCopyright, songInfoOf, usageKey } from '../../shared/ccli';
+import { copyrightLine, hasCopyrightDetails, isScripture, localDate, showsCopyright, songInfoOf, usageKey, withSongInfo } from '../../shared/ccli';
 import { BiblePanel } from './BiblePanel';
 import { AudioPlayer, type AudioTrack } from './AudioPlayer';
 import { mediaName } from '../../shared/media';
@@ -58,6 +58,8 @@ import type { DocumentImportReport, ImportOptions } from '../../shared/import';
 import { StagePanel } from './StagePanel';
 import { MessagePanel } from './MessagePanel';
 import { VideoTransport } from './VideoTransport';
+import { PlanningCenterDialog, type PcoImport } from './PlanningCenterDialog';
+import { findLibrarySong, lyricsToSongText, parseCopyright, planName } from '../../shared/planningCenter';
 import { LowerThirdPanel } from './LowerThirdPanel';
 import { normalizeLowerThirds, rememberLowerThird } from '../../shared/lowerThirds';
 import { normalizeMessages, rememberMessage } from '../../shared/messages';
@@ -255,6 +257,7 @@ function Operator(): React.JSX.Element {
   const [audio, setAudio] = useState<AudioTrack | null>(null);
   const [showCcli, setShowCcli] = useState(false);
   const [showPrefs, setShowPrefs] = useState(false);
+  const [showPco, setShowPco] = useState(false);
   /** Where Preferences opens (Screens ▸ Stream Output ▸ How It Looks opens Screens). */
   const [prefsSection, setPrefsSection] = useState<PrefsSection | undefined>(undefined);
   /** Bumped when Bibles are added outside the Bible panel (by dropping a file), so it reloads its list. */
@@ -838,6 +841,58 @@ function Operator(): React.JSX.Element {
     const path = await window.vessel.saveFile(serializePresentation(presentation), name);
     addDeck(presentation, path ?? undefined, !path);
     if (path) setStatus(`Saved “${name}” to the library.`);
+  };
+
+  /**
+   * A Planning Center plan becomes a service playlist: songs already in the
+   * library are used as they are, others are made from Planning Center's
+   * lyrics (with their song details), and headers stay headers.
+   */
+  const importPlan = async ({ plan, items, otherAsHeadings }: PcoImport): Promise<void> => {
+    const service: ServiceItem[] = [];
+    let found = 0;
+    let made = 0;
+    const missing: string[] = [];
+    let known = library;
+    for (const it of items) {
+      if (it.kind === 'header' || (it.kind === 'other' && otherAsHeadings)) {
+        if (it.title) service.push({ id: newServiceId(), kind: 'header', name: it.title, color: '#5b6476' });
+        continue;
+      }
+      if (it.kind !== 'song' || !it.song) continue;
+      const match = findLibrarySong(it, known);
+      const arrangementName = it.song.arrangement || undefined;
+      if (match) {
+        found++;
+        service.push({ id: newServiceId(), kind: 'presentation', name: match.name, path: match.path, arrangementName });
+        continue;
+      }
+      if (!it.song.lyrics.trim()) {
+        missing.push(it.song.title);
+        continue;
+      }
+      const name = it.song.title;
+      let presentation = applyLyrics(sized(createPresentation(name, [])), lyricsToSongText(it.song.lyrics, it.song.sequence));
+      const { year, publisher } = parseCopyright(it.song.copyright);
+      presentation = withSongInfo(presentation, { title: name, authors: it.song.author, publisher, year, songNumber: it.song.ccli, display: false });
+      presentation = applyTheme(presentation, findTheme(themes, themes.defaultId));
+      const path = await window.vessel.saveFile(serializePresentation(presentation), name);
+      if (!path) continue;
+      made++;
+      // A song that comes twice in the plan is only made once.
+      known = [...known, { path, name, modified: Date.now(), slides: presentation.cues.length, search: name.toLowerCase() }];
+      service.push({ id: newServiceId(), kind: 'presentation', name, path });
+    }
+    const name = planName(plan);
+    const path = await window.vessel.writePlaylist(encodeService({ name, items: service }), name);
+    setPlaylistFiles(await window.vessel.listPlaylists());
+    refreshLibrary();
+    await selectPlaylist(path);
+    setStatus(
+      `Made the service playlist “${name}”: ${found} song${found === 1 ? '' : 's'} from your library${made ? `, ${made} new from Planning Center` : ''}.${
+        missing.length ? ` Left out (no lyrics in Planning Center): ${missing.join(', ')}.` : ''
+      }`
+    );
   };
 
   const changeThemes = (lib: ThemeLibrary): void => {
@@ -1494,6 +1549,8 @@ function Operator(): React.JSX.Element {
       case 'preferences':
         setPrefsSection(undefined);
         return setShowPrefs(true);
+      case 'planning-center':
+        return setShowPco(true);
       case 'stream-look':
         setPrefsSection('screens');
         return setShowPrefs(true);
@@ -2031,6 +2088,7 @@ function Operator(): React.JSX.Element {
           onClose={() => setShowCcli(false)}
         />
       )}
+      {showPco && <PlanningCenterDialog library={library} onImport={importPlan} onClose={() => setShowPco(false)} />}
       {showImport && <ImportDialog onImport={(o) => void importDocuments(o)} onCancel={() => setShowImport(false)} />}
       {showRemote && <RemoteDialog status={remote} onStatus={setRemote} onClose={() => setShowRemote(false)} />}
       {showNewSong && <NewSongDialog onCreate={(n, l) => void createSong(n, l)} onCancel={() => setShowNewSong(false)} />}
