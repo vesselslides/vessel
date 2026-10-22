@@ -17,7 +17,8 @@ import { getSettings, updateSettings } from './settings';
 import { migrateFromLumen, type MigrationReport } from './migrate';
 import { setupRemote, shutdownRemote } from './remote';
 import { setupContextMenu } from './contextMenu';
-import { setupAppMenu } from './appMenu';
+import { rebuildAppMenu, setupAppMenu } from './appMenu';
+import { normalizeStreamLook, normalizeStreamTarget, type StreamTarget } from '../shared/stream';
 import appIcon from '../../build/icon.png?asset';
 import type { ThemeLibrary } from '../shared/theme';
 import { addToMediaBin, createMediaFolder, deleteMediaFolder, handleMediaProtocol, loadMediaBin, loadMediaFolders, moveMedia, registerMediaScheme, relinkMediaBin, removeFromMediaBin, renameMediaFolder, setMediaMuted } from './media';
@@ -51,7 +52,7 @@ app.on('second-instance', () => {
 
 const preload = join(__dirname, '../preload/index.js');
 
-function loadPage(win: BrowserWindow, page: 'index' | 'output' | 'stage'): void {
+function loadPage(win: BrowserWindow, page: 'index' | 'output' | 'stage' | 'stream'): void {
   const devUrl = process.env['ELECTRON_RENDERER_URL'];
   if (!app.isPackaged && devUrl) void win.loadURL(`${devUrl}/${page}.html`);
   else void win.loadFile(join(__dirname, `../renderer/${page}.html`));
@@ -89,11 +90,12 @@ function createOperatorWindow(): void {
     operatorWindow = null;
     outputWindow?.close();
     stageWindow?.close();
+    streamWindow?.close();
   });
 }
 
 /** A borderless window covering one display, used for the audience and stage outputs. */
-function createScreenWindow(displayId: number, page: 'output' | 'stage', initial: () => [string, unknown]): BrowserWindow | null {
+function createScreenWindow(displayId: number, page: 'output' | 'stage' | 'stream', initial: () => [string, unknown]): BrowserWindow | null {
   const display = screen.getAllDisplays().find((d) => d.id === displayId);
   if (!display) return null;
   const { x, y, width, height } = display.bounds;
@@ -133,6 +135,61 @@ function setStageOutput(displayId: number | null): void {
   stageWindow?.on('closed', () => {
     stageWindow = null;
   });
+}
+
+// ---- Stream output: lyrics for streaming software, in a window to capture or on a display.
+
+let streamWindow: BrowserWindow | null = null;
+let streamTarget: StreamTarget = null;
+
+async function sendStreamLook(): Promise<void> {
+  streamWindow?.webContents.send('stream:look', normalizeStreamLook((await getSettings()).streamLook));
+}
+
+function setStreamOutput(target: StreamTarget): void {
+  const old = streamWindow;
+  streamWindow = null;
+  old?.close();
+  streamTarget = target;
+  if (target === 'window') {
+    // An ordinary window, so capture software can find it by name; sized like a 720p picture.
+    streamWindow = new BrowserWindow({
+      width: 1280,
+      height: 720,
+      useContentSize: true,
+      title: 'Vessel Stream Output',
+      backgroundColor: '#000000',
+      autoHideMenuBar: true,
+      show: false,
+      webPreferences: { preload, sandbox: false, contextIsolation: true, autoplayPolicy: 'no-user-gesture-required' }
+    });
+    streamWindow.setAspectRatio(16 / 9);
+    loadPage(streamWindow, 'stream');
+    streamWindow.once('ready-to-show', () => streamWindow?.showInactive());
+    // Keep the name the capture software looks for.
+    streamWindow.on('page-title-updated', (e) => e.preventDefault());
+    streamWindow.webContents.on('did-finish-load', () => streamWindow?.webContents.send('live:update', liveState));
+  } else if (target !== null) {
+    streamWindow = createScreenWindow(target, 'stream', () => ['live:update', liveState]);
+    if (!streamWindow) streamTarget = null;
+  }
+  const win = streamWindow;
+  win?.webContents.on('did-finish-load', () => void sendStreamLook());
+  win?.on('closed', () => {
+    // Closed by hand: the stream output is off.
+    if (streamWindow !== win) return;
+    streamWindow = null;
+    streamTarget = null;
+    void updateSettings({ streamOutput: null });
+    rebuildAppMenu();
+  });
+  rebuildAppMenu();
+}
+
+/** Choose where the stream output shows, and remember it for next time. */
+async function chooseStreamOutput(target: StreamTarget): Promise<Settings> {
+  setStreamOutput(normalizeStreamTarget(target));
+  return updateSettings({ streamOutput: streamTarget });
 }
 
 const PRESENTATION_EXTS = new Set(['.pro']);
@@ -273,6 +330,7 @@ function registerIpc(): void {
     if (patch.appearance) applyAppearance(next.appearance);
     // Imports made here colour their groups from the church's list.
     if (patch.groups) setGroupDefinitions(next.groups);
+    if (patch.streamLook) void sendStreamLook();
     return next;
   });
   ipcMain.handle('library:add-folder', async () => {
@@ -364,6 +422,7 @@ function registerIpc(): void {
 
   ipcMain.handle('output:set', (_e, displayId: number | null) => setOutput(displayId));
   ipcMain.handle('stage-output:set', (_e, displayId: number | null) => setStageOutput(displayId));
+  ipcMain.handle('stream-output:set', (_e, target: unknown) => chooseStreamOutput(normalizeStreamTarget(target)));
 
   ipcMain.on('stage:set', (_e, state: StageState) => {
     stageState = state;
@@ -374,6 +433,7 @@ function registerIpc(): void {
   ipcMain.on('live:set', (_e, state: LiveState) => {
     liveState = state;
     outputWindow?.webContents.send('live:update', state);
+    streamWindow?.webContents.send('live:update', state);
     operatorWindow?.webContents.send('live:update', state);
   });
 }
@@ -400,7 +460,7 @@ app.whenReady().then(async () => {
   registerIpc();
   setupRemote(() => operatorWindow);
   setupContextMenu();
-  setupAppMenu(() => operatorWindow, appIcon);
+  setupAppMenu(() => operatorWindow, appIcon, { get: () => streamTarget, set: (t) => void chooseStreamOutput(t) });
   void watchLibrary(notifyLibrary);
   applyAppearance((await getSettings()).appearance);
   setGroupDefinitions((await getSettings()).groups);

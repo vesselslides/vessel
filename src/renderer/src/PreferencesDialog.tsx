@@ -7,8 +7,11 @@ import { DEFAULT_IMPORT_OPTIONS, type ImportOptions } from '../../shared/import'
 import { SLIDE_SIZES } from '../../shared/pro/edit';
 import { presetOf, STAGE_PRESETS, type StageLayout } from '../../shared/stage';
 import type { DisplayInfo, MediaItem, MediaScale, Settings } from '../../shared/types';
+import type { RemoteStatus } from '../../shared/remote';
+import { ControlPrefs } from './ControlPrefs';
+import { KEY_COLOURS, normalizeStreamLook, normalizeStreamTarget, type StreamLook, type StreamTarget } from '../../shared/stream';
 
-type Section = 'general' | 'screens' | 'appearance' | 'groups' | 'sound' | 'media' | 'stage' | 'import' | 'ccli' | 'remote';
+export type Section = 'general' | 'screens' | 'appearance' | 'groups' | 'sound' | 'media' | 'stage' | 'import' | 'ccli' | 'remote' | 'control';
 
 const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: 'general', label: 'General' },
@@ -20,7 +23,8 @@ const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: 'stage', label: 'Stage display' },
   { id: 'import', label: 'Import' },
   { id: 'ccli', label: 'CCLI' },
-  { id: 'remote', label: 'Remote control' }
+  { id: 'remote', label: 'Remote control' },
+  { id: 'control', label: 'MIDI and Stream Deck' }
 ];
 
 const IMPORT_STORE = 'vessel.importOptions';
@@ -42,6 +46,7 @@ export function PreferencesDialog({
   stageDisplay,
   onOutput,
   onStageOutput,
+  onStreamOutput,
   transitionMs,
   onTransition,
   onSettings,
@@ -52,9 +57,11 @@ export function PreferencesDialog({
   stageLayout,
   onStageLayout,
   remoteEnabled,
+  remote,
   onOpenRemote,
   onOpenCcli,
-  onClose
+  onClose,
+  initialSection
 }: {
   settings: Settings | null;
   /** The media bin, to choose the logo from. */
@@ -65,6 +72,7 @@ export function PreferencesDialog({
   /** '' turns it off. */
   onOutput: (displayId: string) => void;
   onStageOutput: (displayId: string) => void;
+  onStreamOutput: (target: StreamTarget) => void;
   transitionMs: number;
   onTransition: (ms: number) => void;
   onSettings: (patch: Partial<Settings>) => void;
@@ -75,11 +83,16 @@ export function PreferencesDialog({
   stageLayout: StageLayout;
   onStageLayout: (layout: StageLayout) => void;
   remoteEnabled: boolean;
+  remote: RemoteStatus | null;
   onOpenRemote: () => void;
   onOpenCcli: () => void;
   onClose: () => void;
+  /** The page to open on (the Screens menu's stream settings open Screens). */
+  initialSection?: Section;
 }): React.JSX.Element {
-  const [section, setSection] = useState<Section>('general');
+  const [section, setSection] = useState<Section>(initialSection ?? 'general');
+  const streamLook = normalizeStreamLook(settings?.streamLook);
+  const look = (patch: Partial<StreamLook>): void => onSettings({ streamLook: { ...streamLook, ...patch } });
   const [imports, setImports] = useState<ImportOptions>(importOptions);
   const [licence, setLicence] = useState(settings?.ccliLicence ?? '');
   const [audioVolume, setAudioVolume] = useState(() => {
@@ -234,6 +247,21 @@ export function PreferencesDialog({
                   ))}
                 </select>
               </label>
+              <label className="pref-field">
+                Stream output
+                <select
+                  value={String(normalizeStreamTarget(settings?.streamOutput) ?? '')}
+                  onChange={(e) => onStreamOutput(e.target.value === '' ? null : e.target.value === 'window' ? 'window' : Number(e.target.value))}
+                >
+                  <option value="">Off</option>
+                  <option value="window">In a window (for OBS or vMix)</option>
+                  {displays.map((d, i) => (
+                    <option key={d.id} value={d.id} disabled={d.id === outputDisplay || d.id === stageDisplay}>
+                      {display(d, i)}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <p className="hint">Each screen fills its display at the display’s own resolution. One display can’t show both.</p>
               <label className="pref-check">
                 <input type="checkbox" checked={settings?.showOutputAtLaunch !== false} onChange={(e) => onSettings({ showOutputAtLaunch: e.target.checked })} />
@@ -248,6 +276,36 @@ export function PreferencesDialog({
                   <option value={1000}>1 second</option>
                   <option value={2000}>2 seconds</option>
                 </select>
+              </label>
+              <h3>Stream output</h3>
+              <p className="hint">
+                A second picture for livestreaming: the words on a solid colour that OBS, vMix or similar can key out, so they sit over your camera. Capture the
+                “Vessel Stream Output” window, or send it to a display or capture card.
+              </p>
+              <label className="pref-field">
+                Behind the words
+                <select value={streamLook.background} onChange={(e) => look({ background: e.target.value as StreamLook['background'] })}>
+                  {Object.entries(KEY_COLOURS).map(([id, c]) => (
+                    <option key={id} value={id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="pref-field">
+                Words
+                <select value={streamLook.style} onChange={(e) => look({ style: e.target.value as StreamLook['style'] })}>
+                  <option value="lower">Along the bottom (lower-third lyrics)</option>
+                  <option value="slide">As on the slide</option>
+                </select>
+              </label>
+              <label className="pref-check">
+                <input type="checkbox" checked={streamLook.media} onChange={(e) => look({ media: e.target.checked })} />
+                Show background pictures and videos (instead of the colour)
+              </label>
+              <label className="pref-check">
+                <input type="checkbox" checked={streamLook.overlays} onChange={(e) => look({ overlays: e.target.checked })} />
+                Show lower thirds and messages
               </label>
               <h3>Slides</h3>
               <label className="pref-field">
@@ -548,6 +606,7 @@ export function PreferencesDialog({
               </div>
             </>
           )}
+          {section === 'control' && <ControlPrefs settings={settings} onSettings={onSettings} remote={remote} onOpenRemote={onOpenRemote} />}
         </div>
 
         <div className="preferences-done">

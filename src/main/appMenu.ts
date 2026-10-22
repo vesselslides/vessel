@@ -5,6 +5,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, type Me
 import type { AppCommand } from '../shared/shortcuts';
 import { checkForUpdates } from './updates';
 import { backUp, restore } from './backup';
+import type { StreamTarget } from '../shared/stream';
 
 export interface MenuState {
   mode: 'show' | 'edit';
@@ -15,6 +16,7 @@ export interface MenuState {
 
 let state: MenuState = { mode: 'show', outputId: null, stageId: null, hasPresentation: false };
 let operator: () => BrowserWindow | null = () => null;
+let stream: { get: () => StreamTarget; set: (t: StreamTarget) => void } = { get: () => null, set: () => undefined };
 let iconPath = '';
 
 const ABOUT = 'Presentation software for worship.';
@@ -45,6 +47,28 @@ const send = (command: AppCommand) => () => operator()?.webContents.send('app:co
  * keys reaching text boxes.
  */
 const shown = (accelerator: string): Partial<MenuItemConstructorOptions> => ({ accelerator, registerAccelerator: false });
+
+/** The stream output: off, in a window for capture software, or full screen on a display the other outputs aren't using. */
+function streamMenu(): MenuItemConstructorOptions[] {
+  const current = stream.get();
+  const primary = screen.getPrimaryDisplay().id;
+  return [
+    { label: 'Off', type: 'radio', checked: current === null, click: () => stream.set(null) },
+    { label: 'In a Window (for OBS or vMix)', type: 'radio', checked: current === 'window', click: () => stream.set('window') },
+    { type: 'separator' },
+    ...screen.getAllDisplays().map(
+      (d, i): MenuItemConstructorOptions => ({
+        label: `${d.label || `Display ${i + 1}`} ${d.bounds.width}×${d.bounds.height}${d.id === primary ? ' (main)' : ''}`,
+        type: 'radio',
+        checked: current === d.id,
+        enabled: d.id !== state.outputId && d.id !== state.stageId,
+        click: () => stream.set(d.id)
+      })
+    ),
+    { type: 'separator' },
+    { label: 'How It Looks…', click: send('stream-look') }
+  ];
+}
 
 function screensMenu(kind: 'output' | 'stage'): MenuItemConstructorOptions[] {
   const current = kind === 'output' ? state.outputId : state.stageId;
@@ -151,7 +175,8 @@ export function rebuildAppMenu(): void {
       label: mnemonic('&Screens'),
       submenu: [
         { label: 'Audience Output', submenu: screensMenu('output') },
-        { label: 'Stage Display', submenu: screensMenu('stage') }
+        { label: 'Stage Display', submenu: screensMenu('stage') },
+        { label: 'Stream Output', submenu: streamMenu() }
       ]
     },
     {
@@ -178,8 +203,9 @@ export function rebuildAppMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-export function setupAppMenu(getOperator: () => BrowserWindow | null, icon: string): void {
+export function setupAppMenu(getOperator: () => BrowserWindow | null, icon: string, streamOutput: typeof stream): void {
   operator = getOperator;
+  stream = streamOutput;
   iconPath = icon;
   // The version shows which build is running (arm64 or x64), e.g. "0.1.0 (arm64)".
   app.setAboutPanelOptions({ applicationName: 'Vessel', applicationVersion: app.getVersion(), version: process.arch, credits: ABOUT, iconPath: icon });

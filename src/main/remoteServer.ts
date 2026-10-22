@@ -4,6 +4,7 @@
 import { randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { CONTROL_ACTIONS, isControlAction } from '../shared/control';
 import { parseRemoteCommand, type RemoteCommand, type RemoteState } from '../shared/remote';
 
 export interface RemoteAssets {
@@ -139,6 +140,10 @@ export class RemoteServer {
       if (route === 'GET /app.js') return this.send(res, 200, this.opts.assets.js, 'text/javascript; charset=utf-8');
       if (route === 'GET /app.css') return this.send(res, 200, this.opts.assets.css, 'text/css; charset=utf-8');
 
+      // Stream Deck, Companion and similar: /api/control/<action>, with the PIN in an
+      // X-Vessel-Pin header (or ?pin= for tools that can only open a web address).
+      if (url.pathname === '/api/control' || url.pathname.startsWith('/api/control/')) return this.control(req, res, url);
+
       // State-changing requests must come from our page: other sites can't set this header.
       if (req.method === 'POST' && req.headers['x-vessel'] !== '1') return this.send(res, 403, 'Forbidden');
 
@@ -176,23 +181,51 @@ export class RemoteServer {
     }
   }
 
-  private async login(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  /** Seconds this address must wait after too many wrong PINs, or 0. */
+  private lockedFor(req: IncomingMessage): number {
+    const record = this.failures.get(req.socket.remoteAddress ?? 'unknown');
     const now = (this.opts.now ?? Date.now)();
+    return record && record.until > now ? Math.ceil((record.until - now) / 1000) : 0;
+  }
+
+  /** Check a PIN, counting wrong ones; on the last allowed one, lock this address out and start counting again after. */
+  private checkPin(req: IncomingMessage, pin: string): boolean {
     const who = req.socket.remoteAddress ?? 'unknown';
-    const record = this.failures.get(who);
-    if (record && record.until > now) {
-      return this.send(res, 429, String(Math.ceil((record.until - now) / 1000)), 'text/plain', { 'Retry-After': String(Math.ceil((record.until - now) / 1000)) });
+    if (samePin(pin, this.opts.pin())) {
+      this.failures.delete(who);
+      return true;
     }
+    const count = (this.failures.get(who)?.count ?? 0) + 1;
+    const locked = count >= (this.opts.maxAttempts ?? 5);
+    this.failures.set(who, locked ? { count: 0, until: (this.opts.now ?? Date.now)() + (this.opts.lockoutMs ?? 60_000) } : { count, until: 0 });
+    return false;
+  }
+
+  private tooMany(res: ServerResponse, seconds: number): void {
+    this.send(res, 429, String(seconds), 'text/plain', { 'Retry-After': String(seconds) });
+  }
+
+  private control(req: IncomingMessage, res: ServerResponse, url: URL): void {
+    if (req.method !== 'GET' && req.method !== 'POST') return this.send(res, 405, 'Use GET or POST');
+    const wait = this.lockedFor(req);
+    if (wait) return this.tooMany(res, wait);
+    const header = req.headers['x-vessel-pin'];
+    const pin = (typeof header === 'string' ? header : (url.searchParams.get('pin') ?? '')).trim();
+    if (!this.checkPin(req, pin)) return this.send(res, 401, 'Wrong PIN');
+    const name = decodeURIComponent(url.pathname.slice('/api/control/'.length));
+    // The list of actions, for setting up buttons.
+    if (url.pathname === '/api/control' || !name) return this.send(res, 200, JSON.stringify(CONTROL_ACTIONS.map((a) => ({ action: a.id, label: a.label }))), 'application/json');
+    if (!isControlAction(name)) return this.send(res, 404, `No action called ${name}`);
+    this.opts.onCommand({ type: 'action', action: name });
+    return this.send(res, 204);
+  }
+
+  private async login(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const wait = this.lockedFor(req);
+    if (wait) return this.tooMany(res, wait);
     const body = (await this.body(req)) as { pin?: unknown } | null;
     const pin = typeof body?.pin === 'string' ? body.pin.trim() : '';
-    if (!samePin(pin, this.opts.pin())) {
-      // Count wrong PINs; on the last allowed one, lock this address out and start counting again after.
-      const count = (record?.count ?? 0) + 1;
-      const locked = count >= (this.opts.maxAttempts ?? 5);
-      this.failures.set(who, locked ? { count: 0, until: now + (this.opts.lockoutMs ?? 60_000) } : { count, until: 0 });
-      return this.send(res, 401, 'Wrong PIN');
-    }
-    this.failures.delete(who);
+    if (!this.checkPin(req, pin)) return this.send(res, 401, 'Wrong PIN');
     const token = randomBytes(32).toString('hex');
     this.sessions.add(token);
     return this.send(res, 204, '', 'text/plain', { 'Set-Cookie': `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict` });

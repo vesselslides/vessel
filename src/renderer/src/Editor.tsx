@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { songInfoOf, withSongInfo } from '../../shared/ccli';
 import { SongInfoDialog } from './SongInfoDialog';
 import type { Presentation } from '../../shared/gen/presentation_pb';
@@ -14,6 +14,7 @@ import {
   moveGroup,
   moveSlide,
   placeSlideElement,
+  planLyrics,
   presentationToLyrics,
   removeSlideElement,
   renameArrangement,
@@ -29,6 +30,7 @@ import {
 import { backgroundForPath } from '../../shared/pro/background';
 import { IMAGE_PLACEMENTS, placementOf, type ImagePlacement } from '../../shared/pro/graphics';
 import { layoutWithText } from '../../shared/pro/presentation';
+import { tidyLyrics } from '../../shared/import/lyrics';
 import { mediaName } from '../../shared/media';
 import type { Deck, GroupView, MediaItem, SlideView } from '../../shared/types';
 import { MediaView } from './AudienceView';
@@ -331,22 +333,93 @@ function ArrangementBar({ deck, apply }: { deck: Deck; apply: Apply }): React.JS
   );
 }
 
-/** The whole song as one text box: "[Group]" headers, blank lines between slides. */
-function LyricsEditor({ presentation, apply, onClose }: { presentation: Presentation; apply: Apply; onClose: () => void }): React.JSX.Element {
-  const [text, setText] = useState(() => presentationToLyrics(presentation));
+const LINES_PER_SLIDE = [
+  { value: 0, label: 'Slides as typed' },
+  { value: 2, label: 'Up to 2 lines a slide' },
+  { value: 3, label: 'Up to 3 lines a slide' },
+  { value: 4, label: 'Up to 4 lines a slide' },
+  { value: 6, label: 'Up to 6 lines a slide' }
+];
+
+/**
+ * The whole song as one text box: "[Group]" headers, blank lines between
+ * slides, a bare "[Chorus]" to sing it again. Beside it, the slides it makes.
+ */
+function LyricsEditor({ presentation, deck, apply, onClose }: { presentation: Presentation; deck: Deck; apply: Apply; onClose: () => void }): React.JSX.Element {
+  const original = useMemo(() => presentationToLyrics(presentation), [presentation]);
+  const [text, setText] = useState(original);
+  const [linesPerSlide, setLinesPerSlide] = useState(0);
+  const [note, setNote] = useState('');
+  const plan = useMemo(() => planLyrics(text, linesPerSlide), [text, linesPerSlide]);
+  const colorOf = useMemo(() => new Map(deck.groups.map((g) => [g.name.trim().toLowerCase(), g.color])), [deck.groups]);
+  const slides = plan.groups.reduce((n, g) => n + g.slides.length, 0);
+  const longest = Math.max(0, ...plan.groups.flatMap((g) => g.slides.map((s) => s.split('\n').length)));
+  const changed = text !== original || linesPerSlide > 0;
+
+  const tidy = (): void => {
+    const result = tidyLyrics(text);
+    setText(result.text);
+    const bits = [
+      result.removedChordLines ? `${result.removedChordLines} chord line${result.removedChordLines === 1 ? '' : 's'} taken out` : '',
+      result.ccli.songNumber || result.ccli.publisher ? 'copyright lines taken out (add them under Song info)' : ''
+    ].filter(Boolean);
+    setNote(bits.length ? `Tidied: ${bits.join(', ')}.` : 'Tidied: labels written as [Verse 1], [Chorus] and so on.');
+  };
+
   return (
     <div className="lyrics-editor">
       <p className="hint">
-        Blank lines separate slides; a line like <code>[Chorus]</code> starts a group. Groups with the same name keep their colour, styling, backgrounds
-        and pictures. Undo with ⌘Z / Ctrl+Z.
+        Blank lines separate slides; a line like <code>[Chorus]</code> starts a group, and <code>[Chorus]</code> on its own again sings it again. Groups with the
+        same name keep their colour, styling, backgrounds and pictures. Undo with ⌘Z / Ctrl+Z.
       </p>
-      <textarea autoFocus value={text} onChange={(e) => setText(e.target.value)} spellCheck />
+      <div className="lyrics-tools">
+        <button onClick={tidy} title="Take out chords and copyright lines, and turn labels like “Verse 1:” or “CHORUS” into groups">
+          Tidy pasted lyrics
+        </button>
+        <select value={linesPerSlide} onChange={(e) => setLinesPerSlide(Number(e.target.value))} title="Split long slides into shorter ones">
+          {LINES_PER_SLIDE.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        {note && <span className="muted">{note}</span>}
+      </div>
+      <div className="lyrics-columns">
+        <textarea autoFocus value={text} onChange={(e) => setText(e.target.value)} spellCheck aria-label="Song lyrics" />
+        <div className="lyrics-preview" aria-label="Slides this makes">
+          <div className="lyrics-summary">
+            {plan.groups.length} group{plan.groups.length === 1 ? '' : 's'}, {slides} slide{slides === 1 ? '' : 's'}
+            {longest > 6 && <span className="lyrics-warn"> · a slide has {longest} lines; try splitting</span>}
+          </div>
+          {plan.repeats && (
+            <div className="lyrics-order" title="Saved as the “Song order” arrangement">
+              Sung order: {plan.order.map((i) => plan.groups[i].name || 'Untitled').join(' → ')}
+            </div>
+          )}
+          {plan.groups.map((g, gi) => (
+            <div key={gi} className="lyrics-group">
+              <div className="lyrics-group-name" style={{ borderColor: colorOf.get(g.name.trim().toLowerCase()) ?? 'var(--border-strong)' }}>
+                {g.name || 'Untitled'}
+                {!colorOf.has(g.name.trim().toLowerCase()) && g.name && <span className="token-badge">new</span>}
+              </div>
+              {g.slides.map((slide, si) => (
+                <div key={si} className="lyrics-slide">
+                  {slide}
+                </div>
+              ))}
+              {!g.slides.length && <div className="lyrics-slide empty">No slides</div>}
+            </div>
+          ))}
+        </div>
+      </div>
       <div className="modal-actions">
         <button onClick={onClose}>Cancel</button>
         <button
           className="primary"
+          disabled={!changed}
           onClick={() => {
-            apply((p) => applyLyrics(p, text));
+            apply((p) => applyLyrics(p, text, linesPerSlide));
             onClose();
           }}
         >
@@ -422,7 +495,7 @@ export function Editor({
         />
       )}
       {lyricsMode ? (
-        <LyricsEditor presentation={presentation} apply={apply} onClose={() => setLyricsMode(false)} />
+        <LyricsEditor presentation={presentation} deck={deck} apply={apply} onClose={() => setLyricsMode(false)} />
       ) : (
         <>
           <ArrangementBar deck={deck} apply={apply} />

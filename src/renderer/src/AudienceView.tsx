@@ -19,7 +19,7 @@ interface Layer<T> {
  * Keep the previous value on screen while the new one fades in, then drop it.
  * Returns the layers to render, oldest first.
  */
-function useCrossfade<T>(value: T, same: (a: T, b: T) => boolean, ms: number): Layer<T>[] {
+export function useCrossfade<T>(value: T, same: (a: T, b: T) => boolean, ms: number): Layer<T>[] {
   const counter = useRef(0);
   const [layers, setLayers] = useState<Layer<T>[]>([{ key: 0, value, leaving: false }]);
 
@@ -117,6 +117,29 @@ function MessageBar({ message }: { message: LiveMessage }): React.JSX.Element {
   return <div className="audience-message">{fillMessage(message.text, message.timer, now)}</div>;
 }
 
+/** The lower third and the message, over the slides; each fades out with its last words still showing. */
+export function LiveOverlays({ live }: { live: LiveState }): React.JSX.Element {
+  const lastMessage = useRef<LiveMessage | null>(null);
+  if (live.message) lastMessage.current = live.message;
+  const message = live.message ?? lastMessage.current;
+  const lastLowerThird = useRef<LowerThird | null>(null);
+  if (live.lowerThird) lastLowerThird.current = live.lowerThird;
+  const lowerThird = live.lowerThird ?? lastLowerThird.current;
+  return (
+    <>
+      <div className={`lower-third-layer ${live.lowerThird ? 'on' : ''} ${live.message ? 'above-message' : ''}`}>
+        {lowerThird && (
+          <div className="lower-third" style={{ borderColor: lowerThird.color }}>
+            <div className="lower-third-title">{lowerThird.title}</div>
+            {lowerThird.subtitle && <div className="lower-third-subtitle">{lowerThird.subtitle}</div>}
+          </div>
+        )}
+      </div>
+      <div className={`audience-message-layer ${live.message ? 'on' : ''}`}>{message && <MessageBar message={message} />}</div>
+    </>
+  );
+}
+
 /** The audience picture: background media with text on top, both crossfading. */
 export function AudienceView({ live, muted }: { live: LiveState; muted: boolean }): React.JSX.Element {
   const ms = live.transitionMs;
@@ -131,13 +154,6 @@ export function AudienceView({ live, muted }: { live: LiveState; muted: boolean 
   // Keep the last logo while it fades out.
   const lastLogo = useRef<string | null>(null);
   if (live.logo) lastLogo.current = live.logo;
-  // And the last message.
-  const lastMessage = useRef<LiveMessage | null>(null);
-  if (live.message) lastMessage.current = live.message;
-  const message = live.message ?? lastMessage.current;
-  const lastLowerThird = useRef<LowerThird | null>(null);
-  if (live.lowerThird) lastLowerThird.current = live.lowerThird;
-  const lowerThird = live.lowerThird ?? lastLowerThird.current;
 
   return (
     <div className="stage" style={vars}>
@@ -163,15 +179,7 @@ export function AudienceView({ live, muted }: { live: LiveState; muted: boolean 
           {l.value.copyright && <div className="ccli-line">{l.value.copyright}</div>}
         </div>
       ))}
-      <div className={`lower-third-layer ${live.lowerThird ? 'on' : ''} ${live.message ? 'above-message' : ''}`}>
-        {lowerThird && (
-          <div className="lower-third" style={{ borderColor: lowerThird.color }}>
-            <div className="lower-third-title">{lowerThird.title}</div>
-            {lowerThird.subtitle && <div className="lower-third-subtitle">{lowerThird.subtitle}</div>}
-          </div>
-        )}
-      </div>
-      <div className={`audience-message-layer ${live.message ? 'on' : ''}`}>{message && <MessageBar message={message} />}</div>
+      <LiveOverlays live={live} />
       {/* The church's logo (the Logo button), on black, over everything but a blackout. */}
       <div className={`stage-logo ${live.logo ? 'on' : ''}`}>{(live.logo || lastLogo.current) && <img src={mediaUrl((live.logo || lastLogo.current)!)} alt="" draggable={false} />}</div>
       <div className={`stage-black ${live.blackout ? 'on' : ''}`} />

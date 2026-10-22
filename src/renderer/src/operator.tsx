@@ -16,7 +16,7 @@ import { addSlideImage, appendPresentation, resizePresentation, selectArrangemen
 import { EMPTY_THEME_LIBRARY, findTheme, type Theme, type ThemeLibrary } from '../../shared/theme';
 import type { RemoteCommand, RemoteState, RemoteStatus } from '../../shared/remote';
 import type { AppCommand } from '../../shared/shortcuts';
-import { pauseTimer, resetTimer, startTimer } from '../../shared/timer';
+import { isRunning, pauseTimer, resetTimer, startTimer } from '../../shared/timer';
 import {
   INITIAL_LIVE,
   INITIAL_STAGE,
@@ -48,7 +48,7 @@ import { BiblePanel } from './BiblePanel';
 import { AudioPlayer, type AudioTrack } from './AudioPlayer';
 import { mediaName } from '../../shared/media';
 import { MutedIcon, PlayIcon, SettingsIcon, SoundIcon, WarningIcon } from './Icons';
-import { PreferencesDialog } from './PreferencesDialog';
+import { PreferencesDialog, type Section as PrefsSection } from './PreferencesDialog';
 import { TimerDialog } from './TimerDialog';
 import { CcliDialog } from './CcliDialog';
 import { normalizeStageLayout, type StageLayout } from '../../shared/stage';
@@ -62,7 +62,9 @@ import { LowerThirdPanel } from './LowerThirdPanel';
 import { normalizeLowerThirds, rememberLowerThird } from '../../shared/lowerThirds';
 import { normalizeMessages, rememberMessage } from '../../shared/messages';
 import { mediaPathsOf, relinkMedia, usesAny } from '../../shared/pro/relink';
-import { startClock } from '../../shared/videoClock';
+import { pauseClock, playClock, startClock } from '../../shared/videoClock';
+import { actionForTrigger, normalizeMidi, type ControlAction } from '../../shared/control';
+import { listenMidi } from './midi';
 import { ThemeDialog } from './ThemeDialog';
 import { MediaBin } from './MediaBin';
 import { AudienceView, MediaView } from './AudienceView';
@@ -253,6 +255,8 @@ function Operator(): React.JSX.Element {
   const [audio, setAudio] = useState<AudioTrack | null>(null);
   const [showCcli, setShowCcli] = useState(false);
   const [showPrefs, setShowPrefs] = useState(false);
+  /** Where Preferences opens (Screens ▸ Stream Output ▸ How It Looks opens Screens). */
+  const [prefsSection, setPrefsSection] = useState<PrefsSection | undefined>(undefined);
   /** Bumped when Bibles are added outside the Bible panel (by dropping a file), so it reloads its list. */
   const [bibleVersion, setBibleVersion] = useState(0);
   /** The open passage (an unsaved presentation reused for each passage shown from the Bible). */
@@ -1315,6 +1319,9 @@ function Operator(): React.JSX.Element {
     if (settings.outputDisplayId != null && ids.has(settings.outputDisplayId) && settings.showOutputAtLaunch !== false) changeOutput(String(settings.outputDisplayId));
     if (settings.stageDisplayId != null && ids.has(settings.stageDisplayId) && settings.stageDisplayId !== settings.outputDisplayId)
       changeStageOutput(String(settings.stageDisplayId));
+    // The stream output comes back too, in its window or on its display if that's still there.
+    const stream = settings.streamOutput;
+    if (settings.showOutputAtLaunch !== false && (stream === 'window' || (typeof stream === 'number' && ids.has(stream)))) void window.vessel.setStreamOutput(stream);
   });
 
   const displayOptions = (taken: number | null): React.JSX.Element[] =>
@@ -1371,6 +1378,60 @@ function Operator(): React.JSX.Element {
   }, [remoteState]);
   useEffect(() => window.vessel.onRemoteStateRequest(() => window.vessel.setRemoteState(remoteStateRef.current)), []);
 
+  /** Actions from MIDI, a Stream Deck or Companion: the same as the buttons and keys. */
+  const runControl = useRef<(a: ControlAction) => void>(() => undefined);
+  runControl.current = (a) => {
+    const now = Date.now();
+    switch (a) {
+      case 'next':
+        return void step(1);
+      case 'prev':
+        return void step(-1);
+      case 'clear':
+        return clear();
+      case 'clear-media':
+        return showBackground(null);
+      case 'clear-all':
+        return clearAll();
+      case 'black':
+        return toggleBlackout();
+      case 'logo':
+        return toggleLogo();
+      case 'video': {
+        const c = liveRef.current.videoClock;
+        const loop = !!liveRef.current.background?.loop;
+        if (c) pushLive({ videoClock: c.playing ? pauseClock(c, now, NaN, loop) : playClock(c, now, NaN, loop) });
+        return;
+      }
+      case 'timer': {
+        const t = stageRef.current.timer;
+        return pushStage({ timer: isRunning(t) ? pauseTimer(t, now) : startTimer(t, now) });
+      }
+      case 'timer-reset':
+        return pushStage({ timer: resetTimer(stageRef.current.timer) });
+      case 'hide-message':
+        return pushLive({ message: null });
+      case 'hide-lower-third':
+        return pushLive({ lowerThird: null });
+    }
+  };
+
+  // MIDI (Preferences ▸ Control): each note or controller set there runs its action.
+  const midi = normalizeMidi(settings?.midi);
+  const midiRef = useRef(midi);
+  midiRef.current = midi;
+  useEffect(() => {
+    if (!midi.enabled) return;
+    return listenMidi((trigger, input) => {
+      const m = midiRef.current;
+      if (m.input && m.input !== input) return;
+      // Preferences is learning a new trigger: don't run anything meanwhile.
+      if (document.querySelector('.midi-learning')) return;
+      const action = actionForTrigger(m.bindings, trigger);
+      if (action) runControl.current(action);
+    });
+  }, [midi.enabled]);
+
   // Phone commands run through the same actions as the keyboard and mouse.
   const remoteCommand = useRef<(c: RemoteCommand) => void>(() => undefined);
   remoteCommand.current = (c) => {
@@ -1397,6 +1458,8 @@ function Operator(): React.JSX.Element {
       }
       case 'message':
         return pushStage({ message: c.text });
+      case 'action':
+        return runControl.current(c.action);
     }
   };
   useEffect(() => window.vessel.onRemoteCommand((c) => remoteCommand.current(c)), []);
@@ -1429,6 +1492,10 @@ function Operator(): React.JSX.Element {
       case 'ccli':
         return setShowCcli(true);
       case 'preferences':
+        setPrefsSection(undefined);
+        return setShowPrefs(true);
+      case 'stream-look':
+        setPrefsSection('screens');
         return setShowPrefs(true);
       case 'open-playlist':
         return void openPlaylist();
@@ -1908,6 +1975,8 @@ function Operator(): React.JSX.Element {
           stageDisplay={stageDisplay}
           onOutput={changeOutput}
           onStageOutput={changeStageOutput}
+          onStreamOutput={(target) => void window.vessel.setStreamOutput(target).then(setSettings)}
+          initialSection={prefsSection}
           transitionMs={live.transitionMs}
           onTransition={changeTransition}
           onSettings={(patch) => void window.vessel.updateSettings(patch).then(setSettings)}
@@ -1918,6 +1987,7 @@ function Operator(): React.JSX.Element {
           stageLayout={stage.layout ?? normalizeStageLayout(undefined)}
           onStageLayout={changeStageLayout}
           remoteEnabled={!!remote?.enabled}
+          remote={remote}
           onOpenRemote={() => {
             setShowPrefs(false);
             void openRemote();
@@ -1926,7 +1996,10 @@ function Operator(): React.JSX.Element {
             setShowPrefs(false);
             setShowCcli(true);
           }}
-          onClose={() => setShowPrefs(false)}
+          onClose={() => {
+            setShowPrefs(false);
+            setPrefsSection(undefined);
+          }}
         />
       )}
       {askTimer && (

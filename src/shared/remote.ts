@@ -1,5 +1,6 @@
 // What a phone or tablet sees and can do through the remote control.
 import type { TimerState } from './timer';
+import { isControlAction, type ControlAction } from './control';
 
 export interface RemoteSlide {
   text: string;
@@ -26,7 +27,9 @@ export type RemoteCommand =
   | { type: 'goto'; index: number }
   | { type: 'openRow'; row: number }
   | { type: 'timer'; action: 'start' | 'pause' | 'reset' }
-  | { type: 'message'; text: string };
+  | { type: 'message'; text: string }
+  /** Anything else a Stream Deck, Companion or MIDI can do. */
+  | { type: 'action'; action: ControlAction };
 
 export const MAX_MESSAGE_LENGTH = 200;
 
@@ -54,6 +57,8 @@ export function parseRemoteCommand(input: unknown): RemoteCommand | null {
       return c.action === 'start' || c.action === 'pause' || c.action === 'reset' ? { type: 'timer', action: c.action } : null;
     case 'message':
       return typeof c.text === 'string' ? { type: 'message', text: c.text.slice(0, MAX_MESSAGE_LENGTH) } : null;
+    case 'action':
+      return isControlAction(c.action) ? { type: 'action', action: c.action } : null;
     default:
       return null;
   }

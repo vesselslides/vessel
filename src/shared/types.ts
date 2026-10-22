@@ -12,6 +12,8 @@ import type { LiveMessage, SavedMessage } from './messages';
 import type { LowerThird, SavedLowerThird } from './lowerThirds';
 import { INITIAL_TIMER, type TimerState } from './timer';
 import type { VideoClock } from './videoClock';
+import type { MidiSettings } from './control';
+import type { StreamLook, StreamTarget } from './stream';
 
 /** Media that can be a background or a picture on a slide. */
 export type MediaKind = 'image' | 'video';
@@ -336,6 +338,11 @@ export interface Settings {
   lowerThirds?: SavedLowerThird[];
   /** Audience messages used before, most recent first. */
   messages?: SavedMessage[];
+  /** The stream output: where it shows (off, a window, or a display) and how it looks. */
+  streamOutput?: StreamTarget;
+  streamLook?: StreamLook;
+  /** MIDI control: on or off, which device, and which note or controller runs what. */
+  midi?: MidiSettings;
   /** Look for a newer Vessel once a day when it starts. On unless turned off. */
   checkUpdates?: boolean;
   lastUpdateCheck?: number;
@@ -437,6 +444,10 @@ export interface VesselApi {
   backUp(): Promise<void>;
   /** Restore a backup (asks which), then restart. */
   restoreBackup(): Promise<void>;
+  /** Show the stream output in a window, on a display, or not at all; returns the settings with it saved. */
+  setStreamOutput(target: StreamTarget): Promise<Settings>;
+  /** The stream window hears how it should look. */
+  onStreamLook(listener: (look: StreamLook) => void): () => void;
   /** Look for a newer Vessel now and say what was found. */
   checkForUpdates(): Promise<void>;
   /** Which of these media files can't be found. */

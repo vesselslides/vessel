@@ -285,3 +285,22 @@ export function lyricsToPresentation(fileName: string, text: string, opts: Lyric
   }
   return stanzasToPresentation((title ?? extracted.title ?? fileName).trim() || fileName, extracted, opts);
 }
+
+/**
+ * Tidy lyrics pasted into the song text box: chord lines and [G] chords out,
+ * "Verse 1:" or "CHORUS" labels as [Verse 1] and [Chorus], CCLI and copyright
+ * lines out, and repeats written as a bare [Chorus] in the sung order.
+ */
+export function tidyLyrics(text: string): { text: string; removedChordLines: number; ccli: Extracted['ccli'] } {
+  const extracted = extractStanzas(text, { linesPerSlide: 0, removeChords: true });
+  const { groups, order } = arrangeStanzas(extracted.stanzas, 0);
+  const written = new Set<number>();
+  const blocks = order.map((i) => {
+    const g = groups[i];
+    const header = g.name ? `[${g.name}]` : '';
+    if (written.has(i)) return header;
+    written.add(i);
+    return [header, g.slides.join('\n\n')].filter(Boolean).join('\n');
+  });
+  return { text: blocks.filter(Boolean).join('\n\n'), removedChordLines: extracted.removedChordLines, ccli: extracted.ccli };
+}

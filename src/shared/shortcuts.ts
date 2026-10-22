@@ -26,6 +26,7 @@ export type AppCommand =
   | 'preferences'
   | 'remote'
   | 'shortcuts'
+  | 'stream-look'
   | `output:${string}`
   | `stage:${string}`;
 

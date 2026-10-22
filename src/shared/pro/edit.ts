@@ -4,7 +4,7 @@ import { clone, create } from '@bufbuild/protobuf';
 import { Cue_CompletionActionType, Cue_CompletionTargetType, CueSchema, type Cue } from '../gen/presentation_pb';
 import { Presentation_ArrangementSchema, PresentationSchema, type Presentation, type Presentation_CueGroup } from '../gen/presentation_pb';
 import { Slide_ElementSchema, type Slide_Element } from '../gen/presentation_pb';
-import { newCueGroup, newSlideCue, newUuid, parseLyrics, presentationToDeck, slideCue, slideOfCue, slideTextOfCue, SLIDE_HEIGHT, SLIDE_WIDTH, textElement, textElements, uuidOf, hexToColor } from './presentation';
+import { newCueGroup, newSlideCue, newUuid, presentationToDeck, slideCue, slideOfCue, slideTextOfCue, SLIDE_HEIGHT, SLIDE_WIDTH, textElement, textElements, uuidOf, hexToColor } from './presentation';
 import type { Background, SlideAdvance } from '../types';
 import { backgroundAction, isBackgroundAction } from './background';
 import { plainTextToRtf, replaceRtfText, rtfToPlainText } from './rtf';
@@ -215,14 +215,79 @@ export function presentationToLyrics(p: Presentation): string {
     .join('\n\n');
 }
 
+/** How lyrics text becomes a song: each group once, with its slides, and the order they're sung in. */
+export interface LyricsPlan {
+  groups: Array<{ name: string; slides: string[] }>;
+  /** Indexes into `groups`, in sung order. */
+  order: number[];
+  /** A section comes round again (a bare "[Chorus]", or the same chorus typed out again). */
+  repeats: boolean;
+}
+
+/** Split a slide into slides of at most `size` lines (0 leaves it whole). */
+function splitLines(slide: string, size: number): string[] {
+  const lines = slide.split('\n');
+  if (size <= 0 || lines.length <= size) return [slide];
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i += size) out.push(lines.slice(i, i + size).join('\n'));
+  return out;
+}
+
+/**
+ * Read lyrics text: blank lines separate slides, "[Group]" starts a group. A
+ * group name used again with no slides under it (or the same slides) is a
+ * repeat, so it's sung again rather than made twice.
+ */
+export function planLyrics(text: string, linesPerSlide = 0): LyricsPlan {
+  const plan: LyricsPlan = { groups: [], order: [], repeats: false };
+  const same = (a: string, b: string): boolean => a.trim().toLowerCase() === b.trim().toLowerCase();
+  for (const raw of text.replace(/\r\n?/g, '\n').split(/\n\s*\n/)) {
+    const lines = raw.split('\n');
+    if (/^\s*\[(.+)\]\s*$/.test(lines[0] ?? '')) {
+      // Start of a group: the slides that follow belong to it.
+      const name = /^\s*\[(.+)\]\s*$/.exec(lines[0])![1].trim();
+      plan.groups.push({ name, slides: [] });
+      plan.order.push(plan.groups.length - 1);
+      lines.shift();
+    }
+    const body = lines.join('\n').trim();
+    if (!body) continue;
+    if (!plan.groups.length) {
+      plan.groups.push({ name: '', slides: [] });
+      plan.order.push(0);
+    }
+    plan.groups[plan.groups.length - 1].slides.push(...splitLines(body, linesPerSlide));
+  }
+  // Fold repeats into the group they repeat.
+  const groups: LyricsPlan['groups'] = [];
+  const order: number[] = [];
+  for (const i of plan.order) {
+    const g = plan.groups[i];
+    const earlier = groups.findIndex((e) => g.name && same(e.name, g.name) && (!g.slides.length || e.slides.join('\n\n') === g.slides.join('\n\n')));
+    if (earlier >= 0) {
+      order.push(earlier);
+      plan.repeats = true;
+    } else if (g.slides.length || !groups.some((e) => same(e.name, g.name))) {
+      groups.push(g);
+      order.push(groups.length - 1);
+    }
+  }
+  return { groups, order, repeats: plan.repeats };
+}
+
+/** The arrangement Vessel keeps the sung order in when lyrics repeat sections. */
+export const SONG_ORDER = 'Song order';
+
 /**
  * Rewrite a song from lyrics text. Sections are matched to existing groups by
  * name (in order) and their slides are reused one by one, so styling, colours,
  * backgrounds and pictures stay; extra slides copy their neighbours' look, and
  * groups or slides no longer in the text are removed (also from arrangements).
+ * When a section repeats, the sung order goes into the "Song order" arrangement.
  */
-export function applyLyrics(p: Presentation, text: string): Presentation {
-  const sections = parseLyrics(text);
+export function applyLyrics(p: Presentation, text: string, linesPerSlide = 0): Presentation {
+  const plan = planLyrics(text, linesPerSlide);
+  const sections = plan.groups.map((g) => ({ group: g.name, slides: g.slides }));
   return edit(p, (d) => {
     const cuesById = new Map(d.cues.map((c) => [uuidOf(c.uuid), c]));
     const unused = [...d.cueGroups];
@@ -259,6 +324,16 @@ export function applyLyrics(p: Presentation, text: string): Presentation {
     for (const a of d.arrangements) a.groupIdentifiers = a.groupIdentifiers.filter((g) => kept.has(uuidOf(g)));
     d.cueGroups = groups;
     d.cues = cues;
+    if (plan.repeats) {
+      const ids = plan.order.map((i) => ({ $typeName: 'vessel.format.UUID' as const, string: uuidOf(groups[i].group?.uuid) }));
+      let a = d.arrangements.find((x) => x.name.trim().toLowerCase() === SONG_ORDER.toLowerCase());
+      if (!a) {
+        a = create(Presentation_ArrangementSchema, { uuid: newUuid(), name: SONG_ORDER });
+        d.arrangements.push(a);
+      }
+      a.groupIdentifiers = ids;
+      d.selectedArrangement = { ...a.uuid! };
+    }
   });
 }
 

@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { RemoteCommand, RemoteStatus } from '../shared/remote';
 import type { AppCommand } from '../shared/shortcuts';
 import type { LiveState, VesselApi, StageState } from '../shared/types';
+import type { StreamLook } from '../shared/stream';
 
 const api: VesselApi = {
   openFiles: (kind) => ipcRenderer.invoke('files:open', kind),
@@ -101,7 +102,13 @@ const api: VesselApi = {
   findMovedMedia: (missing) => ipcRenderer.invoke('media:find-moved', missing),
   backUp: () => ipcRenderer.invoke('backup:create'),
   restoreBackup: () => ipcRenderer.invoke('backup:restore'),
-  checkForUpdates: () => ipcRenderer.invoke('updates:check')
+  checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  setStreamOutput: (target) => ipcRenderer.invoke('stream-output:set', target),
+  onStreamLook: (listener) => {
+    const handler = (_e: Electron.IpcRendererEvent, look: StreamLook): void => listener(look);
+    ipcRenderer.on('stream:look', handler);
+    return () => ipcRenderer.removeListener('stream:look', handler);
+  }
 };
 
 contextBridge.exposeInMainWorld('vessel', api);
