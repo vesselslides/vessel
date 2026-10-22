@@ -9,7 +9,9 @@ import type { MenuEntry } from './menu';
 import type { AppCommand } from './shortcuts';
 import type { ThemeLibrary } from './theme';
 import type { LiveMessage, SavedMessage } from './messages';
+import type { LowerThird, SavedLowerThird } from './lowerThirds';
 import { INITIAL_TIMER, type TimerState } from './timer';
+import type { VideoClock } from './videoClock';
 
 /** Media that can be a background or a picture on a slide. */
 export type MediaKind = 'image' | 'video';
@@ -192,6 +194,10 @@ export interface LiveState {
   silentVideos?: string[];
   /** A message along the bottom of the screen, over the slides; null or missing shows none. */
   message?: LiveMessage | null;
+  /** A name and second line in the lower left, over the slides. */
+  lowerThird?: LowerThird | null;
+  /** Play, pause and position of the background video, when one is live. */
+  videoClock?: VideoClock | null;
 }
 
 /** A slide as the stage display shows it. */
@@ -326,8 +332,15 @@ export interface Settings {
   videoLoop?: boolean;
   /** Copy imported media into Documents/Vessel/Media, so songs keep it when files move. */
   copyMedia?: boolean;
+  /** Lower thirds used before, most recent first. */
+  lowerThirds?: SavedLowerThird[];
   /** Audience messages used before, most recent first. */
   messages?: SavedMessage[];
+  /** Look for a newer Vessel once a day when it starts. On unless turned off. */
+  checkUpdates?: boolean;
+  lastUpdateCheck?: number;
+  /** A version the operator chose to skip; it isn't offered again at start-up. */
+  skippedVersion?: string;
   /** Save changes to presentations by themselves, shortly after each edit. On unless turned off. */
   autosave?: boolean;
 }
@@ -420,6 +433,12 @@ export interface VesselApi {
   /** Pick pictures, videos or audio and add them (into `folder` when given). */
   importMedia(folder?: string | null): Promise<MediaItem[]>;
   removeMedia(id: string): Promise<MediaItem[]>;
+  /** Back up songs, playlists, settings and more into one file (asks where). */
+  backUp(): Promise<void>;
+  /** Restore a backup (asks which), then restart. */
+  restoreBackup(): Promise<void>;
+  /** Look for a newer Vessel now and say what was found. */
+  checkForUpdates(): Promise<void>;
   /** Which of these media files can't be found. */
   missingMedia(paths: string[]): Promise<string[]>;
   /**

@@ -159,6 +159,21 @@ export function PreferencesDialog({
                 <input type="checkbox" checked={settings?.reopenLastPlaylist !== false} onChange={(e) => onSettings({ reopenLastPlaylist: e.target.checked })} />
                 Open the last service playlist when Vessel starts
               </label>
+              <h3>Updates</h3>
+              <label className="pref-check">
+                <input type="checkbox" checked={settings?.checkUpdates !== false} onChange={(e) => onSettings({ checkUpdates: e.target.checked })} />
+                Check for a new version of Vessel when it starts (once a day)
+              </label>
+              <p className="hint">Nothing is installed without asking.</p>
+              <div className="pref-buttons">
+                <button onClick={() => void window.vessel.checkForUpdates()}>Check now…</button>
+              </div>
+              <h3>Backups</h3>
+              <p className="hint">Keep your songs, playlists, themes, Bibles, media bin, CCLI log and settings in one file, to keep safe or move to another computer.</p>
+              <div className="pref-buttons">
+                <button onClick={() => void window.vessel.backUp()}>Back up…</button>
+                <button onClick={() => void window.vessel.restoreBackup()}>Restore from backup…</button>
+              </div>
               <h3>Saving</h3>
               <label className="pref-check">
                 <input type="checkbox" checked={settings?.autosave !== false} onChange={(e) => onSettings({ autosave: e.target.checked })} />

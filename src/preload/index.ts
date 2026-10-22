@@ -98,7 +98,10 @@ const api: VesselApi = {
   importMedia: (folder) => ipcRenderer.invoke('media:import', folder),
   removeMedia: (id) => ipcRenderer.invoke('media:remove', id),
   missingMedia: (paths) => ipcRenderer.invoke('media:missing', paths),
-  findMovedMedia: (missing) => ipcRenderer.invoke('media:find-moved', missing)
+  findMovedMedia: (missing) => ipcRenderer.invoke('media:find-moved', missing),
+  backUp: () => ipcRenderer.invoke('backup:create'),
+  restoreBackup: () => ipcRenderer.invoke('backup:restore'),
+  checkForUpdates: () => ipcRenderer.invoke('updates:check')
 };
 
 contextBridge.exposeInMainWorld('vessel', api);

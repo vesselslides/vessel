@@ -708,6 +708,51 @@ body.output #root {
   overflow-wrap: anywhere;
 }
 
+/* Lower third: a name and second line in the lower left, over the slides */
+.lower-third-layer {
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--fade, 500ms) ease;
+}
+
+.lower-third-layer.on {
+  opacity: 1;
+}
+
+.lower-third {
+  position: absolute;
+  left: 5%;
+  bottom: 9cqh;
+  max-width: 70%;
+  padding: 1.4cqh 2.4cqh 1.5cqh 2cqh;
+  border-left: 0.9cqh solid;
+  background: rgba(10, 10, 12, 0.82);
+  color: #fff;
+  font-family: system-ui, sans-serif;
+  transition: bottom 300ms ease;
+}
+
+/* Out of the way of a message along the bottom. */
+.lower-third-layer.above-message .lower-third {
+  bottom: 16cqh;
+}
+
+.lower-third-title {
+  font-size: 4.6cqh;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.lower-third-subtitle {
+  margin-top: 0.4cqh;
+  font-size: 3cqh;
+  line-height: 1.2;
+  opacity: 0.85;
+}
+
 /* Slide thumbnails with a background */
 .slide-canvas {
   position: relative;
@@ -1116,7 +1161,8 @@ body.output #root {
 
 .preview h3 + h3,
 .preview .stage-section,
-.preview .message-section {
+.preview .message-section,
+.preview .lower-third-section {
   margin-top: 18px;
 }
 
@@ -2461,6 +2507,33 @@ button.active-toggle {
   width: 90px;
 }
 
+.video-transport {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.video-transport .icon-button {
+  display: inline-grid;
+  place-items: center;
+  padding: 4px 7px;
+  line-height: 0;
+}
+
+.video-transport input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.video-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-width: 36px;
+  text-align: center;
+}
+
 .mute-badge {
   position: absolute;
   left: 4px;
@@ -2773,6 +2846,8 @@ button.active-toggle {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  white-space: nowrap;
+  flex: none;
 }
 
 .media-tile.missing .media-thumb {
@@ -2789,4 +2864,32 @@ button.active-toggle {
   height: 20px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.7);
+}
+
+.stage-row input.grow {
+  width: auto;
+  flex: 1;
+}
+
+.lower-third-color {
+  width: 34px;
+  height: 28px;
+  padding: 2px;
+  flex: none;
+}
+
+.lower-third-swatch {
+  display: inline-block;
+  width: 4px;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  border-radius: 2px;
+}
+
+.pref-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 6px;
 }

@@ -57,8 +57,12 @@ import { setBackgroundDefaults } from '../../shared/pro/background';
 import type { DocumentImportReport, ImportOptions } from '../../shared/import';
 import { StagePanel } from './StagePanel';
 import { MessagePanel } from './MessagePanel';
+import { VideoTransport } from './VideoTransport';
+import { LowerThirdPanel } from './LowerThirdPanel';
+import { normalizeLowerThirds, rememberLowerThird } from '../../shared/lowerThirds';
 import { normalizeMessages, rememberMessage } from '../../shared/messages';
 import { mediaPathsOf, relinkMedia, usesAny } from '../../shared/pro/relink';
+import { startClock } from '../../shared/videoClock';
 import { ThemeDialog } from './ThemeDialog';
 import { MediaBin } from './MediaBin';
 import { AudienceView, MediaView } from './AudienceView';
@@ -216,6 +220,10 @@ function Operator(): React.JSX.Element {
   const pushLive = useCallback((patch: Partial<LiveState> | ((prev: LiveState) => Partial<LiveState>)) => {
     const prev = liveRef.current;
     const next = { ...prev, ...(typeof patch === 'function' ? patch(prev) : patch) };
+    // A new background video starts from the beginning; anything else has no clock.
+    const video = next.background?.kind === 'video' ? next.background.path : null;
+    if (!video) next.videoClock = null;
+    else if (next.videoClock?.path !== video) next.videoClock = startClock(video, Date.now());
     liveRef.current = next;
     window.vessel.setLive(next);
   }, []);
@@ -1758,6 +1766,7 @@ function Operator(): React.JSX.Element {
           {/* With no audience output to play it, the preview plays the video's sound (Preferences ▸ Audio and video). */}
           <AudienceView live={live} muted={!(outputDisplay === null && settings?.previewSound !== false)} />
         </div>
+        {liveVideo && live.videoClock?.path === liveVideo.path && <VideoTransport video={liveVideo} clock={live.videoClock} onClock={(videoClock) => pushLive({ videoClock })} />}
         {liveVideo && (
           <div className={`video-sound ${liveVideoItem?.muted ? 'silent' : ''}`}>
             <span className="video-title" title={liveVideo.path}>
@@ -1838,6 +1847,16 @@ function Operator(): React.JSX.Element {
           }}
           onHide={() => pushLive({ message: null })}
           onForget={(id) => void window.vessel.updateSettings({ messages: normalizeMessages(settings?.messages).filter((m) => m.id !== id) }).then(setSettings)}
+        />
+        <LowerThirdPanel
+          shown={live.lowerThird ?? null}
+          saved={normalizeLowerThirds(settings?.lowerThirds)}
+          onShow={(lowerThird) => {
+            pushLive({ lowerThird });
+            void window.vessel.updateSettings({ lowerThirds: rememberLowerThird(normalizeLowerThirds(settings?.lowerThirds), lowerThird) }).then(setSettings);
+          }}
+          onHide={() => pushLive({ lowerThird: null })}
+          onForget={(id) => void window.vessel.updateSettings({ lowerThirds: normalizeLowerThirds(settings?.lowerThirds).filter((l) => l.id !== id) }).then(setSettings)}
         />
         <StagePanel stage={stage} onChange={pushStage} onLayout={changeStageLayout} />
         {stageDisplay === null && <p className="hint">Stage display is off. Pick a display under Stage above.</p>}

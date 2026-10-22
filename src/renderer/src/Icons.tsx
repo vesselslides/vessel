@@ -90,3 +90,10 @@ export const WarningIcon = (p: IconProps): React.JSX.Element => (
     <path d="M12 10v4.2M12 17h.01" />
   </Icon>
 );
+
+export const RestartIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M6.5 5.5v13" />
+    <path d="M18 5.5v13l-9-6.5z" />
+  </Icon>
+);

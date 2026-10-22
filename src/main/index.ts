@@ -22,6 +22,8 @@ import appIcon from '../../build/icon.png?asset';
 import type { ThemeLibrary } from '../shared/theme';
 import { addToMediaBin, createMediaFolder, deleteMediaFolder, handleMediaProtocol, loadMediaBin, loadMediaFolders, moveMedia, registerMediaScheme, relinkMediaBin, removeFromMediaBin, renameMediaFolder, setMediaMuted } from './media';
 import { findMoved, missingPaths } from './relink';
+import { checkForUpdates, checkForUpdatesOnLaunch } from './updates';
+import { backUp, restore } from './backup';
 
 let operatorWindow: BrowserWindow | null = null;
 let outputWindow: BrowserWindow | null = null;
@@ -343,6 +345,9 @@ function registerIpc(): void {
     return result.canceled ? loadMediaBin() : addToMediaBin(result.filePaths, folder);
   });
   ipcMain.handle('media:remove', (_e, id: string) => removeFromMediaBin(id));
+  ipcMain.handle('backup:create', () => backUp(operatorWindow));
+  ipcMain.handle('backup:restore', () => restore(operatorWindow));
+  ipcMain.handle('updates:check', () => checkForUpdates(operatorWindow, true));
   ipcMain.handle('media:missing', (_e, paths: unknown) => missingPaths(paths));
   ipcMain.handle('media:find-moved', async (_e, missing: unknown) => {
     const paths = missingPaths(missing);
@@ -400,6 +405,7 @@ app.whenReady().then(async () => {
   applyAppearance((await getSettings()).appearance);
   setGroupDefinitions((await getSettings()).groups);
   createOperatorWindow();
+  void checkForUpdatesOnLaunch(() => operatorWindow);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createOperatorWindow();
   });

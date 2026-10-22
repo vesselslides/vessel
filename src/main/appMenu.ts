@@ -3,6 +3,8 @@
 // same code as the buttons and keys.
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, type MenuItemConstructorOptions } from 'electron';
 import type { AppCommand } from '../shared/shortcuts';
+import { checkForUpdates } from './updates';
+import { backUp, restore } from './backup';
 
 export interface MenuState {
   mode: 'show' | 'edit';
@@ -64,6 +66,8 @@ function screensMenu(kind: 'output' | 'stage'): MenuItemConstructorOptions[] {
   ];
 }
 
+const checkUpdates = (): void => void checkForUpdates(operator(), true);
+
 export function rebuildAppMenu(): void {
   const isMac = process.platform === 'darwin';
   const editing = state.mode === 'edit';
@@ -75,6 +79,7 @@ export function rebuildAppMenu(): void {
             label: app.name,
             submenu: [
               { role: 'about' as const },
+              { label: 'Check for Updates…', click: checkUpdates },
               { type: 'separator' as const },
               { label: 'Settings…', accelerator: 'Cmd+,', click: send('preferences') },
               { type: 'separator' as const },
@@ -100,6 +105,9 @@ export function rebuildAppMenu(): void {
         { label: 'Import Media…', click: send('import-media') },
         { type: 'separator' },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', enabled: state.hasPresentation, click: send('save') },
+        { type: 'separator' },
+        { label: 'Back Up…', click: () => void backUp(operator()) },
+        { label: 'Restore from Backup…', click: () => void restore(operator()) },
         ...(isMac ? [] : [{ type: 'separator' as const }, { role: 'quit' as const }])
       ]
     },
@@ -163,7 +171,7 @@ export function rebuildAppMenu(): void {
       label: mnemonic('&Help'),
       submenu: [
         { label: 'Keyboard Shortcuts', accelerator: 'CmdOrCtrl+/', click: send('shortcuts') },
-        ...(isMac ? [] : [{ type: 'separator' as const }, { label: 'About Vessel', click: showAbout }])
+        ...(isMac ? [] : [{ type: 'separator' as const }, { label: 'Check for Updates…', click: checkUpdates }, { label: 'About Vessel', click: showAbout }])
       ]
     }
   ];

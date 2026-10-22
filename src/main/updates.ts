@@ -1,0 +1,129 @@
+import { app, dialog, net, shell, type BrowserWindow } from 'electron';
+import { createWriteStream, readFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { compareVersions, githubRepo, installerFor, parseRelease, shortNotes, type Release, type ReleaseAsset } from '../shared/updates';
+import { getSettings, updateSettings } from './settings';
+
+const DAY = 24 * 60 * 60_000;
+/** Where releases are published: package.json's "repository" (read from the app itself, so builds can differ). */
+const repo = ((): string | null => {
+  try {
+    return githubRepo(JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')).repository);
+  } catch {
+    return null;
+  }
+})();
+let checking = false;
+
+async function latestRelease(): Promise<Release | null> {
+  const res = await net.fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
+    headers: { accept: 'application/vnd.github+json', 'user-agent': `Vessel/${app.getVersion()}` },
+    signal: AbortSignal.timeout(15_000)
+  });
+  if (res.status === 404) return null; // Nothing published yet.
+  if (!res.ok) throw new Error(`the update server answered ${res.status}`);
+  return parseRelease(await res.json());
+}
+
+/** Download the installer into Downloads, showing progress on the dock or taskbar icon. */
+async function download(asset: ReleaseAsset, win: BrowserWindow | null): Promise<string> {
+  const target = join(app.getPath('downloads'), asset.name);
+  const res = await net.fetch(asset.url, { headers: { 'user-agent': `Vessel/${app.getVersion()}` } });
+  if (!res.ok || !res.body) throw new Error(`the download failed (${res.status})`);
+  const total = Number(res.headers.get('content-length')) || asset.size;
+  let received = 0;
+  const body = Readable.fromWeb(res.body as never);
+  body.on('data', (chunk: Buffer) => {
+    received += chunk.length;
+    if (total) win?.setProgressBar(received / total);
+  });
+  try {
+    await pipeline(body, createWriteStream(target));
+  } catch (err) {
+    await rm(target, { force: true });
+    throw err;
+  } finally {
+    win?.setProgressBar(-1);
+  }
+  return target;
+}
+
+/**
+ * Look for a newer Vessel. On its own (at start-up, once a day) it stays quiet
+ * unless there is one the operator hasn't skipped; from the Help menu it always says what it found.
+ */
+export async function checkForUpdates(win: BrowserWindow | null, manual: boolean): Promise<void> {
+  const say = (message: string, detail?: string): Promise<unknown> =>
+    win ? dialog.showMessageBox(win, { type: 'info', message, detail, buttons: ['OK'] }) : dialog.showMessageBox({ type: 'info', message, detail, buttons: ['OK'] });
+  if (!repo) {
+    if (manual) await say('Update checks aren’t set up in this copy of Vessel.', 'Ask whoever gave you Vessel for the latest version.');
+    return;
+  }
+  if (checking) return;
+  checking = true;
+  try {
+    await updateSettings({ lastUpdateCheck: Date.now() });
+    let release: Release | null;
+    try {
+      release = await latestRelease();
+    } catch (err) {
+      if (manual) await say('Couldn’t check for updates.', `${(err as Error).message}. Check the internet connection and try again.`);
+      return;
+    }
+    const current = app.getVersion();
+    if (!release || compareVersions(release.version, current) <= 0) {
+      if (manual) await say('Vessel is up to date.', `You have the latest version, ${current}.`);
+      return;
+    }
+    if (!manual && (await getSettings()).skippedVersion === release.version) return;
+
+    const installer = installerFor(release, process.platform, process.arch);
+    const options = {
+      type: 'info' as const,
+      message: `Vessel ${release.version} is available`,
+      detail: `You have ${current}.${release.notes ? `\n\n${shortNotes(release.notes)}` : ''}`,
+      buttons: [installer ? 'Download and Install' : 'Open Download Page', 'Later', 'Skip This Version'],
+      defaultId: 0,
+      cancelId: 1
+    };
+    const { response } = win ? await dialog.showMessageBox(win, options) : await dialog.showMessageBox(options);
+    if (response === 2) await updateSettings({ skippedVersion: release.version });
+    if (response !== 0) return;
+    if (!installer) {
+      await shell.openExternal(release.page);
+      return;
+    }
+    let file: string;
+    try {
+      file = await download(installer, win);
+    } catch (err) {
+      await say('The update couldn’t be downloaded.', `${(err as Error).message}. You can download it from ${release.page}`);
+      return;
+    }
+    if (process.platform === 'win32') {
+      // The installer replaces Vessel, so Vessel closes (asking about unsaved songs first) once it has started.
+      const error = await shell.openPath(file);
+      if (error) await say('The installer couldn’t be started.', `${error}\n\nIt’s in your Downloads folder: ${file}`);
+      else app.quit();
+    } else {
+      await shell.openPath(file);
+      await say(
+        'Install the update',
+        `The new version has opened in Finder. Quit Vessel, then drag Vessel into Applications and choose Replace.\n\nThe file is in your Downloads folder.`
+      );
+    }
+  } finally {
+    checking = false;
+  }
+}
+
+/** At start-up: check once a day, unless turned off in Preferences. */
+export async function checkForUpdatesOnLaunch(win: () => BrowserWindow | null): Promise<void> {
+  const s = await getSettings();
+  if (!repo || s.checkUpdates === false || !app.isPackaged) return;
+  if (s.lastUpdateCheck && Date.now() - s.lastUpdateCheck < DAY) return;
+  setTimeout(() => void checkForUpdates(win(), false).catch(() => undefined), 10_000);
+}

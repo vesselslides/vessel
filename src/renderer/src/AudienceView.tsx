@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { mediaUrl } from '../../shared/media';
 import { fillMessage, hasTokens, type LiveMessage } from '../../shared/messages';
+import type { LowerThird } from '../../shared/lowerThirds';
 import type { Background, LiveState, SlideLayout } from '../../shared/types';
+import { hasEnded, positionIn, type VideoClock } from '../../shared/videoClock';
 import { SlideCanvas } from './SlideCanvas';
 import { useSoundRouting, type SoundRouting } from './sound';
 import { SlideText } from './SlideText';
@@ -51,12 +53,40 @@ const sameWords = (a: Words, b: Words): boolean => a.text === b.text && a.copyri
 
 const OBJECT_FIT: Record<Background['scale'], CSSProperties['objectFit']> = { fit: 'contain', fill: 'cover', stretch: 'fill' };
 
+/** How far a video may drift from its clock before it's moved back into place (seconds). */
+const DRIFT = 0.4;
+
+/** Keep a video playing, paused and positioned as its clock says. */
+function useVideoClock(video: React.RefObject<HTMLVideoElement | null>, clock: VideoClock | null, loop: boolean): void {
+  useEffect(() => {
+    const el = video.current;
+    if (!el || !clock) return;
+    const sync = (): void => {
+      if (el.readyState < 1) return; // Length not known yet.
+      const now = Date.now();
+      const want = positionIn(clock, now, el.duration, loop);
+      const ended = hasEnded(clock, now, el.duration, loop);
+      if (Math.abs(el.currentTime - want) > DRIFT && !el.seeking) el.currentTime = want;
+      if (clock.playing && !ended && el.paused) void el.play().catch(() => undefined);
+      if ((!clock.playing || ended) && !el.paused) el.pause();
+    };
+    sync();
+    el.addEventListener('loadedmetadata', sync);
+    const id = setInterval(sync, 500);
+    return () => {
+      clearInterval(id);
+      el.removeEventListener('loadedmetadata', sync);
+    };
+  }, [video, clock, loop]);
+}
+
 export function MediaView({
   bg,
   muted,
   thumbnail = false,
   volume = 1,
-  routing = {}
+  routing = {},
+  clock = null
 }: {
   bg: Background;
   muted: boolean;
@@ -64,8 +94,11 @@ export function MediaView({
   volume?: number;
   /** Output device and delay (Preferences ▸ Audio and video). */
   routing?: SoundRouting;
+  /** Play, pause and position from the Live panel; without one the video just plays. */
+  clock?: VideoClock | null;
 }): React.JSX.Element {
   const video = useRef<HTMLVideoElement>(null);
+  useVideoClock(video, thumbnail || bg.kind !== 'video' ? null : clock, bg.loop);
   useSoundRouting(video, routing, bg.kind === 'video' && !thumbnail && !muted);
   // Volume isn't an attribute; set it on the element.
   useEffect(() => {
@@ -102,6 +135,9 @@ export function AudienceView({ live, muted }: { live: LiveState; muted: boolean 
   const lastMessage = useRef<LiveMessage | null>(null);
   if (live.message) lastMessage.current = live.message;
   const message = live.message ?? lastMessage.current;
+  const lastLowerThird = useRef<LowerThird | null>(null);
+  if (live.lowerThird) lastLowerThird.current = live.lowerThird;
+  const lowerThird = live.lowerThird ?? lastLowerThird.current;
 
   return (
     <div className="stage" style={vars}>
@@ -116,6 +152,7 @@ export function AudienceView({ live, muted }: { live: LiveState; muted: boolean 
               muted={muted || !!live.videoMuted || !!live.silentVideos?.includes(l.value.path)}
               volume={(live.videoVolume ?? 1) * (live.audioLevel ?? 1)}
               routing={{ sinkId: live.audioOutputId, delayMs: live.audioDelayMs }}
+              clock={live.videoClock?.path === l.value.path ? live.videoClock : null}
             />
           )}
         </div>
@@ -126,6 +163,14 @@ export function AudienceView({ live, muted }: { live: LiveState; muted: boolean 
           {l.value.copyright && <div className="ccli-line">{l.value.copyright}</div>}
         </div>
       ))}
+      <div className={`lower-third-layer ${live.lowerThird ? 'on' : ''} ${live.message ? 'above-message' : ''}`}>
+        {lowerThird && (
+          <div className="lower-third" style={{ borderColor: lowerThird.color }}>
+            <div className="lower-third-title">{lowerThird.title}</div>
+            {lowerThird.subtitle && <div className="lower-third-subtitle">{lowerThird.subtitle}</div>}
+          </div>
+        )}
+      </div>
       <div className={`audience-message-layer ${live.message ? 'on' : ''}`}>{message && <MessageBar message={message} />}</div>
       {/* The church's logo (the Logo button), on black, over everything but a blackout. */}
       <div className={`stage-logo ${live.logo ? 'on' : ''}`}>{(live.logo || lastLogo.current) && <img src={mediaUrl((live.logo || lastLogo.current)!)} alt="" draggable={false} />}</div>
