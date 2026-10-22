@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { formatDuration, isRunning, parseDuration, pauseTimer, resetTimer, startTimer, type TimerMode } from '../../shared/timer';
+import { formatClock, formatDuration, isRunning, parseDuration, parseTimeOfDay, pauseTimer, resetTimer, startTimer, timerToTime, timerWithMode } from '../../shared/timer';
 import { DEFAULT_STAGE_LAYOUT, presetOf, STAGE_PRESETS, type StageLayout } from '../../shared/stage';
 import type { StageState } from '../../shared/types';
 import { StageView } from './StageView';
@@ -29,6 +29,15 @@ export function StagePanel({
   const [durationError, setDurationError] = useState(false);
   const [message, setMessage] = useState(stage.message);
   useEffect(() => setDuration(formatDuration(t.durationMs)), [t.durationMs]);
+  const [target, setTarget] = useState(t.target ?? '');
+  const [targetError, setTargetError] = useState(false);
+  useEffect(() => setTarget(t.target ?? ''), [t.target]);
+
+  const commitTarget = (): void => {
+    const time = parseTimeOfDay(target);
+    setTargetError(!time);
+    if (time) onChange({ timer: timerToTime(time, Date.now(), t.durationMs) });
+  };
 
   const commitDuration = (): void => {
     const ms = parseDuration(duration);
@@ -95,10 +104,38 @@ export function StagePanel({
           </div>
         )}
         <div className="stage-row">
-          <select value={t.mode} onChange={(e) => onChange({ timer: { ...resetTimer(t), mode: e.target.value as TimerMode } })}>
+          <select
+            value={t.mode}
+            onChange={(e) => {
+              const mode = e.target.value;
+              if (mode === 'clock') {
+                // Start from the next whole half hour, a likely service time.
+                const at = new Date(Date.now() + 30 * 60_000);
+                at.setMinutes(at.getMinutes() < 30 ? 30 : 60, 0, 0);
+                onChange({
+                  timer: timerToTime({ hours: at.getHours(), minutes: at.getMinutes() }, Date.now(), t.durationMs)
+                });
+              } else
+                onChange({
+                  timer: timerWithMode(t, mode === 'countup' ? 'countup' : 'countdown')
+                });
+            }}
+          >
             <option value="countdown">Countdown</option>
+            <option value="clock">Count down to a time</option>
             <option value="countup">Count up</option>
           </select>
+          {t.mode === 'clock' && (
+            <input
+              value={target}
+              title="The time to count down to, e.g. 10:00, 9:30 am or 18:30"
+              aria-invalid={targetError}
+              style={targetError ? { borderColor: 'var(--live)' } : undefined}
+              onChange={(e) => setTarget(e.target.value)}
+              onBlur={commitTarget}
+              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            />
+          )}
           {t.mode === 'countdown' && (
             <input
               value={duration}
@@ -111,17 +148,28 @@ export function StagePanel({
             />
           )}
         </div>
-        <div className="stage-row">
-          <button
-            className={`grow ${isRunning(t) ? '' : 'primary'}`}
-            onClick={() => onChange({ timer: isRunning(t) ? pauseTimer(t, Date.now()) : startTimer(t, Date.now()) })}
-          >
-            {isRunning(t) ? 'Pause timer' : t.elapsedMs > 0 ? 'Resume timer' : 'Start timer'}
-          </button>
-          <button onClick={() => onChange({ timer: resetTimer(t) })} disabled={!isRunning(t) && t.elapsedMs === 0}>
-            Reset
-          </button>
-        </div>
+        {t.mode === 'clock' && t.targetAt ? (
+          <p className="hint">
+            Counting down to {formatClock(t.targetAt)}
+            {new Date(t.targetAt).getDate() !== new Date().getDate() ? ' tomorrow' : ''}. Put {'{timer}'} in a message to show it to everyone.
+          </p>
+        ) : (
+          <div className="stage-row">
+            <button
+              className={`grow ${isRunning(t) ? '' : 'primary'}`}
+              onClick={() =>
+                onChange({
+                  timer: isRunning(t) ? pauseTimer(t, Date.now()) : startTimer(t, Date.now())
+                })
+              }
+            >
+              {isRunning(t) ? 'Pause timer' : t.elapsedMs > 0 ? 'Resume timer' : 'Start timer'}
+            </button>
+            <button onClick={() => onChange({ timer: resetTimer(t) })} disabled={!isRunning(t) && t.elapsedMs === 0}>
+              Reset
+            </button>
+          </div>
+        )}
         <textarea placeholder="Message for the stage, e.g. 2 minutes left" value={message} onChange={(e) => setMessage(e.target.value)} />
         <div className="stage-row">
           <button className="grow" onClick={() => onChange({ message })} disabled={!message.trim() || message === stage.message}>

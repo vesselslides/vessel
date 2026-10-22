@@ -176,3 +176,10 @@ export async function removeFromMediaBin(id: string): Promise<MediaItem[]> {
   await saveMediaBin(items);
   return items;
 }
+
+/** Point bin items at the new places of files that moved (old path → new path). */
+export async function relinkMediaBin(moves: Record<string, string>): Promise<MediaItem[]> {
+  const items = (await loadMediaBin()).map((i) => (moves[i.path] ? { ...i, path: moves[i.path] } : i));
+  await saveMediaBin(items);
+  return items;
+}

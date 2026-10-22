@@ -47,7 +47,7 @@ import { copyrightLine, hasCopyrightDetails, isScripture, localDate, showsCopyri
 import { BiblePanel } from './BiblePanel';
 import { AudioPlayer, type AudioTrack } from './AudioPlayer';
 import { mediaName } from '../../shared/media';
-import { MutedIcon, PlayIcon, SettingsIcon, SoundIcon } from './Icons';
+import { MutedIcon, PlayIcon, SettingsIcon, SoundIcon, WarningIcon } from './Icons';
 import { PreferencesDialog } from './PreferencesDialog';
 import { TimerDialog } from './TimerDialog';
 import { CcliDialog } from './CcliDialog';
@@ -56,6 +56,9 @@ import { setGroupDefinitions } from '../../shared/groups';
 import { setBackgroundDefaults } from '../../shared/pro/background';
 import type { DocumentImportReport, ImportOptions } from '../../shared/import';
 import { StagePanel } from './StagePanel';
+import { MessagePanel } from './MessagePanel';
+import { normalizeMessages, rememberMessage } from '../../shared/messages';
+import { mediaPathsOf, relinkMedia, usesAny } from '../../shared/pro/relink';
 import { ThemeDialog } from './ThemeDialog';
 import { MediaBin } from './MediaBin';
 import { AudienceView, MediaView } from './AudienceView';
@@ -223,11 +226,17 @@ function Operator(): React.JSX.Element {
   const [stage, setStage] = useState<StageState>(INITIAL_STAGE);
   // Same pattern as liveRef: build on the newest state we sent, not on React's copy.
   const stageRef = useRef<StageState>(INITIAL_STAGE);
-  const pushStage = useCallback((patch: Partial<StageState>) => {
-    const next = { ...stageRef.current, ...patch };
-    stageRef.current = next;
-    window.vessel.setStage(next);
-  }, []);
+  const pushStage = useCallback(
+    (patch: Partial<StageState>) => {
+      const next = { ...stageRef.current, ...patch };
+      stageRef.current = next;
+      window.vessel.setStage(next);
+      // A message showing {timer} follows the stage timer.
+      const message = liveRef.current.message;
+      if (patch.timer && message) pushLive({ message: { ...message, timer: patch.timer } });
+    },
+    [pushLive]
+  );
   const [showNewSong, setShowNewSong] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showBible, setShowBible] = useState(false);
@@ -252,6 +261,26 @@ function Operator(): React.JSX.Element {
   const [typedNumber, setTypedNumber] = useState('');
 
   const selected = decks.find((d) => d.deck.id === selectedId);
+
+  /** Media files that can't be found, among the open presentation's and the media bin's. Checked again when Vessel comes back to the front. */
+  const [missing, setMissing] = useState<string[]>([]);
+  const [focusCount, setFocusCount] = useState(0);
+  useEffect(() => {
+    const bump = (): void => setFocusCount((n) => n + 1);
+    window.addEventListener('focus', bump);
+    return () => window.removeEventListener('focus', bump);
+  }, []);
+  const selectedPresentation = selected?.presentation;
+  const selectedMedia = useMemo(() => (selectedPresentation ? mediaPathsOf(selectedPresentation) : []), [selectedPresentation]);
+  const mediaToCheck = [...selectedMedia, ...media.map((m) => m.path)].join('\n');
+  useEffect(() => {
+    let current = true;
+    void window.vessel.missingMedia(mediaToCheck ? mediaToCheck.split('\n') : []).then((paths) => current && setMissing(paths));
+    return () => {
+      current = false;
+    };
+  }, [mediaToCheck, focusCount]);
+  const deckMissing = selectedMedia.filter((p) => missing.includes(p));
 
   const updateDeck = useCallback((id: string, fn: (d: LoadedDeck) => LoadedDeck) => {
     setDecks((prev) => prev.map((d) => (d.deck.id === id ? fn(d) : d)));
@@ -810,6 +839,36 @@ function Operator(): React.JSX.Element {
     setShowThemes(false);
   };
 
+  /** Ask for a folder, look there for the missing media by name, and point everything at what's found. */
+  const findMissing = async (paths: string[] = missing): Promise<void> => {
+    if (!paths.length) return;
+    const result = await window.vessel.findMovedMedia(paths);
+    if (!result) return;
+    setMedia(result.items);
+    const moves = result.found;
+    const moved = Object.keys(moves);
+    if (moved.length) {
+      // Each changed presentation gets an undo step and needs saving like any edit.
+      setDecks((prev) =>
+        prev.map((d) =>
+          usesAny(d.presentation, moved) ? { ...withPresentation(d, relinkMedia(d.presentation, moves)), past: [...d.past, d.presentation].slice(-HISTORY_LIMIT), future: [] } : d
+        )
+      );
+      const bg = liveRef.current.background;
+      if (bg && moves[bg.path]) pushLive({ background: { ...bg, path: moves[bg.path] } });
+      setMissing((prev) => prev.filter((p) => !moves[p]));
+    }
+    const folder = fileName(result.folder);
+    const n = paths.length;
+    setStatus(
+      moved.length === n
+        ? `Found ${n === 1 ? 'the missing file' : `all ${n} missing files`} in ${folder}.`
+        : moved.length
+          ? `Found ${moved.length} of ${n} missing files in ${folder}. Try another folder for the rest.`
+          : `None of the missing files are in ${folder} or the folders inside it.`
+    );
+  };
+
   const save = async (): Promise<void> => {
     if (!selected) return;
     const path = await window.vessel.saveFile(serializePresentation(selected.presentation), selected.deck.name, selected.path);
@@ -817,6 +876,32 @@ function Operator(): React.JSX.Element {
     setDecks((prev) => prev.map((d) => (d.deck.id === selected.deck.id ? { ...d, path, dirty: false, deck: { ...d.deck, sourcePath: path } } : d)));
     setStatus(`Saved ${fileName(path)}`);
   };
+
+  // Autosave (Preferences ▸ General): a moment after the last edit, write each
+  // changed presentation back to its own .pro file. Writes run one at a time.
+  const autosave = settings?.autosave !== false;
+  const saveChain = useRef<Promise<void>>(Promise.resolve());
+  useEffect(() => {
+    if (!autosave) return;
+    const due = decks.filter((d) => d.dirty && d.path && /\.pro$/i.test(d.path));
+    if (!due.length) return;
+    const timer = setTimeout(() => {
+      for (const d of due) {
+        const { presentation, path } = d;
+        saveChain.current = saveChain.current.then(async () => {
+          try {
+            await window.vessel.saveFile(serializePresentation(presentation), d.deck.name, path);
+          } catch (err) {
+            setStatus(`Couldn’t save ${d.deck.name || fileName(path!)} automatically: ${(err as Error).message}`);
+            return;
+          }
+          // Still unsaved if it changed again while this was being written.
+          setDecks((prev) => prev.map((x) => (x.deck.id === d.deck.id && x.presentation === presentation ? { ...x, dirty: false } : x)));
+        });
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [decks, autosave]);
 
   /** The next/previous song row in the service from `row`, skipping headers. */
   const neighbourRow = useCallback(
@@ -1555,7 +1640,18 @@ function Operator(): React.JSX.Element {
             onStatus={setStatus}
             onClose={closeBible}
           />
-        ) : selected && mode === 'edit' ? (
+        ) : null}
+        {!showBible && selected && deckMissing.length > 0 && (
+          <div className="missing-media" role="status">
+            <WarningIcon />
+            <span title={deckMissing.join('\n')}>
+              {deckMissing.length === 1 ? 'A media file' : `${deckMissing.length} media files`} in this presentation can’t be found:{' '}
+              {deckMissing.map(fileName).join(', ')}
+            </span>
+            <button onClick={() => void findMissing()}>Find…</button>
+          </div>
+        )}
+        {showBible ? null : selected && mode === 'edit' ? (
           <Editor
             key={selected.deck.id}
             deck={selected.deck}
@@ -1732,6 +1828,17 @@ function Operator(): React.JSX.Element {
           </div>
         )}
         {outputDisplay === null && <p className="hint">Output is off. Pick a display above to show it.</p>}
+        <MessagePanel
+          shown={live.message ?? null}
+          saved={normalizeMessages(settings?.messages)}
+          timer={stage.timer}
+          onShow={(text) => {
+            pushLive({ message: { text, timer: stageRef.current.timer } });
+            void window.vessel.updateSettings({ messages: rememberMessage(normalizeMessages(settings?.messages), text) }).then(setSettings);
+          }}
+          onHide={() => pushLive({ message: null })}
+          onForget={(id) => void window.vessel.updateSettings({ messages: normalizeMessages(settings?.messages).filter((m) => m.id !== id) }).then(setSettings)}
+        />
         <StagePanel stage={stage} onChange={pushStage} onLayout={changeStageLayout} />
         {stageDisplay === null && <p className="hint">Stage display is off. Pick a display under Stage above.</p>}
       </aside>
@@ -1756,6 +1863,8 @@ function Operator(): React.JSX.Element {
         onSongBackground={(bg) => apply((p) => p.cues.reduce((q, c) => setSlideBackground(q, uuidOf(c.uuid), bg), p))}
         onSongPicture={(path) => apply((p) => addSlideImage(p, p.cues.map((c) => uuidOf(c.uuid)), path, 'top-right'))}
         onReveal={(path) => void window.vessel.revealFile(path)}
+        missing={missing}
+        onFindMissing={() => void findMissing(media.filter((m) => missing.includes(m.path)).map((m) => m.path))}
       />
 
       {draggingFiles && (

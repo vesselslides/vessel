@@ -100,7 +100,7 @@ section.now, section.next { background: #000; border-radius: 12px; padding: 12px
 .tabs button { flex: 1; min-height: 40px; padding: 8px; }
 .tabs button.active { border-color: var(--accent); color: var(--accent); }
 .tab { display: flex; flex-direction: column; gap: 6px; }
-.tab[hidden] { display: none; }
+.tab[hidden], button[hidden] { display: none; }
 .item { text-align: left; display: flex; gap: 10px; align-items: center; }
 .item .strip { width: 4px; align-self: stretch; border-radius: 2px; background: var(--muted); flex: none; }
 .item .text { white-space: pre-wrap; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 14px; }
@@ -225,6 +225,9 @@ function render() {
 
   if (document.activeElement !== $('message')) $('message').value = state.message || '';
   $('timer-start').textContent = state.timer.startedAt !== null ? 'Pause' : state.timer.elapsedMs > 0 ? 'Resume' : 'Start';
+  const toTime = state.timer.mode === 'clock';
+  $('timer-start').hidden = toTime;
+  $('timer-reset').hidden = toTime;
   tick();
 }
 
@@ -239,11 +242,14 @@ function fmt(ms, roundUp) {
 function tick() {
   if (!state) return;
   const t = state.timer, now = Date.now() + offset;
+  // A countdown to a time of day ("service starts at 10:00") always runs.
+  const clock = t.mode === 'clock' && typeof t.targetAt === 'number';
+  const down = t.mode !== 'countup';
   const elapsed = t.elapsedMs + (t.startedAt === null ? 0 : Math.max(0, now - t.startedAt));
-  const value = t.mode === 'countdown' ? t.durationMs - elapsed : elapsed;
+  const value = clock ? t.targetAt - now : down ? t.durationMs - elapsed : elapsed;
   const el2 = $('timer');
-  el2.textContent = fmt(value, t.mode === 'countdown');
-  el2.className = 'timer' + (t.startedAt === null ? '' : t.mode === 'countdown' && value < 0 ? ' over' : t.mode === 'countdown' && value <= 60000 ? ' warn' : ' ok');
+  el2.textContent = fmt(value, down);
+  el2.className = 'timer' + (t.startedAt === null && !clock ? '' : down && value < 0 ? ' over' : down && value <= 60000 ? ' warn' : ' ok');
 }
 setInterval(tick, 250);
 

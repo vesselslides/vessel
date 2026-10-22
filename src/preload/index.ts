@@ -96,7 +96,9 @@ const api: VesselApi = {
   },
   saveThemes: (library) => ipcRenderer.invoke('themes:save', library),
   importMedia: (folder) => ipcRenderer.invoke('media:import', folder),
-  removeMedia: (id) => ipcRenderer.invoke('media:remove', id)
+  removeMedia: (id) => ipcRenderer.invoke('media:remove', id),
+  missingMedia: (paths) => ipcRenderer.invoke('media:missing', paths),
+  findMovedMedia: (missing) => ipcRenderer.invoke('media:find-moved', missing)
 };
 
 contextBridge.exposeInMainWorld('vessel', api);

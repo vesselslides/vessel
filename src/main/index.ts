@@ -20,7 +20,8 @@ import { setupContextMenu } from './contextMenu';
 import { setupAppMenu } from './appMenu';
 import appIcon from '../../build/icon.png?asset';
 import type { ThemeLibrary } from '../shared/theme';
-import { addToMediaBin, createMediaFolder, deleteMediaFolder, handleMediaProtocol, loadMediaBin, loadMediaFolders, moveMedia, registerMediaScheme, removeFromMediaBin, renameMediaFolder, setMediaMuted } from './media';
+import { addToMediaBin, createMediaFolder, deleteMediaFolder, handleMediaProtocol, loadMediaBin, loadMediaFolders, moveMedia, registerMediaScheme, relinkMediaBin, removeFromMediaBin, renameMediaFolder, setMediaMuted } from './media';
+import { findMoved, missingPaths } from './relink';
 
 let operatorWindow: BrowserWindow | null = null;
 let outputWindow: BrowserWindow | null = null;
@@ -342,6 +343,19 @@ function registerIpc(): void {
     return result.canceled ? loadMediaBin() : addToMediaBin(result.filePaths, folder);
   });
   ipcMain.handle('media:remove', (_e, id: string) => removeFromMediaBin(id));
+  ipcMain.handle('media:missing', (_e, paths: unknown) => missingPaths(paths));
+  ipcMain.handle('media:find-moved', async (_e, missing: unknown) => {
+    const paths = missingPaths(missing);
+    const result = await dialog.showOpenDialog(operatorWindow!, {
+      title: 'Find missing media',
+      message: `Choose a folder to look in for ${paths.length === 1 ? 'the missing file' : `${paths.length} missing files`}. Folders inside it are searched too.`,
+      buttonLabel: 'Look here',
+      properties: ['openDirectory']
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    const found = await findMoved(result.filePaths[0], paths);
+    return { folder: result.filePaths[0], found, items: await relinkMediaBin(found) };
+  });
 
   ipcMain.handle('output:set', (_e, displayId: number | null) => setOutput(displayId));
   ipcMain.handle('stage-output:set', (_e, displayId: number | null) => setStageOutput(displayId));

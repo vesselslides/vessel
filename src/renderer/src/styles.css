@@ -680,6 +680,34 @@ body.output #root {
   object-fit: contain;
 }
 
+/* Audience message: a band along the bottom, over the slides */
+.audience-message-layer {
+  position: absolute;
+  inset: 0;
+  /* Sized from the screen it's on, so the band scales with the preview too. */
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--fade, 500ms) ease;
+}
+
+.audience-message-layer.on {
+  opacity: 1;
+}
+
+.audience-message {
+  padding: 1.6cqh 4%;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  text-align: center;
+  font: 600 4.2cqh/1.25 system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
 /* Slide thumbnails with a background */
 .slide-canvas {
   position: relative;
@@ -1087,8 +1115,73 @@ body.output #root {
 }
 
 .preview h3 + h3,
-.preview .stage-section {
+.preview .stage-section,
+.preview .message-section {
   margin-top: 18px;
+}
+
+.message-tokens {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.message-tokens .token {
+  padding: 2px 8px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.saved-messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.saved-messages li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.saved-messages li.on {
+  border-color: var(--live);
+}
+
+.saved-messages .saved-message {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 5px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.saved-messages .forget {
+  background: none;
+  border: 0;
+  padding: 2px 8px;
+  color: var(--muted);
+}
+
+.token-badge {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  background: var(--border);
+  color: var(--muted);
 }
 
 .display-select select {
@@ -2647,4 +2740,53 @@ button.active-toggle {
   width: 44px;
   text-align: center;
   text-transform: uppercase;
+}
+
+/* Media that can't be found */
+.missing-media {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 1px solid #b7791f;
+  border-radius: 8px;
+  background: rgba(214, 158, 46, 0.12);
+  font-size: 13px;
+}
+
+.missing-media > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.missing-media .icon,
+.missing-button .icon,
+.missing-badge {
+  color: #d69e2e;
+}
+
+.missing-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.media-tile.missing .media-thumb {
+  opacity: 0.35;
+}
+
+.missing-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
 }

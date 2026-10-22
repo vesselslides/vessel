@@ -1,7 +1,8 @@
 // A stage timer is stored as data, not as a ticking value: every window works
 // out the time on screen from the clock, so nothing has to stream updates.
 
-export type TimerMode = 'countdown' | 'countup';
+/** Count down a length of time, count up, or count down to a time of day ("service starts at 10:00"). */
+export type TimerMode = 'countdown' | 'countup' | 'clock';
 
 export interface TimerState {
   mode: TimerMode;
@@ -11,9 +12,15 @@ export interface TimerState {
   startedAt: number | null;
   /** Time already run before the current start (accumulates across pauses). */
   elapsedMs: number;
+  /** Counting down to a time of day: when it is (epoch ms) and how it was typed ("10:00"). */
+  targetAt?: number;
+  target?: string;
 }
 
 export const INITIAL_TIMER: TimerState = { mode: 'countdown', durationMs: 5 * 60_000, startedAt: null, elapsedMs: 0 };
+
+/** Counting down to a time of day always runs; there's nothing to start or pause. */
+const isClock = (t: TimerState): t is TimerState & { targetAt: number } => t.mode === 'clock' && typeof t.targetAt === 'number';
 
 export function elapsedOf(t: TimerState, now: number): number {
   return t.elapsedMs + (t.startedAt === null ? 0 : Math.max(0, now - t.startedAt));
@@ -21,22 +28,57 @@ export function elapsedOf(t: TimerState, now: number): number {
 
 /** Milliseconds to show: remaining for a countdown (negative once over time), elapsed for a count-up. */
 export function timerValue(t: TimerState, now: number): number {
+  if (isClock(t)) return t.targetAt - now;
   const elapsed = elapsedOf(t, now);
-  return t.mode === 'countdown' ? t.durationMs - elapsed : elapsed;
+  return t.mode === 'countup' ? elapsed : t.durationMs - elapsed;
 }
 
-export const isRunning = (t: TimerState): boolean => t.startedAt !== null;
+/** Counts down (to an end, or to a time of day) rather than up. */
+export const countsDown = (t: TimerState): boolean => t.mode !== 'countup';
+
+export const isRunning = (t: TimerState): boolean => isClock(t) || t.startedAt !== null;
 
 export function startTimer(t: TimerState, now: number): TimerState {
   return isRunning(t) ? t : { ...t, startedAt: now };
 }
 
 export function pauseTimer(t: TimerState, now: number): TimerState {
-  return isRunning(t) ? { ...t, elapsedMs: elapsedOf(t, now), startedAt: null } : t;
+  return isRunning(t) && !isClock(t) ? { ...t, elapsedMs: elapsedOf(t, now), startedAt: null } : t;
 }
 
 export function resetTimer(t: TimerState): TimerState {
-  return { ...t, startedAt: null, elapsedMs: 0 };
+  return isClock(t) ? t : { ...t, startedAt: null, elapsedMs: 0 };
+}
+
+/** The timer switched to another mode, stopped and back at the start. */
+export function timerWithMode(t: TimerState, mode: Exclude<TimerMode, 'clock'>): TimerState {
+  return { mode, durationMs: t.durationMs, startedAt: null, elapsedMs: 0 };
+}
+
+/**
+ * Count down to a time of day: the next time the clock shows it, unless it was
+ * under an hour ago (then it shows how long ago, like any countdown past its end).
+ */
+export function timerToTime(target: { hours: number; minutes: number }, now: number, durationMs = INITIAL_TIMER.durationMs): TimerState {
+  const at = new Date(now);
+  at.setHours(target.hours, target.minutes, 0, 0);
+  if (at.getTime() < now - 60 * 60_000) at.setDate(at.getDate() + 1);
+  const label = `${target.hours}:${String(target.minutes).padStart(2, '0')}`;
+  return { mode: 'clock', durationMs, startedAt: null, elapsedMs: 0, targetAt: at.getTime(), target: label };
+}
+
+/** Read a time of day: "10", "10:30", "9:30 am", "7pm" or "19:15". Null if it isn't one. */
+export function parseTimeOfDay(input: string): { hours: number; minutes: number } | null {
+  const m = /^(\d{1,2})(?:[:.](\d{2}))?\s*([ap])?\.?\s*(m\.?)?$/.exec(input.trim().toLowerCase());
+  if (!m || (m[4] && !m[3])) return null;
+  let hours = Number(m[1]);
+  const minutes = m[2] ? Number(m[2]) : 0;
+  if (minutes > 59) return null;
+  if (m[3]) {
+    if (hours < 1 || hours > 12) return null;
+    hours = (hours % 12) + (m[3] === 'p' ? 12 : 0);
+  } else if (hours > 23) return null;
+  return { hours, minutes };
 }
 
 /**
@@ -55,7 +97,7 @@ export function formatDuration(ms: number, roundUp = false): string {
 }
 
 export function formatTimer(t: TimerState, now: number): string {
-  return formatDuration(timerValue(t, now), t.mode === 'countdown');
+  return formatDuration(timerValue(t, now), countsDown(t));
 }
 
 /** Parse "5", "5:00", "1:30:00" or "90s" into milliseconds; null if unreadable. */

@@ -8,6 +8,7 @@ import type { RemoteCommand, RemoteState, RemoteStatus } from './remote';
 import type { MenuEntry } from './menu';
 import type { AppCommand } from './shortcuts';
 import type { ThemeLibrary } from './theme';
+import type { LiveMessage, SavedMessage } from './messages';
 import { INITIAL_TIMER, type TimerState } from './timer';
 
 /** Media that can be a background or a picture on a slide. */
@@ -189,6 +190,8 @@ export interface LiveState {
   videoMuted?: boolean;
   /** Videos set to always play silently (media bin ▸ Always mute), by path. */
   silentVideos?: string[];
+  /** A message along the bottom of the screen, over the slides; null or missing shows none. */
+  message?: LiveMessage | null;
 }
 
 /** A slide as the stage display shows it. */
@@ -323,6 +326,10 @@ export interface Settings {
   videoLoop?: boolean;
   /** Copy imported media into Documents/Vessel/Media, so songs keep it when files move. */
   copyMedia?: boolean;
+  /** Audience messages used before, most recent first. */
+  messages?: SavedMessage[];
+  /** Save changes to presentations by themselves, shortly after each edit. On unless turned off. */
+  autosave?: boolean;
 }
 
 /** API exposed to renderers by the preload script as window.vessel. */
@@ -413,4 +420,11 @@ export interface VesselApi {
   /** Pick pictures, videos or audio and add them (into `folder` when given). */
   importMedia(folder?: string | null): Promise<MediaItem[]>;
   removeMedia(id: string): Promise<MediaItem[]>;
+  /** Which of these media files can't be found. */
+  missingMedia(paths: string[]): Promise<string[]>;
+  /**
+   * Ask for a folder and look in it for the missing files by name; the media bin
+   * is updated with what's found. Null if the operator cancelled.
+   */
+  findMovedMedia(missing: string[]): Promise<{ folder: string; found: Record<string, string>; items: MediaItem[] } | null>;
 }

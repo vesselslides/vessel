@@ -83,3 +83,10 @@ export const MusicIcon = (p: IconProps): React.JSX.Element => (
     <circle cx="17.5" cy="16" r="2.5" />
   </Icon>
 );
+
+export const WarningIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M12 4.5 21 19.5H3z" />
+    <path d="M12 10v4.2M12 17h.01" />
+  </Icon>
+);

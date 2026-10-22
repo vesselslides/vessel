@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { mediaUrl } from '../../shared/media';
+import { fillMessage, hasTokens, type LiveMessage } from '../../shared/messages';
 import type { Background, LiveState, SlideLayout } from '../../shared/types';
 import { SlideCanvas } from './SlideCanvas';
 import { useSoundRouting, type SoundRouting } from './sound';
 import { SlideText } from './SlideText';
+import { useNow } from './StageView';
 
 interface Layer<T> {
   key: number;
@@ -76,6 +78,12 @@ export function MediaView({
   return <video ref={video} className="media" src={src} style={style} autoPlay loop={bg.loop} muted={muted} playsInline />;
 }
 
+/** A message along the bottom of the screen; its {timer} and {clock} keep moving. */
+function MessageBar({ message }: { message: LiveMessage }): React.JSX.Element {
+  const now = useNow(hasTokens(message.text) ? 250 : 60_000);
+  return <div className="audience-message">{fillMessage(message.text, message.timer, now)}</div>;
+}
+
 /** The audience picture: background media with text on top, both crossfading. */
 export function AudienceView({ live, muted }: { live: LiveState; muted: boolean }): React.JSX.Element {
   const ms = live.transitionMs;
@@ -90,6 +98,10 @@ export function AudienceView({ live, muted }: { live: LiveState; muted: boolean 
   // Keep the last logo while it fades out.
   const lastLogo = useRef<string | null>(null);
   if (live.logo) lastLogo.current = live.logo;
+  // And the last message.
+  const lastMessage = useRef<LiveMessage | null>(null);
+  if (live.message) lastMessage.current = live.message;
+  const message = live.message ?? lastMessage.current;
 
   return (
     <div className="stage" style={vars}>
@@ -114,6 +126,7 @@ export function AudienceView({ live, muted }: { live: LiveState; muted: boolean 
           {l.value.copyright && <div className="ccli-line">{l.value.copyright}</div>}
         </div>
       ))}
+      <div className={`audience-message-layer ${live.message ? 'on' : ''}`}>{message && <MessageBar message={message} />}</div>
       {/* The church's logo (the Logo button), on black, over everything but a blackout. */}
       <div className={`stage-logo ${live.logo ? 'on' : ''}`}>{(live.logo || lastLogo.current) && <img src={mediaUrl((live.logo || lastLogo.current)!)} alt="" draggable={false} />}</div>
       <div className={`stage-black ${live.blackout ? 'on' : ''}`} />

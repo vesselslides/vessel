@@ -159,6 +159,12 @@ export function PreferencesDialog({
                 <input type="checkbox" checked={settings?.reopenLastPlaylist !== false} onChange={(e) => onSettings({ reopenLastPlaylist: e.target.checked })} />
                 Open the last service playlist when Vessel starts
               </label>
+              <h3>Saving</h3>
+              <label className="pref-check">
+                <input type="checkbox" checked={settings?.autosave !== false} onChange={(e) => onSettings({ autosave: e.target.checked })} />
+                Save changes to presentations automatically
+              </label>
+              <p className="hint">Edits are saved a moment after you make them. Undo still works. New presentations that came from older or other files are saved into the library the first time you press Save.</p>
               <h3>Logo</h3>
               <p className="hint">The Logo button (or L) shows it on the audience screen, on black, until you press it again or a slide goes on screen.</p>
               <div className="pref-logo">

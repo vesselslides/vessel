@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { backgroundForPath } from '../../shared/pro/background';
 import type { Background, BinKind, MediaFolder, MediaItem } from '../../shared/types';
 import { MediaView } from './AudienceView';
-import { MusicIcon, MutedIcon, PauseIcon, PlayIcon } from './Icons';
+import { MusicIcon, MutedIcon, PauseIcon, PlayIcon, WarningIcon } from './Icons';
 
 /** Drag type for media bin items; the payload is the file path. */
 export const MEDIA_MIME = 'application/x-vessel-media';
@@ -47,7 +47,9 @@ export function MediaBin({
   songName,
   onSongBackground,
   onSongPicture,
-  onReveal
+  onReveal,
+  missing,
+  onFindMissing
 }: {
   items: MediaItem[];
   folders: MediaFolder[];
@@ -70,6 +72,10 @@ export function MediaBin({
   onSongBackground: (bg: Background) => void;
   onSongPicture: (path: string) => void;
   onReveal: (path: string) => void;
+  /** Paths of files that can't be found. */
+  missing: string[];
+  /** Look for the bin's missing files in a folder. */
+  onFindMissing: () => void;
 }): React.JSX.Element {
   const [folderId, setFolderIdState] = useState(rememberedFolder);
   const [kind, setKind] = useState<'all' | BinKind>('all');
@@ -151,7 +157,7 @@ export function MediaBin({
           ]),
       { type: 'separator' },
       { label: 'Move to folder', enabled: folders.length > 0, submenu: moveMenu(item) },
-      { id: 'reveal', label: reveal },
+      missing.includes(item.path) ? { id: 'find', label: 'Find missing media…' } : { id: 'reveal', label: reveal },
       { id: 'remove', label: 'Remove from media bin (keeps the file)' }
     ]);
     if (choice === 'show' && bg) onTrigger(bg);
@@ -161,6 +167,7 @@ export function MediaBin({
     else if (choice?.startsWith('move:')) void move([item.id], choice.slice(5) || null);
     else if (choice === 'mute') onMute(item, !item.muted);
     else if (choice === 'reveal') onReveal(item.path);
+    else if (choice === 'find') onFindMissing();
     else if (choice === 'remove') onRemove(item.id);
   };
 
@@ -280,6 +287,11 @@ export function MediaBin({
             ))}
           </div>
           <input className="media-search" type="search" placeholder="Search media" value={query} onChange={(e) => setQuery(e.target.value)} />
+          {items.some((i) => missing.includes(i.path)) && (
+            <button className="missing-button" onClick={onFindMissing} title="Some media in the bin can’t be found: look for it in a folder">
+              <WarningIcon size={13} /> Find missing…
+            </button>
+          )}
           <button onClick={() => onImport(targetFolder)} title={targetFolder ? `Import into “${title}”` : 'Import pictures, videos or audio'}>
             Import…
           </button>
@@ -299,8 +311,10 @@ export function MediaBin({
           {shown.map((item) => {
             const bg = item.kind === 'audio' ? null : backgroundForPath(item.path);
             const live = item.kind === 'audio' ? playingAudio === item.path : liveBackground?.path === item.path;
+            const lost = missing.includes(item.path);
             const trigger = (): void => {
-              if (item.kind === 'audio') onPlayAudio(item);
+              if (lost) onFindMissing();
+              else if (item.kind === 'audio') onPlayAudio(item);
               else if (bg) onTrigger(bg);
             };
             return (
@@ -308,8 +322,8 @@ export function MediaBin({
                 key={item.id}
                 role="button"
                 tabIndex={0}
-                className={`media-tile ${live ? 'live' : ''} ${item.kind}`}
-                title={item.path}
+                className={`media-tile ${live ? 'live' : ''} ${item.kind} ${lost ? 'missing' : ''}`}
+                title={lost ? `Can’t be found: ${item.path}\nRight-click to look for it` : item.path}
                 draggable
                 onDragStart={(e) => {
                   if (item.kind !== 'audio') e.dataTransfer.setData(MEDIA_MIME, item.path);
@@ -326,6 +340,11 @@ export function MediaBin({
               >
                 <div className="media-thumb">
                   {bg ? <MediaView bg={bg} muted thumbnail /> : <div className="audio-thumb">{live ? <PauseIcon size={26} /> : <MusicIcon size={26} />}</div>}
+                  {lost && (
+                    <span className="missing-badge" title="This file can’t be found">
+                      <WarningIcon size={12} />
+                    </span>
+                  )}
                   {item.kind === 'video' && item.muted && (
                     <span className="mute-badge" title="Always muted: plays without sound (right-click to change)">
                       <MutedIcon size={12} />
