@@ -29,6 +29,9 @@ export type AppCommand =
   | 'stream-look'
   | 'planning-center'
   | 'palette'
+  | 'practice'
+  | 'tour'
+  | 'practice-song'
   | 'welcome'
   | `output:${string}`
   | `stage:${string}`;

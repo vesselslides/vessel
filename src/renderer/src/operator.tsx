@@ -47,10 +47,11 @@ import { copyrightLine, hasCopyrightDetails, isScripture, localDate, showsCopyri
 import { BiblePanel } from './BiblePanel';
 import { AudioPlayer, type AudioTrack } from './AudioPlayer';
 import { mediaName } from '../../shared/media';
-import { BibleIcon, ImportIcon, MutedIcon, NewSongIcon, OpenIcon, PlayIcon, PlaylistIcon, RemoteIcon, SaveIcon, SettingsIcon, SoundIcon, ThemesIcon, WarningIcon } from './Icons';
+import { BibleIcon, HelpIcon, ImportIcon, MutedIcon, NewSongIcon, OpenIcon, PlayIcon, PlaylistIcon, RemoteIcon, SaveIcon, SettingsIcon, SoundIcon, ThemesIcon, WarningIcon } from './Icons';
 import { ModeSwitch, ScreensButton, ToolButton } from './Toolbar';
 import { CommandPalette, type PaletteAction } from './CommandPalette';
 import { WelcomeDialog } from './WelcomeDialog';
+import { Tour, type TourStep } from './Tour';
 import { PreferencesDialog, type Section as PrefsSection } from './PreferencesDialog';
 import { TimerDialog } from './TimerDialog';
 import { CcliDialog } from './CcliDialog';
@@ -128,6 +129,29 @@ function NewSongDialog({ onCreate, onCancel }: { onCreate: (name: string, lyrics
     </div>
   );
 }
+
+/** A song to learn on: its words say what to try. */
+const PRACTICE_SONG = 'Practice song';
+const PRACTICE_LYRICS = `[Verse 1]
+Welcome to Vessel
+This is a practice song
+
+Click a slide
+to show it on the screen
+
+[Chorus]
+Press the right arrow
+for the next slide
+
+Press Esc to clear the words
+and full stop for a black screen
+
+[Verse 2]
+Nothing here is real
+so try anything you like
+
+Delete this song
+whenever you are done`;
 
 /** The media bin's usual height, and the range it can be dragged to. */
 const MEDIA_DEFAULT = 160;
@@ -274,6 +298,9 @@ function Operator(): React.JSX.Element {
   const [showPalette, setShowPalette] = useState(false);
   /** The welcome window: on the first start with an empty library, and from Help ▸ Welcome. */
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  /** "Take a one-minute tour?", offered once after the welcome. */
+  const [tourOffer, setTourOffer] = useState(false);
   const welcomeChecked = useRef(false);
   useEffect(() => {
     if (!settings || welcomeChecked.current) return;
@@ -952,6 +979,26 @@ function Operator(): React.JSX.Element {
     );
   };
 
+  /**
+   * The practice song: made the first time it's asked for (Help, ⌘K or the tour),
+   * then opened from the library like any song, and deleted like one too.
+   */
+  const openPracticeSong = async (): Promise<LoadedDeck | null> => {
+    const open = decksRef.current.find((d) => d.deck.name === PRACTICE_SONG);
+    if (open) {
+      setSelectedId(open.deck.id);
+      return open;
+    }
+    const existing = library.find((l) => l.name === PRACTICE_SONG);
+    if (existing) return openPath(existing.path);
+    const presentation = applyTheme(sized(createPresentation(PRACTICE_SONG, parseLyrics(PRACTICE_LYRICS))), findTheme(themes, themes.defaultId));
+    const path = await window.vessel.saveFile(serializePresentation(presentation), PRACTICE_SONG);
+    const deck = addDeck(presentation, path ?? undefined, !path);
+    refreshLibrary();
+    setStatus('Added the practice song to your library. Try anything with it; when you’re done, right-click it in the library ▸ Move to Trash.');
+    return deck;
+  };
+
   const changeThemes = (lib: ThemeLibrary): void => {
     setThemes(lib);
     void window.vessel.saveThemes(lib);
@@ -1176,8 +1223,10 @@ function Operator(): React.JSX.Element {
     pushLive({ silentVideos: media.filter((m) => m.kind === 'video' && m.muted).map((m) => m.path) });
   }, [media, pushLive]);
   /** What the audience sees, at a glance, on the Live preview. */
-  const onAir: { state: 'off' | 'black' | 'logo' | 'clear' | 'live'; label: string } =
-    outputDisplay === null
+  const onAir: { state: 'practice' | 'off' | 'black' | 'logo' | 'clear' | 'live'; label: string } =
+    live.practice
+      ? { state: 'practice', label: 'Practice · audience sees black' }
+      : outputDisplay === null
       ? { state: 'off', label: 'Output off · preview only' }
       : live.blackout
         ? { state: 'black', label: 'Black screen' }
@@ -1316,6 +1365,12 @@ function Operator(): React.JSX.Element {
     pushStage({ current: null, next: null });
   }, [pushLive, pushStage]);
   const toggleBlackout = useCallback(() => pushLive((prev) => ({ blackout: !prev.blackout })), [pushLive]);
+  /** Practice mode: everything works in the preview while the audience screens stay black and silent. Off at every start. */
+  const togglePractice = useCallback(() => {
+    const on = !liveRef.current.practice;
+    pushLive({ practice: on });
+    setStatus(on ? 'Practice mode: click away; the audience screens stay black and silent until you turn it off.' : 'Practice mode off: the audience screens show the slides again.');
+  }, [pushLive]);
 
   const logoKey = useRef<() => void>(() => undefined);
   logoKey.current = () => toggleLogo();
@@ -1630,8 +1685,8 @@ function Operator(): React.JSX.Element {
 
   // Keep the menu bar's ticks and enabled items in step.
   useEffect(() => {
-    window.vessel.setMenuState({ mode, outputId: outputDisplay, stageId: stageDisplay, hasPresentation: !!selected });
-  }, [mode, outputDisplay, stageDisplay, selected]);
+    window.vessel.setMenuState({ mode, outputId: outputDisplay, stageId: stageDisplay, hasPresentation: !!selected, practice: !!live.practice });
+  }, [mode, outputDisplay, stageDisplay, selected, live.practice]);
 
   /** Undo/Redo from the menu: the text box you're typing in if there is one, else the presentation. */
   const typing = (): boolean => document.activeElement instanceof HTMLElement && !!document.activeElement.closest('input, textarea');
@@ -1660,6 +1715,8 @@ function Operator(): React.JSX.Element {
         return setShowPalette(true);
       case 'welcome':
         return setShowWelcome(true);
+      case 'tour':
+        return startTour();
       case 'stream-look':
         setPrefsSection('screens');
         return setShowPrefs(true);
@@ -1691,6 +1748,10 @@ function Operator(): React.JSX.Element {
         return toggleBlackout();
       case 'logo':
         return toggleLogo();
+      case 'practice':
+        return togglePractice();
+      case 'practice-song':
+        return void openPracticeSong().then(() => setMode('show'));
       case 'themes':
         return setShowThemes(true);
       case 'remote':
@@ -1774,6 +1835,92 @@ function Operator(): React.JSX.Element {
     return out;
   }, [selected]);
 
+  // ---- The tour ------------------------------------------------------------
+
+  // The steps are made once; what they do goes through refs, so they never re-run on a redraw.
+  const tourActions = useRef({ practiceSong: async (): Promise<unknown> => null });
+  tourActions.current.practiceSong = async () => {
+    setMode('show');
+    return openPracticeSong();
+  };
+  const tourSteps = useMemo<TourStep[]>(() => {
+    const k = (key: string): React.JSX.Element => <kbd>{key}</kbd>;
+    const mac = navigator.platform.startsWith('Mac');
+    return [
+      {
+        target: '.sidebar',
+        title: 'Your songs and this Sunday’s playlist',
+        body: (
+          <p>
+            The library lists your songs; click one to open it. Above it is the service playlist, the running order for the day. Drag songs into it, and add
+            headings like “Worship” or “Word”.
+          </p>
+        )
+      },
+      {
+        target: 'main.slides .group',
+        title: 'Click a slide to put it on screen',
+        before: () => tourActions.current.practiceSong(),
+        body: (
+          <>
+            <p>This is the practice song, made for trying things.</p>
+            <p>
+              {k('→')} or {k('Space')} shows the next slide (marked NEXT), {k('Esc')} clears the words and {k('.')} blacks the screen. Groups have letters: {k('C')} jumps to
+              the Chorus.
+            </p>
+          </>
+        )
+      },
+      {
+        target: ['.live-controls', '.preview-screen'],
+        title: 'What the audience sees',
+        body: (
+          <p>
+            The preview shows exactly what’s on screen, and its badge says whether it’s live. Clear, Black and Logo are here, and <strong>Practice</strong> keeps the
+            real screens black while you learn.
+          </p>
+        )
+      },
+      {
+        target: '.screens-button',
+        title: 'Choose your screens',
+        body: <p>The projector or TV for the audience, a stage screen for the band, and a stream for your livestream. The dot is green when the audience screen is on.</p>
+      },
+      {
+        target: '.mode-switch',
+        title: 'Show and Edit',
+        body: <p>Show runs the service. Edit changes a presentation: its words, groups, colours, backgrounds and pictures. Undo works everywhere.</p>
+      },
+      {
+        title: 'Find anything',
+        body: (
+          <p>
+            Press {k(mac ? '⌘K' : 'Ctrl+K')} and type: a song’s name or words, a verse like “John 3:16”, or what you want to do, like “black” or “import”.
+          </p>
+        )
+      },
+      {
+        target: '.help-button',
+        title: 'Come back any time',
+        body: <p>This button runs the tour again. The Help menu also has the practice song, and Report a Problem if something goes wrong.</p>
+      }
+    ];
+  }, []);
+
+  const startTour = (): void => {
+    setTourOffer(false);
+    setShowPalette(false);
+    setShowPrefs(false);
+    if (showBible) closeBible();
+    setMode('show');
+    setShowTour(true);
+  };
+  const endTour = (finished: boolean): void => {
+    setShowTour(false);
+    if (!settings?.toured) void window.vessel.updateSettings({ toured: true }).then(setSettings);
+    if (finished) setStatus('That’s the tour. Run it again any time with the ? button at the top right.');
+  };
+
   /** Everything the ⌘K palette can do, in the order it lists them before anything is typed. */
   const paletteActions: PaletteAction[] = [
     { id: 'new-song', label: 'New song', keys: 'Mod+N', words: 'create lyrics', run: () => setShowNewSong(true) },
@@ -1781,6 +1928,9 @@ function Operator(): React.JSX.Element {
     { id: 'clear', label: 'Clear text', words: 'hide lyrics', run: clear },
     { id: 'clear-all', label: 'Clear all', words: 'reset nothing', run: clearAll },
     { id: 'logo', label: live.logo ? 'Hide the logo' : 'Show the logo', run: toggleLogo },
+    { id: 'tour', label: 'Take the tour', words: 'help tutorial learn guide', run: startTour },
+    { id: 'practice-song', label: 'Open the practice song', words: 'sample learn demo try', run: () => void openPracticeSong() },
+    { id: 'practice', label: live.practice ? 'Turn practice mode off' : 'Practice mode', words: 'rehearse train learn try safe', run: togglePractice },
     { id: 'screens', label: 'Screens', words: 'output projector display stage stream fade', run: () => setScreensRequest((n) => n + 1) },
     { id: 'open', label: 'Open a presentation', keys: 'Mod+O', words: 'file pro', run: () => void openPresentations() },
     { id: 'import', label: 'Import', keys: 'Mod+I', words: 'powerpoint word text pptx docx txt pro playlist media bible', run: () => setShowImport(true) },
@@ -1859,6 +2009,9 @@ function Operator(): React.JSX.Element {
               }}
               openRequest={screensRequest}
             />
+            <span className="help-button">
+              <ToolButton label="Take the tour" icon={<HelpIcon size={20} />} onClick={startTour} align="end" />
+            </span>
             <ToolButton label="Preferences" keys="Mod+," icon={<SettingsIcon size={20} />} onClick={() => setShowPrefs(true)} align="end" />
           </div>
         </div>
@@ -2041,11 +2194,19 @@ function Operator(): React.JSX.Element {
           <button title="Clear text and background (Shift+Esc)" onClick={clearAll}>
             Clear all
           </button>
-          <button className={`wide ${live.logo ? 'active-toggle' : ''}`} title={settings?.logoPath ? 'Show your logo instead of the slides (L)' : 'Choose your logo in Preferences ▸ General'} onClick={toggleLogo}>
+          <button className={live.logo ? 'active-toggle' : ''} title={settings?.logoPath ? 'Show your logo instead of the slides (L)' : 'Choose your logo in Preferences ▸ General'} onClick={toggleLogo}>
             Logo
           </button>
-          <button className={`wide ${live.blackout ? 'danger active' : ''}`} title="Black out the screen (.)" onClick={toggleBlackout}>
+          <button className={live.blackout ? 'danger active' : ''} title="Black out the screen (.)" onClick={toggleBlackout}>
             Black
+          </button>
+          <button
+            className={`practice-button ${live.practice ? 'on' : ''}`}
+            aria-pressed={!!live.practice}
+            title="Practice mode: try anything here while the audience screens stay black and silent"
+            onClick={togglePractice}
+          >
+            Practice
           </button>
         </div>
         <div
@@ -2110,7 +2271,7 @@ function Operator(): React.JSX.Element {
           <AudioPlayer
             track={audio}
             onStop={() => setAudio(null)}
-            level={settings?.audioLevel ?? 1}
+            level={live.practice ? 0 : (settings?.audioLevel ?? 1)}
             routing={{ sinkId: settings?.audioOutputId, delayMs: settings?.audioDelayMs }}
           />
         )}
@@ -2292,9 +2453,34 @@ function Operator(): React.JSX.Element {
             setShowWelcome(false);
             openBible();
           }}
-          onClose={() => setShowWelcome(false)}
+          onClose={() => {
+            setShowWelcome(false);
+            if (!settings?.toured) setTourOffer(true);
+          }}
         />
       )}
+      {tourOffer && (
+        <div className="modal-backdrop">
+          <div className="modal tour-offer" role="dialog" aria-labelledby="tour-offer-title">
+            <h2 id="tour-offer-title">Take a one-minute tour?</h2>
+            <p className="muted">A quick look at where everything is, using a practice song. You can take it again any time with the ? button.</p>
+            <div className="modal-actions">
+              <button
+                onClick={() => {
+                  setTourOffer(false);
+                  void window.vessel.updateSettings({ toured: true }).then(setSettings);
+                }}
+              >
+                Not now
+              </button>
+              <button className="primary" autoFocus onClick={startTour}>
+                Take the tour
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showTour && <Tour steps={tourSteps} onClose={endTour} />}
       {showPalette && (
         <CommandPalette
           actions={paletteActions}

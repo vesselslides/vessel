@@ -200,6 +200,8 @@ export interface LiveState {
   message?: LiveMessage | null;
   /** A name and second line in the lower left, over the slides. */
   lowerThird?: LowerThird | null;
+  /** Practice mode: the preview shows everything, the audience gets black and silence. */
+  practice?: boolean;
   /** Play, pause and position of the background video, when one is live. */
   videoClock?: VideoClock | null;
 }
@@ -225,6 +227,11 @@ export interface StageState {
 }
 
 export const INITIAL_STAGE: StageState = { current: null, next: null, message: '', timer: INITIAL_TIMER };
+
+/** What the audience screens (and stream and NDI) get: in practice mode, black and silence. */
+export const audienceState = (s: LiveState): LiveState =>
+  // Nothing at all under the black, so nothing can show through a fade (and no video means no sound).
+  s.practice ? { ...s, blackout: true, cleared: true, text: '', layout: null, background: null, videoClock: null, copyright: undefined, logo: null, message: null, lowerThird: null } : s;
 
 export const INITIAL_LIVE: LiveState = { text: '', layout: null, cleared: true, blackout: false, background: null, transitionMs: 500 };
 
@@ -358,6 +365,8 @@ export interface Settings {
   skippedVersion?: string;
   /** The presentation open last time, reopened at start-up (and after an unexpected quit). */
   lastPresentation?: string;
+  /** The tour has been taken or turned down, so it isn't offered again (the ? button still runs it). */
+  toured?: boolean;
   /** The welcome (first-run) window has been seen. */
   welcomed?: boolean;
   /** Save changes to presentations by themselves, shortly after each edit. On unless turned off. */
@@ -442,7 +451,7 @@ export interface VesselApi {
   /** Commands from the menu bar. */
   onAppCommand(listener: (command: AppCommand) => void): () => void;
   /** Tell the menu bar what to tick and enable. */
-  setMenuState(state: { mode: 'show' | 'edit'; outputId: number | null; stageId: number | null; hasPresentation: boolean }): void;
+  setMenuState(state: { mode: 'show' | 'edit'; outputId: number | null; stageId: number | null; hasPresentation: boolean; practice?: boolean }): void;
   /** Show a file in Finder / Explorer. */
   revealFile(path: string): Promise<void>;
   /** Move a song in a library folder to the Trash. */

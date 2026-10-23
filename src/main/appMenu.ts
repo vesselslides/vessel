@@ -13,6 +13,8 @@ export interface MenuState {
   outputId: number | null;
   stageId: number | null;
   hasPresentation: boolean;
+  /** Practice mode is on (the audience screens are kept black). */
+  practice?: boolean;
 }
 
 let state: MenuState = { mode: 'show', outputId: null, stageId: null, hasPresentation: false };
@@ -171,7 +173,9 @@ export function rebuildAppMenu(): void {
         { label: 'Clear Media', click: send('clear-media') },
         { label: 'Clear All', ...shown('Shift+Escape'), click: send('clear-all') },
         { label: 'Black Screen', ...shown('.'), click: send('black') },
-        { label: 'Logo', ...shown('L'), click: send('logo') }
+        { label: 'Logo', ...shown('L'), click: send('logo') },
+        { type: 'separator' },
+        { label: 'Practice Mode', type: 'checkbox', checked: !!state.practice, click: send('practice') }
       ]
     },
     {
@@ -199,6 +203,8 @@ export function rebuildAppMenu(): void {
       role: 'help',
       label: mnemonic('&Help'),
       submenu: [
+        { label: 'Take the Tour', click: send('tour') },
+        { label: 'Open the Practice Song', click: send('practice-song') },
         { label: 'Welcome to Vessel…', click: send('welcome') },
         { label: 'Keyboard Shortcuts', accelerator: 'CmdOrCtrl+/', click: send('shortcuts') },
         { type: 'separator' },

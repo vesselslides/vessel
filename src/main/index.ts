@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { extname, isAbsolute, join } from 'node:path';
 import { AUDIO_EXTENSIONS, binKindOf, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from '../shared/media';
-import { INITIAL_LIVE, INITIAL_STAGE, type DisplayInfo, type LiveState, type OpenedFile, type Settings, type StageState } from '../shared/types';
+import { audienceState, INITIAL_LIVE, INITIAL_STAGE, type DisplayInfo, type LiveState, type OpenedFile, type Settings, type StageState } from '../shared/types';
 import { importLegacyFile } from './legacy';
 import { importDocumentFile } from './importDocs';
 import { openDropped } from './dropped';
@@ -235,7 +235,7 @@ function displayLabel(id: number): string {
 
 function setOutput(displayId: number | null): void {
   void closeScreenWindow(outputWindow);
-  const win = displayId === null ? null : createScreenWindow(displayId, 'output', () => ['live:update', liveState]);
+  const win = displayId === null ? null : createScreenWindow(displayId, 'output', () => ['live:update', audienceState(liveState)]);
   outputWindow = win;
   log.info(displayId === null ? 'Audience screen off' : win ? `Audience screen on ${displayLabel(displayId)}` : `Audience screen: display ${displayId} not found`);
   if (win)
@@ -305,7 +305,7 @@ function applyNdi(settings: Settings): void {
       // See-through from the first paint, before the look arrives.
       loadPage(win, 'stream', ndi.transparent ? 'see-through' : '');
       win.webContents.on('did-finish-load', () => {
-        win.webContents.send('live:update', liveState);
+        win.webContents.send('live:update', audienceState(liveState));
         void sendStreamLook();
       });
     }
@@ -352,9 +352,9 @@ function setStreamOutput(target: StreamTarget): void {
     streamWindow.once('ready-to-show', () => streamWindow?.showInactive());
     // Keep the name the capture software looks for.
     streamWindow.on('page-title-updated', (e) => e.preventDefault());
-    streamWindow.webContents.on('did-finish-load', () => streamWindow?.webContents.send('live:update', liveState));
+    streamWindow.webContents.on('did-finish-load', () => streamWindow?.webContents.send('live:update', audienceState(liveState)));
   } else if (target !== null) {
-    streamWindow = createScreenWindow(target, 'stream', () => ['live:update', liveState]);
+    streamWindow = createScreenWindow(target, 'stream', () => ['live:update', audienceState(liveState)]);
     if (!streamWindow) streamTarget = null;
   }
   const win = streamWindow;
@@ -642,8 +642,13 @@ function registerIpc(): void {
   });
 
   ipcMain.on('live:set', (_e, state: LiveState) => {
+    const was = liveState.practice;
     liveState = state;
-    for (const win of [outputWindow, streamWindow, ndiSender?.window ?? null, operatorWindow]) sendTo(win, 'live:update', state);
+    // The operator sees everything; the audience screens get black in practice mode.
+    const audience = audienceState(state);
+    for (const win of [outputWindow, streamWindow, ndiSender?.window ?? null]) sendTo(win, 'live:update', audience);
+    sendTo(operatorWindow, 'live:update', state);
+    if (!!state.practice !== !!was) log.info(state.practice ? 'Practice mode on' : 'Practice mode off');
   });
 }
 

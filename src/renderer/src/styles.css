@@ -3947,3 +3947,118 @@ html.see-through .output-stage {
   background: none;
   border-color: transparent;
 }
+
+/* Practice mode: amber, so it can't be mistaken for live */
+.practice-button.on {
+  background: color-mix(in srgb, #f5a524 22%, var(--panel-2));
+  border-color: #f5a524;
+  color: #f5a524;
+  font-weight: 600;
+}
+
+.preview-screen.on-air-practice {
+  border: 2px dashed #f5a524;
+}
+
+.on-air-badge.practice {
+  background: #f5a524;
+  color: #1a1408;
+}
+
+/* The tour: everything dims except the area being explained */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+}
+
+.tour-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.tour-hole {
+  position: absolute;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.6), 0 0 0 2px var(--accent), 0 0 24px color-mix(in srgb, var(--accent) 50%, transparent);
+  transition: top 320ms cubic-bezier(0.3, 0.9, 0.3, 1), left 320ms cubic-bezier(0.3, 0.9, 0.3, 1), width 320ms cubic-bezier(0.3, 0.9, 0.3, 1),
+    height 320ms cubic-bezier(0.3, 0.9, 0.3, 1);
+  pointer-events: none;
+}
+
+.tour-card {
+  position: absolute;
+  padding: 16px 18px 14px;
+  border-radius: var(--radius-xl);
+  background: var(--panel);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 18px 48px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 180ms ease, transform 180ms ease, top 320ms ease, left 320ms ease;
+}
+
+.tour-card.in {
+  opacity: 1;
+  transform: none;
+}
+
+.tour-count {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tour-card h3 {
+  margin: 4px 0 6px;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.tour-body {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.tour-body p {
+  margin: 0 0 6px;
+}
+
+.tour-body kbd {
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel-2);
+  color: var(--text);
+  font: 11px/1.6 system-ui, sans-serif;
+}
+
+.tour-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tour-actions .grow {
+  flex: 1;
+}
+
+/* Offered once, after the welcome */
+.tour-offer {
+  width: min(420px, 92vw);
+  text-align: center;
+}
+
+.tour-offer .modal-actions {
+  justify-content: center;
+}
+
+.help-button {
+  display: inline-flex;
+}
