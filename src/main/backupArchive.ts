@@ -5,14 +5,13 @@
 //
 // Nothing here talks to Electron, so it can be tested on its own; backup.ts
 // adds the dialogs.
-import { Unzip, UnzipInflate, Zip, ZipDeflate, ZipPassThrough } from 'fflate';
-import { createReadStream, createWriteStream, existsSync, type WriteStream } from 'node:fs';
-import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
-import { basename, dirname, extname, join, relative, sep } from 'node:path';
-import { once } from 'node:events';
+import { existsSync } from 'node:fs';
+import { copyFile, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { basename, dirname, extname, join, relative } from 'node:path';
 import { parsePresentation, serializePresentation } from '../shared/pro/presentation';
 import { relinkMedia } from '../shared/pro/relink';
 import { decodeService, encodeService } from '../shared/pro/service';
+import { unzipTo, zipPath, zipWriter } from './zipStream';
 import type { MediaFolder, MediaItem, Settings } from '../shared/types';
 
 export const BACKUP_EXTENSION = 'vesselbackup';
@@ -63,8 +62,6 @@ async function filesUnder(folder: string, exts: string[], depth = 6): Promise<st
   return out.sort();
 }
 
-/** Zip paths always use forward slashes. */
-const zipPath = (...parts: string[]): string => parts.join('/').split(sep).join('/');
 
 /** Write a backup to `target`. Returns what went in. */
 export async function writeBackup(target: string, src: BackupSources): Promise<BackupManifest> {
@@ -85,95 +82,27 @@ export async function writeBackup(target: string, src: BackupSources): Promise<B
     counts: { songs: songs.length, playlists: playlists.length, bibles: bibles.length, media: Object.keys(media).length }
   };
 
-  const out = createWriteStream(target);
-  let failed: Error | null = null;
-  const done = new Promise<void>((resolve, reject) => {
-    out.on('finish', resolve);
-    out.on('error', reject);
-  });
-  const zip = new Zip((err, chunk, final) => {
-    if (err) failed = err;
-    else out.write(chunk);
-    if (final || err) out.end();
-  });
-  const add = async (name: string, source: string | Uint8Array, compress = true): Promise<void> => {
-    const entry = compress ? new ZipDeflate(name, { level: 6 }) : new ZipPassThrough(name);
-    zip.add(entry);
-    if (typeof source !== 'string') return entry.push(source, true);
-    // Stream the file in, waiting for the disk whenever too much is waiting to be written.
-    for await (const chunk of createReadStream(source)) {
-      entry.push(chunk as Uint8Array);
-      await drained(out);
-    }
-    entry.push(new Uint8Array(0), true);
-  };
-
+  const zip = zipWriter(target);
   try {
-    await add('manifest.json', new TextEncoder().encode(JSON.stringify(manifest, null, 2)));
-    for (const f of DATA_FILES) if (existsSync(join(src.dataFolder, f))) await add(zipPath('data', f), join(src.dataFolder, f));
-    if (existsSync(join(src.dataFolder, 'bibles', 'index.json'))) await add('data/bibles/index.json', join(src.dataFolder, 'bibles', 'index.json'));
-    for (const f of bibles) await add(zipPath('data', 'bibles', f), join(src.dataFolder, 'bibles', f));
-    for (const f of songs) await add(zipPath('library', f), join(src.libraryFolder, f));
-    for (const f of playlists) await add(zipPath('playlists', f), join(src.playlistFolder, f));
+    await zip.add('manifest.json', new TextEncoder().encode(JSON.stringify(manifest, null, 2)));
+    for (const f of DATA_FILES) if (existsSync(join(src.dataFolder, f))) await zip.add(zipPath('data', f), join(src.dataFolder, f));
+    if (existsSync(join(src.dataFolder, 'bibles', 'index.json'))) await zip.add('data/bibles/index.json', join(src.dataFolder, 'bibles', 'index.json'));
+    for (const f of bibles) await zip.add(zipPath('data', 'bibles', f), join(src.dataFolder, 'bibles', f));
+    for (const f of songs) await zip.add(zipPath('library', f), join(src.libraryFolder, f));
+    for (const f of playlists) await zip.add(zipPath('playlists', f), join(src.playlistFolder, f));
     // Pictures and videos are already compressed; storing them is much faster.
-    for (const [name, path] of Object.entries(media)) await add(name, path, false);
-    zip.end();
-    await done;
+    for (const [name, path] of Object.entries(media)) await zip.add(name, path, false);
+    await zip.close();
   } catch (err) {
-    out.destroy();
-    await rm(target, { force: true });
+    await zip.abort();
     throw err;
   }
-  if (failed) throw failed;
   return manifest;
-}
-
-async function drained(stream: WriteStream): Promise<void> {
-  if (stream.writableLength > 32 * 1024 * 1024) await once(stream, 'drain');
 }
 
 /** Unpack a backup into the empty folder `into` and return its manifest. Names that would leave the folder are refused. */
 export async function unpackBackup(file: string, into: string): Promise<BackupManifest> {
-  await mkdir(into, { recursive: true });
-  const writes: Array<Promise<void>> = [];
-  const open: WriteStream[] = [];
-  let bad: Error | null = null;
-  const unzip = new Unzip((entry) => {
-    const name = entry.name;
-    if (name.endsWith('/')) return;
-    const target = join(into, ...name.split('/'));
-    if (name.split('/').some((p) => p === '..' || p === '') || !target.startsWith(into + sep)) {
-      bad = new Error(`This backup has a file Vessel won't unpack (${name})`);
-      return;
-    }
-    let stream: WriteStream | null = null;
-    const pending: Uint8Array[] = [];
-    const ready = mkdir(dirname(target), { recursive: true }).then(() => {
-      stream = createWriteStream(target);
-      open.push(stream);
-      for (const c of pending) stream.write(c);
-      return stream;
-    });
-    let finished!: () => void;
-    let failed!: (e: Error) => void;
-    writes.push(new Promise<void>((res, rej) => ((finished = res), (failed = rej))));
-    entry.ondata = (err, chunk, final) => {
-      if (err) return failed(err);
-      if (stream) stream.write(chunk);
-      else pending.push(chunk);
-      if (final) void ready.then((s) => s.end(() => finished()), failed);
-    };
-    entry.start();
-  });
-  unzip.register(UnzipInflate);
-  for await (const chunk of createReadStream(file)) {
-    unzip.push(chunk as Uint8Array);
-    for (const s of open) if (s.writableLength > 32 * 1024 * 1024) await once(s, 'drain');
-    if (bad) break;
-  }
-  if (!bad) unzip.push(new Uint8Array(0), true);
-  await Promise.all(writes);
-  if (bad) throw bad;
+  await unzipTo(file, into);
   let manifest: BackupManifest;
   try {
     manifest = JSON.parse(await readFile(join(into, 'manifest.json'), 'utf8'));
