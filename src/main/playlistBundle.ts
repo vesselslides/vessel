@@ -16,6 +16,7 @@ import { parsePresentation, serializePresentation } from '../shared/pro/presenta
 import { mediaPathsOf, relinkMedia } from '../shared/pro/relink';
 import { decodeService, encodeService, serviceToDocument, type Service } from '../shared/pro/service';
 import { safeFileName } from '../shared/vesselFile';
+import { sameMedia, type SongIndex } from './songIndex';
 import { unzipTo, zipWriter } from './zipStream';
 
 /** Where a file goes inside the bundle: its path without the leading "/" (or "C:"). */
@@ -26,19 +27,19 @@ export const bundlePath = (path: string): string =>
     .replace(/^\/+/, '');
 
 /** Write the service, its songs and their media as one .proPlaylist. Songs or media not found are named in `missing`. */
-export async function writePlaylistBundle(target: string, service: Service): Promise<{ files: number; missing: string[] }> {
+export async function writePlaylistBundle(target: string, service: Service, edited: Record<string, Uint8Array> = {}): Promise<{ files: number; missing: string[] }> {
   const missing: string[] = [];
   const songs = [...new Set(service.items.flatMap((it) => (it.kind === 'presentation' ? [it.path] : [])))];
   const media = new Set<string>();
   const found: string[] = [];
   for (const path of songs) {
-    if (!existsSync(path)) {
+    if (!existsSync(path) && !edited[path]) {
       missing.push(basename(path));
       continue;
     }
     found.push(path);
     try {
-      for (const m of mediaPathsOf(parsePresentation(new Uint8Array(await readFile(path))))) media.add(m);
+      for (const m of mediaPathsOf(parsePresentation(edited[path] ?? new Uint8Array(await readFile(path))))) media.add(m);
     } catch {
       // Not readable as a presentation: bundled as it is, without media.
     }
@@ -48,7 +49,8 @@ export async function writePlaylistBundle(target: string, service: Service): Pro
   try {
     await zip.add('data', toBinary(PlaylistDocumentSchema, serviceToDocument(service)));
     for (const path of found) {
-      await zip.add(bundlePath(path), path);
+      // An open song with unsaved changes goes in as it is now.
+      await zip.add(bundlePath(path), edited[path] ?? path);
       files++;
     }
     for (const path of media) {
@@ -111,7 +113,18 @@ export interface Unbundled {
  * `libraryFolder/<name>` and `mediaRoot/<name>`; null when it holds only the
  * playlist (it's then read as it is).
  */
-export async function unbundlePlaylist(file: string, scratch: string, to: { libraryFolder: string; mediaRoot: string }): Promise<Unbundled | null> {
+export async function unbundlePlaylist(
+  file: string,
+  scratch: string,
+  to: {
+    libraryFolder: string;
+    mediaRoot: string;
+    /** Songs in the library: the same song is used where it is. */
+    songs?: SongIndex;
+    /** Media in the bin: the same file (name and size) is used rather than copied. */
+    existingMedia?: string[];
+  }
+): Promise<Unbundled | null> {
   const head = new Uint8Array(4);
   const fh = await open(file, 'r');
   try {
@@ -122,9 +135,12 @@ export async function unbundlePlaylist(file: string, scratch: string, to: { libr
   if (!(head[0] === 0x50 && head[1] === 0x4b && head[2] === 0x03 && head[3] === 0x04)) return null;
   try {
     await unzipTo(file, scratch);
-    const entries = (await listFiles(scratch)).filter((e) => e !== 'data' && !e.endsWith('/data'));
+    const all = await listFiles(scratch);
+    const entries = all.filter((e) => e !== 'data' && !e.endsWith('/data'));
     if (!entries.length) return null;
-    const dataPath = existsSync(join(scratch, 'data')) ? join(scratch, 'data') : join(scratch, (await listFiles(scratch)).find((e) => e.endsWith('/data'))!);
+    const dataEntry = all.includes('data') ? 'data' : all.find((e) => e.endsWith('/data'));
+    if (!dataEntry) throw new Error('This playlist file has no playlist inside');
+    const dataPath = join(scratch, ...dataEntry.split('/'));
     const fallback = basename(file, extname(file));
     const service = decodeService(new Uint8Array(await readFile(dataPath)), fallback);
     const name = safeFileName(service.name || fallback, 'Imported playlist');
@@ -149,6 +165,11 @@ export async function unbundlePlaylist(file: string, scratch: string, to: { libr
       if (path in mediaMoves || existsSync(path)) return;
       const from = inBundle(path);
       if (!from || !binKindOf(from)) return;
+      const have = to.existingMedia && (await sameMedia(from, to.existingMedia));
+      if (have) {
+        mediaMoves[path] = have;
+        return;
+      }
       await mkdir(mediaDir, { recursive: true });
       const size = sizeOf(from);
       const target = unique(mediaDir, basename(path.replace(/\\/g, '/')), (p) => sizeOf(p) === size);
@@ -165,6 +186,12 @@ export async function unbundlePlaylist(file: string, scratch: string, to: { libr
       try {
         presentation = parsePresentation(new Uint8Array(await readFile(from)));
       } catch {
+        continue;
+      }
+      const here = to.songs && (await to.songs.find(presentation));
+      if (here) {
+        // The same song is already in the library.
+        placed.set(it.path, here);
         continue;
       }
       for (const m of mediaPathsOf(presentation)) await placeMedia(m);

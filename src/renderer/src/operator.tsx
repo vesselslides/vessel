@@ -180,11 +180,17 @@ interface MediaDrop {
 
 const isMediaDrag = (dt: DataTransfer): boolean => dt.types.includes(MEDIA_MIME) || dt.types.includes('Files');
 
-/** The media in a drop, read while the drop event lasts; null when there's none. */
+/**
+ * The media in a drop, read while the drop event lasts; null when there's none.
+ * Files from Finder or Explorer count only if they're all pictures or videos:
+ * songs, documents and the rest dropped with them are imported as usual instead.
+ */
 function mediaDropOf(dt: DataTransfer): MediaDrop | null {
   const binPath = dt.getData(MEDIA_MIME);
-  const files = binPath ? [] : window.vessel.pathsOfFiles([...dt.files]).filter((f) => binKindOf(f) === 'image' || binKindOf(f) === 'video');
-  return binPath || files.length ? { binPath, files } : null;
+  if (binPath) return { binPath, files: [] };
+  const files = window.vessel.pathsOfFiles([...dt.files]);
+  const visual = (f: string): boolean => binKindOf(f) === 'image' || binKindOf(f) === 'video';
+  return files.length && files.every(visual) ? { binPath: '', files } : null;
 }
 
 /** Drop pictures or videos here for new slides with no words. */
@@ -808,10 +814,9 @@ function Operator(): React.JSX.Element {
   const backgroundsFor = async ({ binPath, files }: MediaDrop): Promise<string[]> => {
     if (binPath) return [binPath];
     const dropped = await window.vessel.openDropped(files, {}, null);
-    const bin = dropped.media ?? media;
     if (dropped.media) setMedia(dropped.media);
-    // With "Copy media into Vessel" on, the bin holds a copy under the same name.
-    return files.map((f) => bin.find((i) => i.path === f)?.path ?? bin.find((i) => i.name === mediaName(f))?.path ?? f);
+    // With "Copy media into Vessel" on, the bin holds a copy: use that.
+    return files.map((f) => dropped.mediaPlaced?.[f] ?? f);
   };
 
   /** A picture or video dropped on a slide becomes its background, words or not. */
@@ -870,13 +875,19 @@ function Operator(): React.JSX.Element {
       }
     const chosenThemes = c.kind === 'themes' || c.kind === 'collection' ? themes.custom.filter((t) => c.themes.includes(t.id)) : [];
     setStatus('Saving the Vessel file…');
+    // Songs open with changes not saved yet go in as they are now; the rest are read from disk.
+    await writeChain.current;
+    const songPaths = new Set([...(c.kind === 'collection' ? c.songs : []), ...playlists.flatMap((s) => s.items.flatMap((it) => (it.kind === 'presentation' ? [it.path] : [])))]);
+    const edited = decksRef.current
+      .filter((d) => d.dirty && d.path && songPaths.has(d.path))
+      .map((d) => ({ name: d.deck.name || fileName(d.path!), bytes: serializePresentation(d.presentation), path: d.path }));
     try {
       const saved = await window.vessel.exportVesselFile({
         kind: c.kind,
         title: c.title,
         description: c.description,
         author: c.author,
-        presentations: c.kind === 'presentation' && selected ? [{ name: selected.deck.name || 'Untitled', bytes: serializePresentation(selected.presentation) }] : [],
+        presentations: c.kind === 'presentation' && selected ? [{ name: selected.deck.name || 'Untitled', bytes: serializePresentation(selected.presentation), path: selected.path }] : edited,
         presentationPaths: c.kind === 'collection' ? c.songs : [],
         playlists,
         themes: chosenThemes,
@@ -920,7 +931,11 @@ function Operator(): React.JSX.Element {
         if (!svc) return;
         setStatus('Exporting the playlist with its songs and media…');
         await writeChain.current;
-        const r = await window.vessel.exportPlaylistBundle(svc);
+        // Songs open with unsaved changes go in as they are now.
+        const edited = Object.fromEntries(
+          decksRef.current.filter((d) => d.dirty && d.path && svc.items.some((it) => it.kind === 'presentation' && it.path === d.path)).map((d) => [d.path!, serializePresentation(d.presentation)])
+        );
+        const r = await window.vessel.exportPlaylistBundle(svc, edited);
         if (!r) return setStatus('');
         const missing = r.missing.length ? `  ·  Not found, so not included: ${r.missing.join(', ')}` : '';
         return setStatus(`Exported ${fileName(r.path)} with ${r.files} song and media file${r.files === 1 ? '' : 's'}.${missing}`);

@@ -105,9 +105,11 @@ function createOperatorWindow(): void {
     webPreferences: { preload, sandbox: false, contextIsolation: true }
   });
   loadPage(operatorWindow, 'index');
-  operatorWindow.webContents.on('did-finish-load', () => {
-    operatorReady = true;
-    if (pendingOpen.length) operatorWindow?.webContents.send('files:open-external', pendingOpen.splice(0));
+  // Files opened before the window is listening wait in pendingOpen; the window asks for them ('files:pending').
+  operatorReady = false;
+  // Only a page that really replaced the old one (not a navigation that was stopped) needs to ask again.
+  operatorWindow.webContents.on('did-navigate', () => {
+    operatorReady = false;
   });
   // A file dropped where nothing handles it would otherwise replace Vessel with that file.
   operatorWindow.webContents.on('will-navigate', (e) => e.preventDefault());
@@ -126,6 +128,7 @@ function createOperatorWindow(): void {
   });
   operatorWindow.on('closed', () => {
     operatorWindow = null;
+    operatorReady = false;
     outputWindow?.close();
     stageWindow?.close();
     streamWindow?.close();
@@ -643,7 +646,12 @@ function registerIpc(): void {
   ipcMain.handle('vessel:export', (_e, req) => exportVesselFile(operatorWindow, req));
   ipcMain.handle('gallery:online', () => onlineGallery());
   ipcMain.handle('gallery:submit', (_e, entry) => submitToGallery(entry));
-  ipcMain.handle('export:bundle', (_e, service) => exportPlaylistBundle(operatorWindow, service));
+  // The operator window is listening for files opened from Finder or Explorer: hand over any waiting.
+  ipcMain.handle('files:pending', () => {
+    operatorReady = true;
+    return pendingOpen.splice(0);
+  });
+  ipcMain.handle('export:bundle', (_e, service, edited) => exportPlaylistBundle(operatorWindow, service, edited && typeof edited === 'object' ? edited : {}));
   ipcMain.handle('export:run', (_e, job) => exportDocument(operatorWindow, job, (w) => loadPage(w, 'print')));
   ipcMain.handle('vessel:open', (_e, path?: string) => openVesselFile(operatorWindow, typeof path === 'string' ? path : undefined));
   ipcMain.handle('vessel:add', (_e, choice) => addFromVesselFile(choice));

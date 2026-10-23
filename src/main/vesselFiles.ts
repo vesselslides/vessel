@@ -7,7 +7,8 @@ import { basename, dirname, join } from 'node:path';
 import { safeFileName, VESSEL_EXTENSION, type VesselChoice, type VesselExportRequest, type VesselManifest, type VesselPreview, type VesselReport } from '../shared/vesselFile';
 import { listLibrary } from './library';
 import { log } from './log';
-import { addToMediaFolderNamed } from './media';
+import { addToMediaFolderNamed, loadMediaBin } from './media';
+import { songIndex } from './songIndex';
 import { getSettings } from './settings';
 import { loadThemes, saveThemes } from './themes';
 import { addFromUnpacked, clearUnpacked, previewOf, unpackVesselFile, writeVesselFile } from './vesselFile';
@@ -45,7 +46,7 @@ export async function openVesselFile(win: BrowserWindow | null, path?: string): 
     const library = await listLibrary();
     const themes = (await loadThemes()).custom;
     log.info(`Vessel file opened: ${manifest.kind}, ${manifest.presentations.length} presentations, ${manifest.themes.length} themes, ${manifest.media.length} media`);
-    return await previewOf(token, basename(file), dir, manifest, { songNames: library.map((l) => l.name), themes });
+    return await previewOf(token, basename(file), dir, manifest, { songNames: library.map((l) => l.name), themes, songs: songIndex(library.map((l) => l.path)) });
   } catch (err) {
     await rm(dir, { recursive: true, force: true });
     throw err;
@@ -58,12 +59,16 @@ export async function addFromVesselFile(choice: VesselChoice): Promise<VesselRep
   if (!entry) throw new Error('That Vessel file is no longer open; open it again.');
   const s = await getSettings();
   const library = await loadThemes();
+  const songs = songIndex((await listLibrary()).map((l) => l.path));
+  const existingMedia = (await loadMediaBin()).map((m) => m.path);
   const title = safeFileName(entry.manifest.title, 'Vessel file');
   const report = await addFromUnpacked(entry.dir, entry.manifest, choice, {
     libraryFolder: s.libraryFolder,
     playlistFolder: s.playlistFolder,
     mediaFolder: join(dirname(s.libraryFolder), 'Media', title),
-    themes: library.custom
+    themes: library.custom,
+    songs,
+    existingMedia
   });
   if (report.themes) await saveThemes({ ...library, custom: report.themesAfter });
   // The media goes into the media bin, in a folder named after the file.

@@ -12,6 +12,9 @@ import { BUILT_IN_THEMES, cleanTheme, type Theme } from '../src/shared/theme';
 import { readManifest, type VesselExportRequest } from '../src/shared/vesselFile';
 import { addFromUnpacked, previewOf, unpackVesselFile, writeVesselFile } from '../src/main/vesselFile';
 import { unzipTo } from '../src/main/zipStream';
+import { songIndex } from '../src/main/songIndex';
+import { relinkMedia } from '../src/shared/pro/relink';
+import { copyFileSync } from 'node:fs';
 
 let dir: string;
 beforeEach(() => {
@@ -148,11 +151,70 @@ describe('Vessel files', () => {
     await expect(unpackVesselFile(file, join(dir, 'b'))).rejects.toThrow('newer Vessel');
   });
 
+  it('stop cleanly at a refused name, even with more files after it', async () => {
+    const file = join(dir, 'bad2.vessel');
+    writeFileSync(file, await zipOf({ '../first.txt': 'x', 'big.txt': 'y'.repeat(200_000), 'manifest.json': '{}' }));
+    await expect(unzipTo(file, join(dir, 'inside2'))).rejects.toThrow('won’t unpack');
+  });
+
+  it('fail, rather than hang, on a file that was cut short', async () => {
+    const { service } = setUp();
+    const whole = join(dir, 'whole.vessel');
+    await writeVesselFile(whole, request({ playlists: [service] }), 'Vessel test');
+    const bytes = readFileSync(whole);
+    const cut = join(dir, 'cut.vessel');
+    writeFileSync(cut, bytes.subarray(0, Math.floor(bytes.length * 0.6)));
+    const result = await Promise.race([unpackVesselFile(cut, join(dir, 'cut')).then(() => 'opened', () => 'failed'), new Promise((r) => setTimeout(() => r('hung'), 5000))]);
+    expect(result).toBe('failed');
+  });
+
   it('never unpack anything outside their folder', async () => {
     const file = join(dir, 'bad.vessel');
     writeFileSync(file, await zipOf({ 'manifest.json': '{}', '../escape.txt': 'x' }));
     await expect(unzipTo(file, join(dir, 'inside'))).rejects.toThrow('won’t unpack');
     expect(existsSync(join(dir, 'escape.txt'))).toBe(false);
+  });
+});
+
+describe('Vessel files and songs already here', () => {
+  it('use the same song and media already in the library instead of adding copies', async () => {
+    const { songPath, picture, service } = setUp();
+    // This computer already has that song (under another file name) and its picture, kept elsewhere.
+    const mine = join(dir, 'here', 'Library', 'Samples');
+    const myMedia = join(dir, 'here', 'Media', 'Samples');
+    mkdirSync(mine, { recursive: true });
+    mkdirSync(myMedia, { recursive: true });
+    copyFileSync(picture, join(myMedia, 'sunrise.jpg'));
+    const mySong = join(mine, 'Grace (ours).pro');
+    writeFileSync(mySong, serializePresentation(relinkMedia(parsePresentation(readFileSync(songPath)), { [picture]: join(myMedia, 'sunrise.jpg') })));
+    const file = join(dir, 'share.vessel');
+    await writeVesselFile(file, request({ kind: 'service', playlists: [service] }), 'Vessel test');
+    const unpacked = join(dir, 'unpacked');
+    const read = await unpackVesselFile(file, unpacked);
+    const songs = songIndex([mySong]);
+    const preview = await previewOf('t', 'share.vessel', unpacked, read, { songNames: [], themes: [], songs });
+    expect(preview.have.presentations).toEqual([true]);
+
+    const to = { ...targets(), songs, existingMedia: [join(myMedia, 'sunrise.jpg')] };
+    const report = await addFromUnpacked(unpacked, read, { presentations: [], playlists: [0], themes: [], media: true }, to);
+    expect(report).toMatchObject({ presentations: 0, media: 0, playlists: 1, skipped: 2 });
+    expect(report.mediaAdded).toEqual([]);
+    expect(existsSync(join(to.libraryFolder, 'From Grace Church'))).toBe(false);
+    expect(existsSync(to.mediaFolder)).toBe(false);
+    expect(decodeService(readFileSync(report.playlist!), '').items[1]).toMatchObject({ path: mySong });
+  });
+
+  it('still add a song that was changed, beside the one here', async () => {
+    const { songPath, service } = setUp();
+    const mine = join(dir, 'mine.pro');
+    const changed = parsePresentation(readFileSync(songPath));
+    changed.name = 'Amazing Grace (our version)';
+    writeFileSync(mine, serializePresentation(changed));
+    const file = join(dir, 'share.vessel');
+    await writeVesselFile(file, request({ playlists: [service] }), 'Vessel test');
+    const read = await unpackVesselFile(file, join(dir, 'unpacked'));
+    const report = await addFromUnpacked(join(dir, 'unpacked'), read, { presentations: [0], playlists: [], themes: [], media: true }, { ...targets(), songs: songIndex([mine]) });
+    expect(report.presentations).toBe(1);
   });
 });
 
@@ -203,3 +265,15 @@ async function zipOf(files: Record<string, string>): Promise<Uint8Array> {
   });
   return Buffer.concat(chunks);
 }
+
+describe('safe file names', () => {
+  it('never name another folder, and suit Windows', async () => {
+    const { safeFileName } = await import('../src/shared/vesselFile');
+    expect(safeFileName('..', 'Vessel file')).toBe('Vessel file');
+    expect(safeFileName('.', 'X')).toBe('X');
+    expect(safeFileName('../../etc')).toBe('..-..-etc');
+    expect(safeFileName('Sunday. ')).toBe('Sunday');
+    expect(safeFileName('CON')).toBe('CON_');
+    expect(safeFileName('a:b*c?')).toBe('a-b-c-');
+  });
+});

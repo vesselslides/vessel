@@ -8,7 +8,7 @@ import { binKindOf } from '../shared/media';
 import { parsePresentation, serializePresentation } from '../shared/pro/presentation';
 import { mediaPathsOf, relinkMedia } from '../shared/pro/relink';
 import { decodeService, encodeService } from '../shared/pro/service';
-import { cleanTheme, sameLook, type Theme } from '../shared/theme';
+import { BUILT_IN_THEMES, cleanTheme, sameLook, type Theme } from '../shared/theme';
 import {
   readManifest,
   safeFileName,
@@ -19,6 +19,7 @@ import {
   type VesselPreview,
   type VesselReport
 } from '../shared/vesselFile';
+import { sameMedia, type SongIndex } from './songIndex';
 import { unzipTo, zipPath, zipWriter } from './zipStream';
 
 /** "Name.pro" → "Name 2.pro" … until `taken` says it's free. */
@@ -35,7 +36,8 @@ function unique(name: string, taken: (candidate: string) => boolean): string {
 export async function writeVesselFile(target: string, req: VesselExportRequest, app: string): Promise<{ manifest: VesselManifest; missing: string[] }> {
   const missing: string[] = [];
   // Presentations: the ones passed in, then any from disk (library songs, and every song in the playlists).
-  const pres: Array<{ name: string; bytes: Uint8Array; source?: string }> = req.presentations.map((p) => ({ ...p }));
+  // A presentation passed in with its path stands for that file (its unsaved edits included).
+  const pres: Array<{ name: string; bytes: Uint8Array; source?: string }> = req.presentations.map((p) => ({ name: p.name, bytes: p.bytes, source: p.path }));
   const fromDisk = [...req.presentationPaths, ...req.playlists.flatMap((s) => s.items.flatMap((it) => (it.kind === 'presentation' ? [it.path] : [])))];
   for (const path of [...new Set(fromDisk)]) {
     if (pres.some((p) => p.source === path)) continue;
@@ -124,8 +126,28 @@ export async function unpackVesselFile(file: string, into: string): Promise<Vess
 }
 
 /** What's in an unpacked Vessel file, and which parts are already here. */
-export async function previewOf(token: string, fileName: string, unpacked: string, manifest: VesselManifest, here: { songNames: string[]; themes: Theme[] }): Promise<VesselPreview> {
+export async function previewOf(
+  token: string,
+  fileName: string,
+  unpacked: string,
+  manifest: VesselManifest,
+  here: { songNames: string[]; themes: Theme[]; songs?: SongIndex }
+): Promise<VesselPreview> {
   const names = new Set(here.songNames.map((n) => n.toLowerCase()));
+  // Already here: the same song (wherever it's kept), or one with the same name.
+  const presentations: boolean[] = [];
+  for (const p of manifest.presentations) {
+    let same = names.has(p.name.toLowerCase());
+    if (!same && here.songs) {
+      const bytes = await tryRead(join(unpacked, ...p.file.split('/')));
+      try {
+        same = !!bytes && !!(await here.songs.find(parsePresentation(bytes)));
+      } catch {
+        // Not readable: not the same.
+      }
+    }
+    presentations.push(same);
+  }
   let mediaBytes = 0;
   for (const m of manifest.media) {
     const path = join(unpacked, ...m.file.split('/'));
@@ -137,7 +159,7 @@ export async function previewOf(token: string, fileName: string, unpacked: strin
     manifest,
     mediaBytes,
     have: {
-      presentations: manifest.presentations.map((p) => names.has(p.name.toLowerCase())),
+      presentations,
       themes: manifest.themes.map((t) => {
         const clean = cleanTheme(t);
         return !!clean && here.themes.some((h) => h.name === clean.name && sameLook(h, clean));
@@ -151,6 +173,10 @@ export interface AddTargets {
   playlistFolder: string;
   mediaFolder: string;
   themes: Theme[];
+  /** Songs in the library: the same song coming in again is used where it is. */
+  songs?: SongIndex;
+  /** Media already in the bin: the same file (name and size) is used rather than copied again. */
+  existingMedia?: string[];
 }
 
 /** Bytes of a file, or null if it isn't there. */
@@ -200,15 +226,22 @@ export async function addFromUnpacked(
   // Media: copied once into Media/<title> (the same file already there is reused).
   const moves: Record<string, string> = {};
   if (choice.media && manifest.media.length) {
-    await mkdir(to.mediaFolder, { recursive: true });
     for (const m of manifest.media) {
       const from = join(unpacked, ...m.file.split('/'));
       if (!existsSync(from)) continue;
+      const have = to.existingMedia && (await sameMedia(from, to.existingMedia));
+      if (have) {
+        // Already in the media bin: used where it is (and left in its folder there).
+        moves[`${VESSEL_FILE_ROOT}/${m.file}`] = have;
+        report.skipped++;
+        continue;
+      }
       const size = (await stat(from)).size;
       const name = unique(safeFileName(m.name, 'media'), (c) => existsSync(join(to.mediaFolder, c)) && !(sameSize(join(to.mediaFolder, c), size)));
       const target = join(to.mediaFolder, name);
       if (existsSync(target)) report.skipped++;
       else {
+        await mkdir(to.mediaFolder, { recursive: true });
         await copyFile(from, target);
         report.media++;
       }
@@ -219,14 +252,21 @@ export async function addFromUnpacked(
 
   // Presentations.
   const placed = new Map<string, string>();
-  if (wanted.size) await mkdir(libDir, { recursive: true });
   for (const i of [...wanted].sort((a, b) => a - b)) {
     const p = manifest.presentations[i];
     const bytes = p && (await tryRead(join(unpacked, ...p.file.split('/'))));
     if (!p || !bytes) continue;
     let data: Uint8Array;
     try {
-      data = serializePresentation(relinkMedia(parsePresentation(bytes), moves));
+      const incoming = parsePresentation(bytes);
+      const here = to.songs && (await to.songs.find(incoming));
+      if (here) {
+        // The same song is already in the library: the playlist uses that one.
+        placed.set(`${VESSEL_FILE_ROOT}/${p.file}`, here);
+        report.skipped++;
+        continue;
+      }
+      data = serializePresentation(relinkMedia(incoming, moves));
     } catch {
       continue; // Not a presentation Vessel can read: left out.
     }
@@ -236,6 +276,7 @@ export async function addFromUnpacked(
       report.skipped++;
     } else {
       target = join(libDir, unique(fileName, (c) => existsSync(join(libDir, c))));
+      await mkdir(libDir, { recursive: true });
       await writeFile(target, data);
       report.presentations++;
     }
@@ -265,7 +306,8 @@ export async function addFromUnpacked(
       continue;
     }
     const name = themes.some((h) => h.name === t.name) ? `${t.name} (${manifest.title})`.slice(0, 60) : t.name;
-    const id = themes.some((h) => h.id === t.id) ? `${t.id}-${Math.random().toString(36).slice(2, 7)}` : t.id;
+    // A new id if it's taken, by your themes or a built-in one (which would hide it).
+    const id = themes.some((h) => h.id === t.id) || BUILT_IN_THEMES.some((h) => h.id === t.id) ? `${t.id}-${Math.random().toString(36).slice(2, 7)}` : t.id;
     themes = [...themes, { ...t, id, name, builtIn: false }];
     report.themes++;
   }

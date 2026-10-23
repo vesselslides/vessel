@@ -50,7 +50,10 @@ export async function openDropped(paths: unknown, opts: Partial<ImportOptions>, 
       result.errors.push(`${baseName(path)}: ${(err as Error).message}`);
     }
   }
-  if (media.length) result.media = await addToMediaBin(media, mediaFolder);
+  if (media.length) {
+    result.mediaPlaced = {};
+    result.media = await addToMediaBin(media, mediaFolder, result.mediaPlaced);
+  }
   return result;
 }
 

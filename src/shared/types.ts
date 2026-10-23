@@ -268,6 +268,8 @@ export interface DroppedFiles {
   playlists: OpenedFile[];
   /** The media bin after adding dropped pictures and videos, or null if none were dropped. */
   media: MediaItem[] | null;
+  /** Where each dropped picture, video or audio file is in the bin (a copy, with Copy media on). */
+  mediaPlaced?: Record<string, string>;
   bibles: BibleInfo[];
   /** Vessel files, opened and waiting for the person to choose what to add. */
   vessel: VesselPreview[];
@@ -489,7 +491,7 @@ export interface VesselApi {
   /** File ▸ Export: asks where, then saves a PDF, pictures or text. Null if cancelled. */
   exportDocument(job: ExportJob): Promise<ExportResult | null>;
   /** Save a service with its songs and media as one playlist file. Null if cancelled. */
-  exportPlaylistBundle(service: Service): Promise<(ExportResult & { missing: string[] }) | null>;
+  exportPlaylistBundle(service: Service, edited?: Record<string, Uint8Array>): Promise<(ExportResult & { missing: string[] }) | null>;
   discardVesselFile(token: string): Promise<void>;
   /** Files opened from Finder or Explorer (double-clicked, or dropped on Vessel's icon). */
   onOpenFiles(listener: (paths: string[]) => void): () => void;

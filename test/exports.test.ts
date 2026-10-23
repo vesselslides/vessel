@@ -7,7 +7,8 @@ import { DEFAULT_EXPORT_OPTIONS, exportSong, exportText, imageNames, orderLine, 
 import { backgroundForPath } from '../src/shared/pro/background';
 import { setSlideBackground } from '../src/shared/pro/edit';
 import { createPresentation, parseLyrics, parsePresentation, presentationToDeck, serializePresentation } from '../src/shared/pro/presentation';
-import { mediaPathsOf } from '../src/shared/pro/relink';
+import { mediaPathsOf, relinkMedia } from '../src/shared/pro/relink';
+import { songIndex } from '../src/main/songIndex';
 import { decodeService, encodeService, type Service } from '../src/shared/pro/service';
 import { cleanTheme } from '../src/shared/theme';
 import { mergeGallery, readGalleryIndex, STARTER_GALLERY, submitUrl } from '../src/shared/themeGallery';
@@ -119,6 +120,30 @@ describe('playlists with media', () => {
     // Opening it again adds nothing new.
     const again = await unbundlePlaylist(file, join(dir, 'scratch'), to);
     expect(again).toMatchObject({ songs: 0 });
+  });
+
+  it('use songs and media already here instead of copying them again', async () => {
+    const src = join(dir, 'church');
+    mkdirSync(src);
+    const picture = join(src, 'dawn.jpg');
+    writeFileSync(picture, Buffer.alloc(500, 3));
+    let song = createPresentation('Grace', parseLyrics(LYRICS));
+    song = setSlideBackground(song, song.cues[0].uuid!.string, backgroundForPath(picture));
+    const songPath = join(src, 'Grace.pro');
+    writeFileSync(songPath, serializePresentation(song));
+    const file = join(dir, 'Sunday.proPlaylist');
+    await writePlaylistBundle(file, { name: 'Sunday', items: [{ id: 's', kind: 'presentation', name: 'Grace', path: songPath }] });
+    // This computer has the same song and picture, in its own folders.
+    const mine = join(dir, 'mine');
+    mkdirSync(mine);
+    writeFileSync(join(mine, 'dawn.jpg'), Buffer.alloc(500, 3));
+    writeFileSync(join(mine, 'Grace here.pro'), serializePresentation(relinkMedia(song, { [picture]: join(mine, 'dawn.jpg') })));
+    rmSync(src, { recursive: true });
+    const to = { libraryFolder: join(dir, 'Library'), mediaRoot: join(dir, 'Media'), songs: songIndex([join(mine, 'Grace here.pro')]), existingMedia: [join(mine, 'dawn.jpg')] };
+    const opened = await unbundlePlaylist(file, join(dir, 'scratch'), to);
+    expect(opened).toMatchObject({ songs: 0, media: [] });
+    expect(existsSync(to.libraryFolder)).toBe(false);
+    expect(decodeService(opened!.bytes, '').items[0]).toMatchObject({ path: join(mine, 'Grace here.pro') });
   });
 
   it('find bundled songs by name when the layout inside is different', async () => {

@@ -196,13 +196,15 @@ in-app tour (the **?** button at the top right) shows where things are, and
     song and all their pictures, videos and audio, for presentation software
     that opens playlist files with media. Opening one in Vessel (Import ▸
     Playlist, or drop it on the window) copies its songs into the library and
-    its media into the media bin.
+    its media into the media bin, reusing any it already has.
 - **Vessel files** (File ▸ Share as Vessel File… / Open Vessel File…): one
   `.vessel` file to share with another church using Vessel: a presentation, a
   whole service with its songs and media, your themes, or a collection of any of
   them. Whoever opens it (double-click, drop it on the window, or Import ▸
   Vessel file) sees who made it and what's inside, and chooses what to add;
-  nothing they already have is overwritten. Sharing songs asks you to confirm
+  nothing they already have is overwritten, and songs and media they already
+  have (even under another name or in another folder) are used as they are
+  rather than copied again. Sharing songs asks you to confirm
   they're yours to share. Right-click the service for *Duplicate playlist…*
   (Save As) too.
 - **Remote control** (the phone icon in the toolbar, off by default): a web page for

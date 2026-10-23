@@ -43,8 +43,8 @@ export interface VesselExportRequest {
   title: string;
   description: string;
   author: string;
-  /** Presentations as they are now (unsaved edits included). */
-  presentations: Array<{ name: string; bytes: Uint8Array }>;
+  /** Presentations as they are now (unsaved edits included); `path` when it's the open copy of that file. */
+  presentations: Array<{ name: string; bytes: Uint8Array; path?: string }>;
   /** Presentations to include from disk (library songs chosen for a collection). */
   presentationPaths: string[];
   /** Service playlists; their songs are read from disk and included. */
@@ -88,9 +88,21 @@ export interface VesselReport {
   folder: string;
 }
 
-/** A file name from a title: no characters that are trouble on Mac or Windows. */
-export const safeFileName = (name: string, fallback = 'Untitled'): string =>
-  name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 80) || fallback;
+/**
+ * A file name from a title: no characters that are trouble on Mac or Windows,
+ * no trailing dots or spaces (Windows drops them), never "." or ".." (which
+ * would mean another folder), and not one of Windows' reserved names.
+ */
+export function safeFileName(name: string, fallback = 'Untitled'): string {
+  const clean = name
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80)
+    .replace(/[. ]+$/, '');
+  if (!clean || /^\.+$/.test(clean)) return fallback;
+  return /^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/i.test(clean) ? `${clean}_` : clean;
+}
 
 /** A manifest read from a file, checked: the shape Vessel expects, or null. */
 export function readManifest(raw: unknown): VesselManifest | null {

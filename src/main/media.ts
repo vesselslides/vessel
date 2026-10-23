@@ -93,8 +93,11 @@ async function keepCopy(path: string): Promise<string> {
   return target;
 }
 
-/** Add files to the bin, into `folder` when given (media already there moves into it). */
-export async function addToMediaBin(paths: string[], folder?: string | null): Promise<MediaItem[]> {
+/**
+ * Add files to the bin, into `folder` when given (media already there moves into it).
+ * `placed` learns where each file went in the bin (a copy, with Copy media on).
+ */
+export async function addToMediaBin(paths: string[], folder?: string | null, placed?: Record<string, string>): Promise<MediaItem[]> {
   const items = await loadMediaBin();
   const folders = await loadMediaFolders();
   const into = folder && folders.some((f) => f.id === folder) ? folder : undefined;
@@ -102,6 +105,7 @@ export async function addToMediaBin(paths: string[], folder?: string | null): Pr
     const path = binKindOf(original) ? await keepCopy(original) : original;
     const kind = binKindOf(path);
     if (!kind) continue;
+    if (placed) placed[original] = path;
     const existing = items.find((i) => i.path === path);
     if (existing) {
       if (into) existing.folder = into;

@@ -105,13 +105,15 @@ const api: VesselApi = {
   onlineGallery: () => ipcRenderer.invoke('gallery:online'),
   submitToGallery: (entry) => ipcRenderer.invoke('gallery:submit', entry),
   exportDocument: (job) => ipcRenderer.invoke('export:run', job),
-  exportPlaylistBundle: (service) => ipcRenderer.invoke('export:bundle', service),
+  exportPlaylistBundle: (service, edited) => ipcRenderer.invoke('export:bundle', service, edited),
   openVesselFile: (path) => ipcRenderer.invoke('vessel:open', path),
   addFromVesselFile: (choice) => ipcRenderer.invoke('vessel:add', choice),
   discardVesselFile: (token) => ipcRenderer.invoke('vessel:discard', token),
   onOpenFiles: (listener) => {
     const handler = (_e: Electron.IpcRendererEvent, paths: string[]): void => listener(paths);
     ipcRenderer.on('files:open-external', handler);
+    // Files opened before this window was listening (such as the one that started Vessel).
+    void ipcRenderer.invoke('files:pending').then((paths: string[]) => paths.length && listener(paths));
     return () => ipcRenderer.removeListener('files:open-external', handler);
   },
   logError: (message) => ipcRenderer.send('log:renderer', message),
