@@ -1436,7 +1436,17 @@ function Operator(): React.JSX.Element {
     if (restored.current || !settings || displays.length === 0) return;
     restored.current = true;
     if (settings.transitionMs !== undefined) pushLive({ transitionMs: settings.transitionMs });
-    if (settings.lastPlaylist && settings.reopenLastPlaylist !== false) void selectPlaylist(settings.lastPlaylist);
+    // The playlist and presentation you had open come back (Preferences ▸ General), and always
+    // after Vessel closed unexpectedly. Nothing goes on screen until you choose a slide.
+    void window.vessel.lastRunUnclean().then(async (unclean) => {
+      const reopen = unclean || settings.reopenLastPlaylist !== false;
+      if (reopen && settings.lastPlaylist) await selectPlaylist(settings.lastPlaylist);
+      const deck = reopen && settings.lastPresentation ? await openPath(settings.lastPresentation) : null;
+      if (unclean)
+        setStatus(
+          `Vessel closed unexpectedly last time.${settings.lastPlaylist || deck ? ' What you had open is back;' : ''} nothing is on screen until you choose a slide.`
+        );
+    });
     const ids = new Set(displays.map((d) => d.id));
     // Preferences ▸ Screens can leave the audience screen off until it's chosen.
     if (settings.outputDisplayId != null && ids.has(settings.outputDisplayId) && settings.showOutputAtLaunch !== false) changeOutput(String(settings.outputDisplayId));
@@ -1446,6 +1456,42 @@ function Operator(): React.JSX.Element {
     const stream = settings.streamOutput;
     if (settings.showOutputAtLaunch !== false && (stream === 'window' || (typeof stream === 'number' && ids.has(stream)))) void window.vessel.setStreamOutput(stream);
   });
+
+  // Remember the presentation you're on, to reopen it next time (not Bible passages, which have no file).
+  const selectedPath = selected?.path;
+  useEffect(() => {
+    if (!selectedPath || !settings || settings.lastPresentation === selectedPath) return;
+    const t = setTimeout(() => void window.vessel.updateSettings({ lastPresentation: selectedPath }).then(setSettings), 800);
+    return () => clearTimeout(t);
+  }, [selectedPath, settings]);
+
+  // Notices from the main process (a screen reopened after a crash) and this window's own errors, for the log.
+  useEffect(() => {
+    const offNotice = window.vessel.onNotice(setStatus);
+    // A screen that kept crashing was turned off: show it as off (and remember that).
+    const offScreen = window.vessel.onScreenOff((which) => {
+      if (which === 'output') {
+        setOutputDisplay(null);
+        void window.vessel.updateSettings({ outputDisplayId: null });
+      } else if (which === 'stage') {
+        setStageDisplay(null);
+        void window.vessel.updateSettings({ stageDisplayId: null });
+      } else void window.vessel.getSettings().then(setSettings);
+    });
+    const onError = (e: ErrorEvent): void => window.vessel.logError(`${e.message} (${e.filename?.split('/').pop() ?? '?'}:${e.lineno})`);
+    const onRejection = (e: PromiseRejectionEvent): void => {
+      const r = e.reason as { message?: string; stack?: string } | undefined;
+      window.vessel.logError(`Unhandled: ${r?.message ?? String(e.reason)} ${r?.stack?.split('\n')[1]?.trim() ?? ''}`);
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      offNotice();
+      offScreen();
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
+  }, []);
 
   // ---- Remote control ----------------------------------------------------
 
@@ -1752,6 +1798,7 @@ function Operator(): React.JSX.Element {
     { id: 'backup', label: 'Back up Vessel', words: 'backup export', run: () => void window.vessel.backUp() },
     { id: 'restore', label: 'Restore from a backup', words: 'import backup', run: () => void window.vessel.restoreBackup() },
     { id: 'updates', label: 'Check for updates', words: 'new version', run: () => void window.vessel.checkForUpdates() },
+    { id: 'report', label: 'Report a problem', words: 'bug crash help log support', run: () => void window.vessel.reportProblem() },
     { id: 'shortcuts', label: 'Keyboard shortcuts', keys: 'Mod+/', words: 'keys help', run: () => setShowShortcuts(true) }
   ];
 

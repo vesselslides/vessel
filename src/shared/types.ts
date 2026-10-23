@@ -356,6 +356,8 @@ export interface Settings {
   lastUpdateCheck?: number;
   /** A version the operator chose to skip; it isn't offered again at start-up. */
   skippedVersion?: string;
+  /** The presentation open last time, reopened at start-up (and after an unexpected quit). */
+  lastPresentation?: string;
   /** The welcome (first-run) window has been seen. */
   welcomed?: boolean;
   /** Save changes to presentations by themselves, shortly after each edit. On unless turned off. */
@@ -458,6 +460,16 @@ export interface VesselApi {
   /** Pick pictures, videos or audio and add them (into `folder` when given). */
   importMedia(folder?: string | null): Promise<MediaItem[]>;
   removeMedia(id: string): Promise<MediaItem[]>;
+  /** Write an error from the operator window into Vessel's log. */
+  logError(message: string): void;
+  /** Whether the last run ended without quitting properly (a crash or power cut). */
+  lastRunUnclean(): Promise<boolean>;
+  /** Save a problem report (asks where); its path, or null if cancelled. */
+  reportProblem(): Promise<string | null>;
+  /** A screen Vessel had to turn off (it kept crashing), so the operator window shows it as off. */
+  onScreenOff(listener: (screen: 'output' | 'stage' | 'stream') => void): () => void;
+  /** Short notices from the main process for the status bar ("the audience screen was reopened"). */
+  onNotice(listener: (message: string) => void): () => void;
   /** Back up songs, playlists, settings and more into one file (asks where). */
   backUp(): Promise<void>;
   /** Restore a backup (asks which), then restart. */

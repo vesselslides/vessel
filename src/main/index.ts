@@ -27,6 +27,8 @@ import type { ThemeLibrary } from '../shared/theme';
 import { addToMediaBin, createMediaFolder, deleteMediaFolder, handleMediaProtocol, loadMediaBin, loadMediaFolders, moveMedia, registerMediaScheme, relinkMediaBin, removeFromMediaBin, renameMediaFolder, setMediaMuted } from './media';
 import { findMoved, missingPaths } from './relink';
 import { checkForUpdates, checkForUpdatesOnLaunch } from './updates';
+import { describe, endRun, log, startRun } from './log';
+import { saveProblemReport } from './problemReport';
 import { backUp, restore } from './backup';
 
 let operatorWindow: BrowserWindow | null = null;
@@ -97,6 +99,59 @@ function createOperatorWindow(): void {
   });
 }
 
+// ---- Screens that heal themselves
+
+const SCREEN_NAMES: Record<string, string> = { output: 'audience screen', stage: 'stage display', stream: 'stream output', ndi: 'NDI output' };
+const recentRepairs = new Map<string, number[]>();
+
+/** Send to a window, unless it's gone or its page has crashed (it's being reopened). */
+function sendTo(win: BrowserWindow | null, channel: string, data: unknown): void {
+  if (win && !win.isDestroyed() && !win.webContents.isCrashed()) win.webContents.send(channel, data);
+}
+
+/** Say something in the operator window's status bar. */
+const notice = (message: string): void => operatorWindow?.webContents.send('app:notice', message);
+
+/**
+ * Watch a screen window: if its page crashes it's reopened, and if it stops
+ * responding for a few seconds it's restarted. At most three times a minute,
+ * so a screen that keeps failing can't keep Vessel busy.
+ */
+function keepAlive(win: BrowserWindow, kind: keyof typeof SCREEN_NAMES, reopen: () => void, giveUp: () => void): void {
+  const name = SCREEN_NAMES[kind];
+  win.webContents.on('render-process-gone', (_e, details) => {
+    if (details.reason === 'clean-exit') return;
+    log.error(`The ${name} stopped (${details.reason}, exit code ${details.exitCode})`);
+    const now = Date.now();
+    const times = (recentRepairs.get(kind) ?? []).filter((t) => now - t < 60_000);
+    if (times.length >= 3) {
+      log.error(`The ${name} failed three times in a minute; not reopening it again`);
+      notice(`The ${name} keeps stopping, so Vessel has turned it off. Turn it on again from Screens, or restart Vessel.`);
+      // A crashed page can show as a blank white screen: take the window away.
+      giveUp();
+      return;
+    }
+    recentRepairs.set(kind, [...times, now]);
+    notice(`The ${name} stopped working and was reopened.`);
+    setTimeout(reopen, 300);
+  });
+  let stuck: NodeJS.Timeout | null = null;
+  win.on('unresponsive', () => {
+    log.warn(`The ${name} isn't responding`);
+    stuck = setTimeout(() => {
+      if (win.isDestroyed()) return;
+      log.error(`The ${name} didn't respond for 5 seconds; restarting it`);
+      // Its "process gone" handler above then reopens it.
+      win.webContents.forcefullyCrashRenderer();
+    }, 5000);
+  });
+  win.on('responsive', () => {
+    if (stuck) clearTimeout(stuck);
+    stuck = null;
+  });
+  win.on('closed', () => stuck && clearTimeout(stuck));
+}
+
 /** A borderless window covering one display, used for the audience and stage outputs. */
 function createScreenWindow(displayId: number, page: 'output' | 'stage' | 'stream', initial: () => [string, unknown]): BrowserWindow | null {
   const display = screen.getAllDisplays().find((d) => d.id === displayId);
@@ -158,7 +213,7 @@ function fullScreenChange(win: BrowserWindow, event: 'enter-full-screen' | 'leav
 async function closeScreenWindow(win: BrowserWindow | null): Promise<void> {
   if (!win || win.isDestroyed()) return;
   // Black straight away, so nothing lingers on the screen while it closes.
-  win.webContents.send('live:update', { ...INITIAL_LIVE, blackout: true, transitionMs: 0 });
+  sendTo(win, 'live:update', { ...INITIAL_LIVE, blackout: true, transitionMs: 0 });
   if (process.platform === 'darwin') {
     await fullScreenSettled.get(win);
     if (win.isDestroyed()) return;
@@ -171,10 +226,25 @@ async function closeScreenWindow(win: BrowserWindow | null): Promise<void> {
   if (!win.isDestroyed()) win.close();
 }
 
+/** "display 2 of 3, 1920×1080", for the log (display names can be personal, so they're left out). */
+function displayLabel(id: number): string {
+  const all = screen.getAllDisplays();
+  const i = all.findIndex((d) => d.id === id);
+  return i < 0 ? 'a display that’s gone' : `display ${i + 1} of ${all.length}, ${all[i].size.width}×${all[i].size.height}${all[i].internal ? ', built-in' : ''}`;
+}
+
 function setOutput(displayId: number | null): void {
   void closeScreenWindow(outputWindow);
   const win = displayId === null ? null : createScreenWindow(displayId, 'output', () => ['live:update', liveState]);
   outputWindow = win;
+  log.info(displayId === null ? 'Audience screen off' : win ? `Audience screen on ${displayLabel(displayId)}` : `Audience screen: display ${displayId} not found`);
+  if (win)
+    keepAlive(
+      win,
+      'output',
+      () => outputWindow === win && setOutput(displayId),
+      () => outputWindow === win && (setOutput(null), sendTo(operatorWindow, 'screen:off', 'output'))
+    );
   // Only forget the window if it's still the current one: the old window's
   // "closed" can arrive after a new one has replaced it.
   win?.on('closed', () => {
@@ -186,6 +256,14 @@ function setStageOutput(displayId: number | null): void {
   void closeScreenWindow(stageWindow);
   const win = displayId === null ? null : createScreenWindow(displayId, 'stage', () => ['stage:update', stageState]);
   stageWindow = win;
+  log.info(displayId === null ? 'Stage display off' : win ? `Stage display on ${displayLabel(displayId)}` : `Stage display: display ${displayId} not found`);
+  if (win)
+    keepAlive(
+      win,
+      'stage',
+      () => stageWindow === win && setStageOutput(displayId),
+      () => stageWindow === win && (setStageOutput(null), sendTo(operatorWindow, 'screen:off', 'stage'))
+    );
   win?.on('closed', () => {
     if (stageWindow === win) stageWindow = null;
   });
@@ -233,8 +311,23 @@ function applyNdi(settings: Settings): void {
     }
   });
   ndiStatus = sender.start();
-  if (ndiStatus.state === 'sending') ndiSender = sender;
-  else sender.stop();
+  log.info(ndiStatus.state === 'sending' ? `NDI output on (${ndi.resolution})` : `NDI output not started: ${'message' in ndiStatus ? ndiStatus.message : ndiStatus.state}`);
+  if (ndiStatus.state === 'sending') {
+    ndiSender = sender;
+    const win = sender.window;
+    if (win)
+      keepAlive(
+        win,
+        'ndi',
+        () => ndiSender === sender && void getSettings().then(applyNdi),
+        () => {
+          if (ndiSender !== sender) return;
+          sender.stop();
+          ndiSender = null;
+          ndiStatus = { state: 'error', message: 'NDI output kept stopping, so Vessel turned it off. Turn it on again in Preferences ▸ Screens.' };
+        }
+      );
+  } else sender.stop();
 }
 
 function setStreamOutput(target: StreamTarget): void {
@@ -265,6 +358,14 @@ function setStreamOutput(target: StreamTarget): void {
     if (!streamWindow) streamTarget = null;
   }
   const win = streamWindow;
+  log.info(target === null ? 'Stream output off' : target === 'window' ? 'Stream output in a window' : `Stream output on ${displayLabel(target)}`);
+  if (win)
+    keepAlive(
+      win,
+      'stream',
+      () => streamWindow === win && setStreamOutput(target),
+      () => streamWindow === win && void chooseStreamOutput(null).then(() => sendTo(operatorWindow, 'screen:off', 'stream'))
+    );
   win?.webContents.on('did-finish-load', () => void sendStreamLook());
   win?.on('closed', () => {
     // Closed by hand: the stream output is off.
@@ -501,6 +602,9 @@ function registerIpc(): void {
     return result.canceled ? loadMediaBin() : addToMediaBin(result.filePaths, folder);
   });
   ipcMain.handle('media:remove', (_e, id: string) => removeFromMediaBin(id));
+  ipcMain.on('log:renderer', (_e, message: unknown) => log.error(`Operator window: ${String(message ?? '').slice(0, 600)}`));
+  ipcMain.handle('app:last-run-unclean', () => lastRunUnclean);
+  ipcMain.handle('app:report-problem', () => saveProblemReport(operatorWindow));
   ipcMain.handle('backup:create', () => backUp(operatorWindow));
   ipcMain.handle('backup:restore', () => restore(operatorWindow));
   ipcMain.handle('updates:check', () => checkForUpdates(operatorWindow, true));
@@ -533,21 +637,41 @@ function registerIpc(): void {
 
   ipcMain.on('stage:set', (_e, state: StageState) => {
     stageState = state;
-    stageWindow?.webContents.send('stage:update', state);
-    operatorWindow?.webContents.send('stage:update', state);
+    sendTo(stageWindow, 'stage:update', state);
+    sendTo(operatorWindow, 'stage:update', state);
   });
 
   ipcMain.on('live:set', (_e, state: LiveState) => {
     liveState = state;
-    outputWindow?.webContents.send('live:update', state);
-    streamWindow?.webContents.send('live:update', state);
-    ndiSender?.window?.webContents.send('live:update', state);
-    operatorWindow?.webContents.send('live:update', state);
+    for (const win of [outputWindow, streamWindow, ndiSender?.window ?? null, operatorWindow]) sendTo(win, 'live:update', state);
   });
 }
 
+/** True when the last run ended without quitting properly (set at start-up). */
+let lastRunUnclean = false;
+
 app.whenReady().then(async () => {
   if (!primaryInstance) return;
+  lastRunUnclean = startRun();
+  log.info(
+    `Vessel ${app.getVersion()} started: ${process.platform} ${process.getSystemVersion()} ${process.arch}, Electron ${process.versions.electron}, ${screen.getAllDisplays().length} display(s)${
+      lastRunUnclean ? '. The last run ended without quitting properly' : ''
+    }`
+  );
+  app.on('render-process-gone', (_e, contents, details) => {
+    if (details.reason === 'clean-exit') return;
+    const url = contents.getURL().split('/').pop()?.split('#')[0] ?? '?';
+    log.error(`A window's page stopped: ${url} (${details.reason}, exit code ${details.exitCode})`);
+    // The operator window comes back on its own; the screens have their own repair (keepAlive).
+    if (operatorWindow && contents === operatorWindow.webContents) {
+      setTimeout(() => operatorWindow?.webContents.reload(), 300);
+    }
+  });
+  app.on('child-process-gone', (_e, details) => {
+    if (details.reason !== 'clean-exit') log.error(`A helper process stopped: ${details.type}${details.name ? ` (${details.name})` : ''}, ${details.reason}, exit code ${details.exitCode}`);
+  });
+  screen.on('display-added', () => log.info(`A display was connected (${screen.getAllDisplays().length} now)`));
+  screen.on('display-removed', () => log.info(`A display was disconnected (${screen.getAllDisplays().length} now)`));
   // While developing, the Dock would show Electron's icon; the installed app has its own.
   if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(appIcon);
   // The app used to be called Lumen: bring its files across once, before anything reads settings.
@@ -581,7 +705,15 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on('will-quit', () => void shutdownRemote());
+app.on('will-quit', () => {
+  log.info('Vessel quit');
+  endRun();
+  void shutdownRemote();
+});
+
+// Errors nothing else caught: written to the log, and Vessel carries on.
+process.on('uncaughtException', (err) => log.error(`Uncaught: ${describe(err)}`));
+process.on('unhandledRejection', (err) => log.error(`Unhandled: ${describe(err)}`));
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

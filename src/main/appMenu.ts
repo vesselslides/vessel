@@ -5,6 +5,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, type Me
 import type { AppCommand } from '../shared/shortcuts';
 import { checkForUpdates } from './updates';
 import { backUp, restore } from './backup';
+import { saveProblemReport } from './problemReport';
 import type { StreamTarget } from '../shared/stream';
 
 export interface MenuState {
@@ -200,6 +201,8 @@ export function rebuildAppMenu(): void {
       submenu: [
         { label: 'Welcome to Vessel…', click: send('welcome') },
         { label: 'Keyboard Shortcuts', accelerator: 'CmdOrCtrl+/', click: send('shortcuts') },
+        { type: 'separator' },
+        { label: 'Report a Problem…', click: () => void saveProblemReport(operator()) },
         ...(isMac ? [] : [{ type: 'separator' as const }, { label: 'Check for Updates…', click: checkUpdates }, { label: 'About Vessel', click: showAbout }])
       ]
     }

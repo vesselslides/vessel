@@ -100,6 +100,19 @@ const api: VesselApi = {
   removeMedia: (id) => ipcRenderer.invoke('media:remove', id),
   missingMedia: (paths) => ipcRenderer.invoke('media:missing', paths),
   findMovedMedia: (missing) => ipcRenderer.invoke('media:find-moved', missing),
+  logError: (message) => ipcRenderer.send('log:renderer', message),
+  lastRunUnclean: () => ipcRenderer.invoke('app:last-run-unclean'),
+  reportProblem: () => ipcRenderer.invoke('app:report-problem'),
+  onScreenOff: (listener) => {
+    const handler = (_e: Electron.IpcRendererEvent, which: 'output' | 'stage' | 'stream'): void => listener(which);
+    ipcRenderer.on('screen:off', handler);
+    return () => ipcRenderer.removeListener('screen:off', handler);
+  },
+  onNotice: (listener) => {
+    const handler = (_e: Electron.IpcRendererEvent, message: string): void => listener(message);
+    ipcRenderer.on('app:notice', handler);
+    return () => ipcRenderer.removeListener('app:notice', handler);
+  },
   backUp: () => ipcRenderer.invoke('backup:create'),
   restoreBackup: () => ipcRenderer.invoke('backup:restore'),
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
