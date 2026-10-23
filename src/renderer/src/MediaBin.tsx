@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { backgroundForPath } from '../../shared/pro/background';
 import type { Background, BinKind, MediaFolder, MediaItem } from '../../shared/types';
 import { MediaView } from './AudienceView';
@@ -98,7 +98,16 @@ export function MediaBin({
   const inFolder = (i: MediaItem): boolean => (current === ALL ? true : current === UNFILED ? !i.folder || !folders.some((f) => f.id === i.folder) : i.folder === current);
   const q = query.trim().toLowerCase();
   const shown = items.filter((i) => inFolder(i) && (kind === 'all' || i.kind === kind) && (!q || i.name.toLowerCase().includes(q)));
-  const count = (id: string): number => items.filter((i) => (id === ALL ? true : id === UNFILED ? !i.folder || !folders.some((f) => f.id === i.folder) : i.folder === id)).length;
+  // Counts follow the Pictures / Videos / Audio filter, so a folder never says it has items the view won't show.
+  const count = (id: string): number =>
+    items.filter((i) => (id === ALL ? true : id === UNFILED ? !i.folder || !folders.some((f) => f.id === i.folder) : i.folder === id) && (kind === 'all' || i.kind === kind)).length;
+  const inFolderTotal = items.filter(inFolder).length;
+  const kindLabel = KIND_FILTERS.find((k) => k.id === kind)?.label.toLowerCase() ?? '';
+  // A different folder or filter starts at the beginning of the row.
+  const grid = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    grid.current?.scrollTo({ left: 0, top: 0 });
+  }, [current, kind, q]);
   const title = current === ALL ? 'All media' : current === UNFILED ? 'Not in a folder' : (folders.find((f) => f.id === current)?.name ?? 'All media');
 
   const move = async (ids: string[], folder: string | null): Promise<void> => onItems(await window.vessel.moveMedia(ids, folder));
@@ -301,13 +310,27 @@ export function MediaBin({
             {items.length === 0
               ? 'Import pictures, videos or audio (or drop them here). Click a picture or video to show it behind the lyrics; click audio to play it.'
               : q || kind !== 'all'
-                ? 'Nothing here matches.'
+                ? (
+                    <>
+                      {q ? `Nothing here matches “${query.trim()}”` : `No ${kindLabel} here`}
+                      {inFolderTotal > 0 && ` (${inFolderTotal} other item${inFolderTotal === 1 ? '' : 's'})`}.{' '}
+                      <button
+                        className="link-button"
+                        onClick={() => {
+                          setKind('all');
+                          setQuery('');
+                        }}
+                      >
+                        Show everything
+                      </button>
+                    </>
+                  )
                 : targetFolder
                   ? 'This folder is empty. Drag media onto its name, drop files here, or use Import….'
                   : 'Nothing here.'}
           </p>
         )}
-        <div className="media-grid">
+        <div className="media-grid" ref={grid}>
           {shown.map((item) => {
             const bg = item.kind === 'audio' ? null : backgroundForPath(item.path);
             const live = item.kind === 'audio' ? playingAudio === item.path : liveBackground?.path === item.path;
