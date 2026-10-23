@@ -14,6 +14,18 @@
   --ok: #3fb950;
   --error: #ff8a8a;
   --backdrop: rgba(0, 0, 0, 0.55);
+  /* Corners: buttons, fields and small boxes; cards and panels; windows. */
+  --radius: 7px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  /* Glass: the toolbar's capsules and the Show / Edit switch */
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-hover: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-highlight: rgba(255, 255, 255, 0.09);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 18px rgba(0, 0, 0, 0.18);
+  --glass-thumb: linear-gradient(to bottom, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1));
+  --toolbar-bg: linear-gradient(to bottom, rgba(40, 42, 50, 0.92), rgba(29, 31, 36, 0.96));
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   font-size: 13px;
@@ -35,6 +47,13 @@
   --ok: #1f8a3b;
   --error: #c62828;
   --backdrop: rgba(20, 22, 28, 0.35);
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-hover: rgba(0, 0, 0, 0.05);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.95);
+  --glass-shadow: 0 1px 2px rgba(20, 22, 28, 0.08), 0 6px 18px rgba(20, 22, 28, 0.06);
+  --glass-thumb: linear-gradient(to bottom, #ffffff, #f4f5f7);
+  --toolbar-bg: linear-gradient(to bottom, rgba(250, 250, 252, 0.94), rgba(238, 240, 244, 0.96));
   color-scheme: light;
 }
 
@@ -54,6 +73,13 @@
     --ok: #1f8a3b;
     --error: #c62828;
     --backdrop: rgba(20, 22, 28, 0.35);
+    --glass: rgba(255, 255, 255, 0.72);
+    --glass-hover: rgba(0, 0, 0, 0.05);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --glass-highlight: rgba(255, 255, 255, 0.95);
+    --glass-shadow: 0 1px 2px rgba(20, 22, 28, 0.08), 0 6px 18px rgba(20, 22, 28, 0.06);
+    --glass-thumb: linear-gradient(to bottom, #ffffff, #f4f5f7);
+    --toolbar-bg: linear-gradient(to bottom, rgba(250, 250, 252, 0.94), rgba(238, 240, 244, 0.96));
     color-scheme: light;
   }
 }
@@ -82,7 +108,7 @@ textarea {
 button {
   background: var(--panel-2);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 5px 12px;
   cursor: pointer;
 }
@@ -113,19 +139,43 @@ button.danger.active {
   display: grid;
   /* minmax(0, …) stops wide content (a long media strip or status line) from widening the column. */
   grid-template-columns: 270px minmax(0, 1fr) 320px;
-  grid-template-rows: auto minmax(0, 1fr) 190px auto;
+  grid-template-rows: auto minmax(0, 1fr) var(--media-height, 160px) auto;
   grid-template-areas: 'toolbar toolbar toolbar' 'sidebar slides preview' 'sidebar media preview' 'status status status';
   height: 100%;
 }
 
 .toolbar {
   grid-area: toolbar;
+  /* Tools on the left, Show / Edit in the middle, screens on the right. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--toolbar-bg);
+  backdrop-filter: blur(20px) saturate(160%);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  /* The blur gives the toolbar its own layer; keep it (and the Screens panel and tooltips) above the panels below. */
+  position: relative;
+  z-index: 30;
+}
+
+.toolbar-start,
+.toolbar-end {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  min-width: 0;
+}
+
+.toolbar-end {
+  justify-content: flex-end;
+}
+
+.toolbar-center {
+  display: flex;
+  justify-content: center;
 }
 
 .brand {
@@ -137,20 +187,6 @@ button.danger.active {
 
 .spacer {
   flex: 1;
-}
-
-.output-select {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-}
-
-.output-select select {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 4px 6px;
 }
 
 .sidebar,
@@ -188,7 +224,7 @@ section + section {
   text-align: left;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 6px 8px;
   white-space: nowrap;
   overflow: hidden;
@@ -286,7 +322,7 @@ section + section {
 }
 
 .preview-screen {
-  border-radius: 6px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   display: block;
 }
@@ -342,6 +378,8 @@ section + section {
 .modal-backdrop {
   position: fixed;
   inset: 0;
+  /* Above everything in the window, the toolbar included. */
+  z-index: 80;
   background: var(--backdrop);
   display: grid;
   place-items: center;
@@ -351,7 +389,7 @@ section + section {
   width: min(640px, 90vw);
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -367,7 +405,7 @@ section + section {
 .modal textarea {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 8px;
 }
 
@@ -428,7 +466,7 @@ body.output #root {
 .editor textarea {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 5px 8px;
 }
 
@@ -808,7 +846,7 @@ body.output #root {
   background: none;
   text-align: left;
   font-size: 12px;
-  border-radius: 5px;
+  border-radius: var(--radius);
 }
 
 .media-folder span:first-child {
@@ -942,7 +980,7 @@ body.output #root {
 .toolbar select {
   background: var(--panel-2);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 4px 6px;
 }
 
@@ -973,7 +1011,7 @@ body.output #root {
   width: 100%;
   container-type: size;
   background: #000;
-  border-radius: 6px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   overflow: hidden;
 }
@@ -1140,7 +1178,7 @@ body.output #root {
 .stage-controls textarea {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 5px 8px;
   min-width: 0;
 }
@@ -1195,7 +1233,7 @@ body.output #root {
   align-items: center;
   gap: 4px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
 .saved-messages li.on {
@@ -1228,16 +1266,6 @@ body.output #root {
   font-size: 10px;
   background: var(--border);
   color: var(--muted);
-}
-
-.display-select select {
-  max-width: 118px;
-}
-
-/* Keep labels on one line; if the window is narrow, wrap whole controls instead. */
-.toolbar {
-  flex-wrap: wrap;
-  row-gap: 6px;
 }
 
 .toolbar button,
@@ -1311,7 +1339,7 @@ body.output #root {
   position: relative;
   aspect-ratio: 16 / 9;
   background: #000;
-  border-radius: 6px;
+  border-radius: var(--radius);
   overflow: hidden;
   border: 1px solid var(--border);
 }
@@ -1345,7 +1373,7 @@ body.output #root {
 .theme-field select {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 4px 6px;
   min-width: 0;
   flex: 1;
@@ -1412,7 +1440,7 @@ body.output #root {
   min-width: 0;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 5px 8px;
 }
 
@@ -1424,7 +1452,7 @@ body.output #root {
 .service-list {
   margin-top: 8px;
   min-height: 36px;
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
 .service-row {
@@ -1433,7 +1461,7 @@ body.output #root {
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   border-top: 2px solid transparent;
   cursor: pointer;
   user-select: none;
@@ -1570,7 +1598,7 @@ body.output #root {
 .remote-qr {
   width: 160px;
   height: 160px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   flex: none;
   image-rendering: pixelated;
 }
@@ -1599,11 +1627,6 @@ body.output #root {
 .modal .error {
   color: var(--error);
   margin: 0;
-}
-
-button.remote-on {
-  border-color: var(--ok);
-  color: var(--ok);
 }
 
 .remote-dot {
@@ -1736,7 +1759,7 @@ button.active-toggle {
   left: 6px;
   min-width: 22px;
   padding: 1px 6px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--panel-2);
   color: #fff;
   font-size: 11px;
@@ -1835,7 +1858,7 @@ button.active-toggle {
   line-height: 1.4;
   padding: 6px 8px;
   margin: 0 0 4px 11px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--panel-2);
 }
 
@@ -1958,7 +1981,7 @@ button.active-toggle {
 }
 
 .bible-slide {
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 0;
   border: 2px solid transparent;
   cursor: pointer;
@@ -2067,7 +2090,7 @@ button.active-toggle {
   gap: 12px;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
 .bible-free li div {
@@ -2125,7 +2148,7 @@ button.active-toggle {
   gap: 4px;
   max-width: 640px;
   padding: 12px 18px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--panel);
   border: 1px solid var(--border);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
@@ -2165,7 +2188,7 @@ button.active-toggle {
   margin-top: 8px;
   padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   overflow: hidden;
   font-variant-numeric: tabular-nums;
 }
@@ -2245,7 +2268,7 @@ button.active-toggle {
 .song-info-preview {
   margin: 0;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: #000;
   color: rgba(255, 255, 255, 0.85);
   font-size: 12px;
@@ -2288,7 +2311,7 @@ button.active-toggle {
 .ccli-example {
   margin: 0;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: #000;
   color: rgba(255, 255, 255, 0.85);
   font-size: 12px;
@@ -2418,7 +2441,7 @@ button.active-toggle {
   gap: 6px;
   padding: 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
 .stage-parts {
@@ -2451,7 +2474,7 @@ button.active-toggle {
   margin-top: 8px;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
 .audio-player.playing {
@@ -2545,7 +2568,7 @@ button.active-toggle {
   margin-top: 8px;
   padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 12px;
 }
 
@@ -2755,7 +2778,7 @@ button.active-toggle {
   gap: 10px;
   padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
 .pref-folders li > span:first-child {
@@ -2787,7 +2810,7 @@ button.active-toggle {
 .pref-look-swatch {
   width: 100%;
   aspect-ratio: 16 / 9;
-  border-radius: 5px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
 }
 
@@ -2801,13 +2824,6 @@ button.active-toggle {
 
 .pref-look.system .pref-look-swatch {
   background: linear-gradient(135deg, #15161a 50%, #ffffff 50%);
-}
-
-.toolbar-prefs {
-  display: inline-grid;
-  place-items: center;
-  padding: 5px 8px;
-  line-height: 0;
 }
 
 .pref-row {
@@ -2829,7 +2845,7 @@ button.active-toggle {
   display: grid;
   place-items: center;
   background: #000;
-  border-radius: 6px;
+  border-radius: var(--radius);
   overflow: hidden;
 }
 
@@ -2865,7 +2881,7 @@ button.active-toggle {
   height: 26px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius);
   background: none;
 }
 
@@ -3103,7 +3119,7 @@ html.see-through .output-stage {
   width: 100%;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 5px 8px;
   color: var(--text);
 }
@@ -3118,11 +3134,728 @@ html.see-through .output-stage {
 .bible-free-head select {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 5px 8px;
   color: var(--text);
 }
 
 .bible-licence {
   font-size: 11px;
+}
+
+/* Toolbar: icon buttons in glass capsules, with their names on hover */
+.tool-group {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 13px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), var(--glass-shadow);
+  backdrop-filter: blur(16px) saturate(170%);
+}
+
+.tool-button {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text);
+  line-height: 0;
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.tool-button:hover:not(:disabled) {
+  background: var(--glass-hover);
+}
+
+.tool-button:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.tool-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.tool-button.active {
+  background: var(--selected);
+  color: var(--accent);
+}
+
+.tool-button:disabled {
+  opacity: 0.35;
+}
+
+.tool-dot {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--panel);
+}
+
+.tool-dot.on {
+  background: var(--ok);
+}
+
+.tool-dot.unsaved {
+  background: var(--accent);
+}
+
+.tool-dot.off {
+  background: var(--border-strong);
+}
+
+.tool-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  border-radius: var(--radius);
+  background: var(--ok);
+  color: #04140a;
+  font: 700 9px/13px system-ui, sans-serif;
+}
+
+/* The name (and shortcut) appear straight away, below the button. */
+.tool-button[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translate(-50%, -2px);
+  z-index: 50;
+  padding: 5px 8px;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: var(--bg);
+  font: 500 12px/1.2 system-ui, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 100ms ease, transform 100ms ease;
+}
+
+.tool-button[data-keys]::after {
+  content: attr(data-tip) '   ' attr(data-keys);
+}
+
+.tool-button[data-align='end']::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, -2px);
+}
+
+.tool-button:hover::after,
+.tool-button:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.tool-button[data-align='end']:hover::after,
+.tool-button[data-align='end']:focus-visible::after {
+  transform: translate(0, 0);
+}
+
+/* No tooltip while the button's own panel is open. */
+.tool-button.active[aria-label='Screens']::after {
+  display: none;
+}
+
+/* Screens: one button, with a small panel for every output */
+.screens-button {
+  position: relative;
+}
+
+.screens-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  width: 330px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  animation: screens-in 120ms ease;
+}
+
+@keyframes screens-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.screens-panel label {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.screens-panel select {
+  width: 100%;
+  min-width: 0;
+  color: var(--text);
+}
+
+.screens-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+/* Show / Edit: a glass thumb that slides with a little spring */
+.mode-switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border-radius: 13px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(16px) saturate(170%);
+  isolation: isolate;
+}
+
+.mode-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  z-index: -1;
+  border-radius: var(--radius-lg);
+  background: var(--accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px color-mix(in srgb, var(--accent) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  /* The overshoot gives the slight bounce of an iPhone switch. */
+  transition: transform 420ms cubic-bezier(0.34, 1.45, 0.5, 1), width 200ms ease;
+}
+
+.mode-switch.edit .mode-thumb {
+  transform: translateX(100%);
+}
+
+/* Pressing stretches the thumb a little, as a finger would. */
+.mode-switch:active .mode-thumb {
+  width: calc(50% + 6px);
+}
+
+.mode-switch.edit:active .mode-thumb {
+  transform: translateX(calc(100% - 9px));
+}
+
+.mode-switch button {
+  min-width: 84px;
+  height: 32px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: color 220ms ease;
+}
+
+.mode-switch button.on {
+  color: var(--on-accent);
+}
+
+.mode-switch button:not(.on):not(:disabled):hover {
+  color: var(--text);
+}
+
+.mode-switch button:disabled {
+  opacity: 0.4;
+}
+
+.mode-switch button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mode-thumb,
+  .tool-button {
+    transition: none;
+  }
+}
+
+/* Live panel sections that fold away */
+.fold > h3 {
+  margin: 0 0 8px;
+}
+
+.fold-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fold-head:hover {
+  color: var(--text);
+}
+
+.fold-chevron {
+  flex: none;
+  transition: transform 160ms ease;
+}
+
+.fold.open .fold-chevron {
+  transform: rotate(90deg);
+}
+
+.fold.closed > h3 {
+  margin-bottom: 0;
+}
+
+.fold-active {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--ok) 18%, transparent);
+  color: var(--ok);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* The Live preview says what the audience sees */
+.preview-screen {
+  position: relative;
+  transition: box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.preview-screen.on-air-live {
+  border-color: var(--live);
+  box-shadow: 0 0 0 1px var(--live), 0 0 18px color-mix(in srgb, var(--live) 35%, transparent);
+}
+
+.preview-screen.on-air-black,
+.preview-screen.on-air-logo,
+.preview-screen.on-air-clear {
+  border-color: var(--border-strong);
+}
+
+.preview-screen.on-air-off {
+  border: 1px dashed var(--border-strong);
+}
+
+.on-air-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font: 700 10px/1.2 system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.on-air-badge.live {
+  background: var(--live);
+}
+
+.on-air-badge.live::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  animation: on-air-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes on-air-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.on-air-badge.off {
+  background: rgba(0, 0, 0, 0.7);
+  color: #c9ccd3;
+  letter-spacing: 0.03em;
+}
+
+.output-off-hint {
+  margin-top: 6px;
+}
+
+/* Slide grid: the live slide, the one Next will show, and keyboard focus */
+.slide-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.slide-tile.next:not(.live) {
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  border-style: dashed;
+}
+
+.slide-tile.live {
+  box-shadow: 0 0 0 1px var(--live), 0 0 14px color-mix(in srgb, var(--live) 30%, transparent);
+}
+
+.tile-tag {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 16px;
+}
+
+.tile-tag.live {
+  background: var(--live);
+  color: #fff;
+}
+
+.tile-tag.next {
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .on-air-badge.live::before {
+    animation: none;
+  }
+}
+
+/* ⌘K: find anything */
+.palette-backdrop {
+  place-items: start center;
+  padding-top: 12vh;
+  z-index: 100;
+}
+
+.palette {
+  width: min(620px, 92vw);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 24px 60px rgba(0, 0, 0, 0.45);
+  animation: pop-in 140ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.palette-input {
+  width: 100%;
+  padding: 16px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  font-size: 17px;
+  outline: none;
+}
+
+.palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+
+.palette-section {
+  padding: 8px 10px 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.palette-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+}
+
+.palette-row.on {
+  background: var(--selected);
+}
+
+.palette-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-detail {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.palette-row kbd,
+.palette-foot kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  color: var(--muted);
+  font: 11px/1.5 system-ui, sans-serif;
+}
+
+.palette-empty {
+  padding: 16px 10px;
+  color: var(--muted);
+}
+
+.palette-foot {
+  display: flex;
+  gap: 16px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+/* Nothing chosen yet: big, friendly ways to start */
+.empty-state {
+  max-width: 640px;
+  margin: 8vh auto 0;
+  text-align: center;
+  animation: fade-up 220ms ease;
+}
+
+.empty-state h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+
+.empty-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 22px 0 18px;
+}
+
+.empty-actions button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 12px;
+  border-radius: 14px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), var(--glass-shadow);
+  transition: transform 140ms ease, border-color 140ms ease;
+}
+
+.empty-actions button:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+.empty-actions button .icon {
+  color: var(--accent);
+}
+
+.empty-actions span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.empty-tip kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  font: 11px/1.5 system-ui, sans-serif;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Welcome (first run) */
+.modal.welcome {
+  width: min(600px, 92vw);
+  gap: 6px;
+}
+
+.welcome h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.welcome-steps {
+  list-style: none;
+  margin: 12px 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.welcome-step {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+}
+
+.welcome-step h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 2px;
+  font-size: 14px;
+  color: var(--text);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.welcome-step .hint {
+  margin: 0 0 8px;
+}
+
+.welcome-step select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+}
+
+.welcome-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  color: var(--muted);
+  font-weight: 700;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+.welcome-step.done .welcome-mark {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+
+/* Drag the top edge of the media bin to make it taller or shorter */
+.media-resize {
+  grid-area: media;
+  align-self: start;
+  z-index: 5;
+  height: 7px;
+  margin-top: -3px;
+  cursor: row-resize;
+  touch-action: none;
+}
+
+.media-resize::after {
+  content: '';
+  display: block;
+  width: 44px;
+  height: 3px;
+  margin: 2px auto 0;
+  border-radius: 2px;
+  background: var(--border-strong);
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.media-resize:hover::after,
+.media-resize.dragging::after {
+  opacity: 1;
+}
+
+.app.resizing {
+  cursor: row-resize;
+  user-select: none;
+}
+
+/* Windows and menus arrive quickly rather than snapping in. */
+.modal-backdrop {
+  animation: backdrop-in 140ms ease;
+}
+
+.modal {
+  animation: pop-in 160ms cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.fold-body:not([hidden]) {
+  animation: fade-up 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

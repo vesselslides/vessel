@@ -340,6 +340,8 @@ export interface Settings {
   copyMedia?: boolean;
   /** Lower thirds used before, most recent first. */
   lowerThirds?: SavedLowerThird[];
+  /** Height of the media bin in pixels (it can be dragged taller or shorter). */
+  mediaBinHeight?: number;
   /** Audience messages used before, most recent first. */
   messages?: SavedMessage[];
   /** The stream output: where it shows (off, a window, or a display) and how it looks. */
@@ -354,6 +356,8 @@ export interface Settings {
   lastUpdateCheck?: number;
   /** A version the operator chose to skip; it isn't offered again at start-up. */
   skippedVersion?: string;
+  /** The welcome (first-run) window has been seen. */
+  welcomed?: boolean;
   /** Save changes to presentations by themselves, shortly after each edit. On unless turned off. */
   autosave?: boolean;
 }

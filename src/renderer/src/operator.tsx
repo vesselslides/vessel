@@ -47,7 +47,10 @@ import { copyrightLine, hasCopyrightDetails, isScripture, localDate, showsCopyri
 import { BiblePanel } from './BiblePanel';
 import { AudioPlayer, type AudioTrack } from './AudioPlayer';
 import { mediaName } from '../../shared/media';
-import { MutedIcon, PlayIcon, SettingsIcon, SoundIcon, WarningIcon } from './Icons';
+import { BibleIcon, ImportIcon, MutedIcon, NewSongIcon, OpenIcon, PlayIcon, PlaylistIcon, RemoteIcon, SaveIcon, SettingsIcon, SoundIcon, ThemesIcon, WarningIcon } from './Icons';
+import { ModeSwitch, ScreensButton, ToolButton } from './Toolbar';
+import { CommandPalette, type PaletteAction } from './CommandPalette';
+import { WelcomeDialog } from './WelcomeDialog';
 import { PreferencesDialog, type Section as PrefsSection } from './PreferencesDialog';
 import { TimerDialog } from './TimerDialog';
 import { CcliDialog } from './CcliDialog';
@@ -126,6 +129,10 @@ function NewSongDialog({ onCreate, onCancel }: { onCreate: (name: string, lyrics
   );
 }
 
+/** The media bin's usual height, and the range it can be dragged to. */
+const MEDIA_DEFAULT = 160;
+const clampMedia = (h: number): number => Math.round(Math.min(Math.max(110, window.innerHeight * 0.55), Math.max(110, h)));
+
 /** Timer lengths offered in the menus. */
 const TIMER_SECONDS = [3, 5, 8, 10, 15, 20, 30, 45, 60, 120];
 
@@ -140,6 +147,7 @@ function SlideTile({
   slide,
   index,
   live,
+  next,
   onClick,
   onMenu,
   onDropSlide
@@ -147,6 +155,8 @@ function SlideTile({
   slide: SlideView;
   index: number;
   live: boolean;
+  /** The slide Next (→ or Space) will show. */
+  next: boolean;
   onClick: () => void;
   onMenu: () => void;
   onDropSlide: (drag: { groupId: string; cueId: string }) => void;
@@ -154,7 +164,8 @@ function SlideTile({
   const [dropHint, setDropHint] = useState(false);
   return (
     <button
-      className={`slide-tile ${live ? 'live' : ''} ${dropHint ? 'drop-before' : ''} ${slide.enabled ? '' : 'disabled'}`}
+      className={`slide-tile ${live ? 'live' : ''} ${next ? 'next' : ''} ${dropHint ? 'drop-before' : ''} ${slide.enabled ? '' : 'disabled'}`}
+      aria-current={live ? 'true' : undefined}
       title={slide.enabled ? undefined : 'Turned off: Next and Previous skip it. Click to show it anyway; right-click to turn it back on.'}
       onClick={onClick}
       onContextMenu={(e) => {
@@ -187,6 +198,8 @@ function SlideTile({
       <div className="slide-caption" style={{ background: slide.groupColor }}>
         <span>{index + 1}</span>
         <span className="slide-group">{slide.groupName || slide.label}</span>
+        {live && <span className="tile-tag live">Live</span>}
+        {next && <span className="tile-tag next">Next</span>}
         {slide.advance && (
           <span className="timer-badge" title={`Moves on by itself after ${formatSeconds(slide.advance.seconds, true)}${slide.advance.to === 'first' ? ', back to the first slide' : ''}`}>
             {slide.advance.to === 'first' ? '↺' : '⟳'} {formatSeconds(slide.advance.seconds)}
@@ -258,6 +271,50 @@ function Operator(): React.JSX.Element {
   const [showCcli, setShowCcli] = useState(false);
   const [showPrefs, setShowPrefs] = useState(false);
   const [showPco, setShowPco] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
+  /** The welcome window: on the first start with an empty library, and from Help ▸ Welcome. */
+  const [showWelcome, setShowWelcome] = useState(false);
+  const welcomeChecked = useRef(false);
+  useEffect(() => {
+    if (!settings || welcomeChecked.current) return;
+    welcomeChecked.current = true;
+    if (!settings.welcomed) {
+      // Someone already using Vessel (songs in the library) isn't shown it; it's marked as seen either way.
+      void window.vessel.listLibrary().then((songs) => songs.length === 0 && setShowWelcome(true));
+      void window.vessel.updateSettings({ welcomed: true }).then(setSettings);
+    }
+  }, [settings]);
+  /** A passage or words for the Bible to look up (from the palette). */
+  const [bibleRequest, setBibleRequest] = useState<{ query: string; key: number } | null>(null);
+  /** The media bin's height: dragged from its top edge, remembered in settings. */
+  const [mediaHeight, setMediaHeight] = useState(MEDIA_DEFAULT);
+  const [mediaDrag, setMediaDrag] = useState(false);
+  useEffect(() => {
+    if (settings?.mediaBinHeight) setMediaHeight(clampMedia(settings.mediaBinHeight));
+  }, [settings?.mediaBinHeight]);
+  const startMediaDrag = (e: React.PointerEvent<HTMLDivElement>): void => {
+    e.preventDefault();
+    const handle = e.currentTarget;
+    handle.setPointerCapture(e.pointerId);
+    const startY = e.clientY;
+    const startH = mediaHeight;
+    let h = startH;
+    setMediaDrag(true);
+    const move = (ev: PointerEvent): void => {
+      h = clampMedia(startH - (ev.clientY - startY));
+      setMediaHeight(h);
+    };
+    const up = (): void => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      setMediaDrag(false);
+      if (h !== startH) void window.vessel.updateSettings({ mediaBinHeight: h }).then(setSettings);
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+  };
+  /** Bumped to open the Screens panel from the Live column. */
+  const [screensRequest, setScreensRequest] = useState(0);
   /** Where Preferences opens (Screens ▸ Stream Output ▸ How It Looks opens Screens). */
   const [prefsSection, setPrefsSection] = useState<PrefsSection | undefined>(undefined);
   /** Bumped when Bibles are added outside the Bible panel (by dropping a file), so it reloads its list. */
@@ -1118,6 +1175,17 @@ function Operator(): React.JSX.Element {
   useEffect(() => {
     pushLive({ silentVideos: media.filter((m) => m.kind === 'video' && m.muted).map((m) => m.path) });
   }, [media, pushLive]);
+  /** What the audience sees, at a glance, on the Live preview. */
+  const onAir: { state: 'off' | 'black' | 'logo' | 'clear' | 'live'; label: string } =
+    outputDisplay === null
+      ? { state: 'off', label: 'Output off · preview only' }
+      : live.blackout
+        ? { state: 'black', label: 'Black screen' }
+        : live.logo
+          ? { state: 'logo', label: 'Logo' }
+          : live.cleared && !live.background && !live.message && !live.lowerThird
+            ? { state: 'clear', label: 'Clear' }
+            : { state: 'live', label: 'Live' };
   const liveVideo = live.background?.kind === 'video' ? live.background : null;
   const liveVideoItem = liveVideo ? media.find((m) => m.path === liveVideo.path) : undefined;
 
@@ -1379,15 +1447,6 @@ function Operator(): React.JSX.Element {
     if (settings.showOutputAtLaunch !== false && (stream === 'window' || (typeof stream === 'number' && ids.has(stream)))) void window.vessel.setStreamOutput(stream);
   });
 
-  const displayOptions = (taken: number | null): React.JSX.Element[] =>
-    displays.map((d) => (
-      // One display can't show both outputs; the one in use elsewhere is greyed out.
-      <option key={d.id} value={d.id} disabled={d.id === taken}>
-        {d.label} {d.bounds.width}×{d.bounds.height}
-        {d.primary ? ' (main)' : ''}
-      </option>
-    ));
-
   // ---- Remote control ----------------------------------------------------
 
   const [remote, setRemote] = useState<RemoteStatus | null>(null);
@@ -1551,6 +1610,10 @@ function Operator(): React.JSX.Element {
         return setShowPrefs(true);
       case 'planning-center':
         return setShowPco(true);
+      case 'palette':
+        return setShowPalette(true);
+      case 'welcome':
+        return setShowWelcome(true);
       case 'stream-look':
         setPrefsSection('screens');
         return setShowPrefs(true);
@@ -1665,64 +1728,93 @@ function Operator(): React.JSX.Element {
     return out;
   }, [selected]);
 
+  /** Everything the ⌘K palette can do, in the order it lists them before anything is typed. */
+  const paletteActions: PaletteAction[] = [
+    { id: 'new-song', label: 'New song', keys: 'Mod+N', words: 'create lyrics', run: () => setShowNewSong(true) },
+    { id: 'black', label: live.blackout ? 'Bring the screen back from black' : 'Black screen', words: 'blackout dark', run: toggleBlackout },
+    { id: 'clear', label: 'Clear text', words: 'hide lyrics', run: clear },
+    { id: 'clear-all', label: 'Clear all', words: 'reset nothing', run: clearAll },
+    { id: 'logo', label: live.logo ? 'Hide the logo' : 'Show the logo', run: toggleLogo },
+    { id: 'screens', label: 'Screens', words: 'output projector display stage stream fade', run: () => setScreensRequest((n) => n + 1) },
+    { id: 'open', label: 'Open a presentation', keys: 'Mod+O', words: 'file pro', run: () => void openPresentations() },
+    { id: 'import', label: 'Import PowerPoint, Word or text', keys: 'Mod+I', words: 'pptx docx txt', run: () => setShowImport(true) },
+    { id: 'playlist', label: 'Open playlist', words: 'service', run: () => void openPlaylist() },
+    { id: 'bible', label: 'Bible', keys: 'Mod+B', words: 'scripture verse', run: openBible },
+    { id: 'themes', label: 'Themes', words: 'style look font', run: () => setShowThemes(true) },
+    { id: 'clear-media', label: 'Clear media', words: 'background video', run: () => showBackground(null) },
+    { id: 'show', label: 'Show mode', keys: 'Mod+1', run: () => setMode('show') },
+    { id: 'edit', label: 'Edit mode', keys: 'Mod+2', run: () => selected && setMode('edit') },
+    { id: 'save', label: 'Save', keys: 'Mod+S', run: () => void save() },
+    { id: 'remote', label: 'Remote control', words: 'phone tablet', run: openRemote },
+    { id: 'ccli', label: 'CCLI: copyright and reporting', words: 'licence report', run: () => setShowCcli(true) },
+    { id: 'pco', label: 'Planning Center', words: 'plan import service', run: () => setShowPco(true) },
+    { id: 'prefs', label: 'Preferences', keys: 'Mod+,', words: 'settings options', run: () => setShowPrefs(true) },
+    { id: 'backup', label: 'Back up Vessel', words: 'backup export', run: () => void window.vessel.backUp() },
+    { id: 'restore', label: 'Restore from a backup', words: 'import backup', run: () => void window.vessel.restoreBackup() },
+    { id: 'updates', label: 'Check for updates', words: 'new version', run: () => void window.vessel.checkForUpdates() },
+    { id: 'shortcuts', label: 'Keyboard shortcuts', keys: 'Mod+/', words: 'keys help', run: () => setShowShortcuts(true) }
+  ];
+
+  /** The slide Next will show in the presentation you're looking at (its first, if it isn't on screen). */
+  const upNext = selected ? nextEnabled(selected.deck, liveSlide?.deckId === selected.deck.id ? liveSlide.index : -1, 1) : -1;
+
   return (
-    <div className="app">
+    <div className={`app ${mediaDrag ? 'resizing' : ''}`} style={{ '--media-height': `${mediaHeight}px` } as React.CSSProperties}>
       <header className="toolbar">
-        <div className="brand">Vessel</div>
-        <button onClick={() => setShowNewSong(true)}>New song</button>
-        <button onClick={openPresentations} title="Open a presentation (.pro) or import an older one (.pro5, .pro6, .pro6x)">
-          Open…
-        </button>
-        <button onClick={() => setShowImport(true)} title="Make songs from PowerPoint, Word or text files">
-          Import…
-        </button>
-        <button onClick={openPlaylist}>Open playlist</button>
-        <button className={showBible ? 'active-toggle' : ''} onClick={() => (showBible ? closeBible() : openBible())} title="Show Bible verses (⌘B / Ctrl+B)">
-          Bible
-        </button>
-        <button onClick={() => setShowThemes(true)}>Themes…</button>
-        <button className={remote?.enabled ? 'remote-on' : ''} title="Control Vessel from a phone or tablet" onClick={openRemote}>
-          Remote{remote?.enabled ? ` ●${remote.clients ? ` ${remote.clients}` : ''}` : ''}
-        </button>
-        <button onClick={save} disabled={!selected}>
-          Save{selected?.dirty ? ' *' : ''}
-        </button>
-        <div className="segmented">
-          <button className={mode === 'show' ? 'active' : ''} onClick={() => setMode('show')}>
-            Show
-          </button>
-          <button className={mode === 'edit' ? 'active' : ''} onClick={() => setMode('edit')} disabled={!selected}>
-            Edit
-          </button>
+        <div className="toolbar-start">
+          <div className="brand">Vessel</div>
+          <div className="tool-group">
+            <ToolButton label="New song" keys="Mod+N" icon={<NewSongIcon size={20} />} onClick={() => setShowNewSong(true)} />
+            <ToolButton label="Open a presentation (.pro, or an older .pro5, .pro6, .pro6x)" keys="Mod+O" icon={<OpenIcon size={20} />} onClick={openPresentations} />
+            <ToolButton label="Import PowerPoint, Word or text" keys="Mod+I" icon={<ImportIcon size={20} />} onClick={() => setShowImport(true)} />
+            <ToolButton label="Open playlist" icon={<PlaylistIcon size={20} />} onClick={openPlaylist} />
+          </div>
+          <div className="tool-group">
+            <ToolButton label="Bible" keys="Mod+B" icon={<BibleIcon size={20} />} active={showBible} onClick={() => (showBible ? closeBible() : openBible())} />
+            <ToolButton label="Themes" icon={<ThemesIcon size={20} />} onClick={() => setShowThemes(true)} />
+            <ToolButton
+              label={remote?.enabled ? `Remote control: on${remote.clients ? ` · ${remote.clients} connected` : ''}` : 'Remote control from a phone or tablet'}
+              icon={<RemoteIcon size={20} />}
+              onClick={openRemote}
+              dot={remote?.enabled ? 'on' : undefined}
+              badge={remote?.enabled ? remote.clients : undefined}
+            />
+          </div>
+          <div className="tool-group">
+            <ToolButton
+              label={selected?.dirty ? 'Save (unsaved changes)' : 'Save'}
+              keys="Mod+S"
+              icon={<SaveIcon size={20} />}
+              onClick={() => void save()}
+              disabled={!selected}
+              dot={selected?.dirty ? 'unsaved' : undefined}
+            />
+          </div>
         </div>
-        <div className="spacer" />
-        <label className="output-select display-select" title="Audience screen">
-          Output
-          <select value={outputDisplay ?? ''} onChange={(e) => changeOutput(e.target.value)}>
-            <option value="">Off</option>
-            {displayOptions(stageDisplay)}
-          </select>
-        </label>
-        <label className="output-select display-select" title="Stage display for the people on stage">
-          Stage
-          <select value={stageDisplay ?? ''} onChange={(e) => changeStageOutput(e.target.value)}>
-            <option value="">Off</option>
-            {displayOptions(outputDisplay)}
-          </select>
-        </label>
-        <label className="output-select" title="Crossfade length for slides and media">
-          Fade
-          <select value={live.transitionMs} onChange={(e) => changeTransition(Number(e.target.value))}>
-            <option value={0}>Cut</option>
-            <option value={250}>0.25s</option>
-            <option value={500}>0.5s</option>
-            <option value={1000}>1s</option>
-            <option value={2000}>2s</option>
-          </select>
-        </label>
-        <button className="icon-button toolbar-prefs" onClick={() => setShowPrefs(true)} title="Preferences (⌘, / Ctrl+,)" aria-label="Preferences">
-          <SettingsIcon />
-        </button>
+        <div className="toolbar-center">
+          <ModeSwitch mode={mode} canEdit={!!selected} onChange={setMode} />
+        </div>
+        <div className="toolbar-end">
+          <div className="tool-group">
+            <ScreensButton
+              displays={displays}
+              outputDisplay={outputDisplay}
+              stageDisplay={stageDisplay}
+              settings={settings}
+              transitionMs={live.transitionMs}
+              onOutput={changeOutput}
+              onStageOutput={changeStageOutput}
+              onStreamOutput={(target) => void window.vessel.setStreamOutput(target).then(setSettings)}
+              onTransition={changeTransition}
+              onOpenSettings={() => {
+                setPrefsSection('screens');
+                setShowPrefs(true);
+              }}
+              openRequest={screensRequest}
+            />
+            <ToolButton label="Preferences" keys="Mod+," icon={<SettingsIcon size={20} />} onClick={() => setShowPrefs(true)} align="end" />
+          </div>
+        </div>
       </header>
 
       <Sidebar
@@ -1769,6 +1861,7 @@ function Operator(): React.JSX.Element {
             onAddToPresentation={({ presentation, name }) => void addScriptureTo(presentation, name)}
             onAddToService={({ presentation, name }) => void addScriptureToService(presentation, name)}
             onSave={({ presentation, name }) => void keepScripture(presentation, name, false)}
+            request={bibleRequest}
             onStatus={setStatus}
             onClose={closeBible}
           />
@@ -1833,6 +1926,7 @@ function Operator(): React.JSX.Element {
                       slide={slide}
                       index={index}
                       live={liveSlide?.deckId === selected.deck.id && liveSlide.index === index}
+                      next={index === upNext}
                       onClick={() => goLive(selected.deck.id, index)}
                       onMenu={() =>
                         void openSlideMenu({
@@ -1856,7 +1950,35 @@ function Operator(): React.JSX.Element {
             ))}
           </>
         ) : (
-          <div className="placeholder">Select or create a presentation</div>
+          <div className="empty-state">
+            <h2>{library.length ? 'Pick a song from the library' : 'Let’s get your songs in'}</h2>
+            <p className="muted">{library.length ? 'Or start something new:' : 'Start with one of these. You can always add more later.'}</p>
+            <div className="empty-actions">
+              <button onClick={() => setShowNewSong(true)}>
+                <NewSongIcon size={26} />
+                <strong>New song</strong>
+                <span>Type or paste the words</span>
+              </button>
+              <button onClick={() => setShowImport(true)}>
+                <ImportIcon size={26} />
+                <strong>Import</strong>
+                <span>From PowerPoint, Word or text</span>
+              </button>
+              <button onClick={() => void openPlaylist()}>
+                <PlaylistIcon size={26} />
+                <strong>Open a playlist</strong>
+                <span>A service you already have</span>
+              </button>
+              <button onClick={openBible}>
+                <BibleIcon size={26} />
+                <strong>Bible</strong>
+                <span>Show a verse now</span>
+              </button>
+            </div>
+            <p className="muted empty-tip">
+              Tip: press <kbd>{navigator.platform.startsWith('Mac') ? '⌘K' : 'Ctrl+K'}</kbd> to find any song, verse or action.
+            </p>
+          </div>
         )}
       </main>
 
@@ -1880,7 +2002,7 @@ function Operator(): React.JSX.Element {
           </button>
         </div>
         <div
-          className="preview-screen"
+          className={`preview-screen on-air-${onAir.state}`}
           title="Right-click to clear or black out"
           onContextMenu={(e) => {
             e.preventDefault();
@@ -1889,6 +2011,9 @@ function Operator(): React.JSX.Element {
         >
           {/* With no audience output to play it, the preview plays the video's sound (Preferences ▸ Audio and video). */}
           <AudienceView live={live} muted={!(outputDisplay === null && settings?.previewSound !== false)} />
+          <span className={`on-air-badge ${onAir.state}`} aria-live="polite">
+            {onAir.label}
+          </span>
         </div>
         {liveVideo && live.videoClock?.path === liveVideo.path && <VideoTransport video={liveVideo} clock={live.videoClock} onClock={(videoClock) => pushLive({ videoClock })} />}
         {liveVideo && (
@@ -1960,7 +2085,14 @@ function Operator(): React.JSX.Element {
             Go to slide <b>{typedNumber}</b> <kbd>Enter</kbd>
           </div>
         )}
-        {outputDisplay === null && <p className="hint">Output is off. Pick a display above to show it.</p>}
+        {outputDisplay === null && (
+          <p className="hint output-off-hint">
+            The audience can’t see this yet.{' '}
+            <button className="link-button" onClick={() => setScreensRequest((n) => n + 1)}>
+              Choose a screen…
+            </button>
+          </p>
+        )}
         <MessagePanel
           shown={live.message ?? null}
           saved={normalizeMessages(settings?.messages)}
@@ -1983,9 +2115,21 @@ function Operator(): React.JSX.Element {
           onForget={(id) => void window.vessel.updateSettings({ lowerThirds: normalizeLowerThirds(settings?.lowerThirds).filter((l) => l.id !== id) }).then(setSettings)}
         />
         <StagePanel stage={stage} onChange={pushStage} onLayout={changeStageLayout} />
-        {stageDisplay === null && <p className="hint">Stage display is off. Pick a display under Stage above.</p>}
+        {stageDisplay === null && <p className="hint">Stage display is off. Choose one with the Screens button, top right.</p>}
       </aside>
 
+      <div
+        className={`media-resize ${mediaDrag ? 'dragging' : ''}`}
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Media bin height"
+        title="Drag to resize the media bin (double-click for the usual size)"
+        onPointerDown={startMediaDrag}
+        onDoubleClick={() => {
+          setMediaHeight(MEDIA_DEFAULT);
+          void window.vessel.updateSettings({ mediaBinHeight: MEDIA_DEFAULT }).then(setSettings);
+        }}
+      />
       <MediaBin
         items={media}
         folders={mediaFolders}
@@ -2086,6 +2230,36 @@ function Operator(): React.JSX.Element {
           }
           onStatus={setStatus}
           onClose={() => setShowCcli(false)}
+        />
+      )}
+      {showWelcome && (
+        <WelcomeDialog
+          songs={library.length}
+          displays={displays}
+          outputDisplay={outputDisplay}
+          onImport={() => setShowImport(true)}
+          onNewSong={() => setShowNewSong(true)}
+          onAddFolder={() => void window.vessel.addLibraryFolder().then((s2) => (setSettings(s2), refreshLibrary()))}
+          onOutput={changeOutput}
+          onBible={() => {
+            setShowWelcome(false);
+            openBible();
+          }}
+          onClose={() => setShowWelcome(false)}
+        />
+      )}
+      {showPalette && (
+        <CommandPalette
+          actions={paletteActions}
+          library={library}
+          playlists={playlistFiles}
+          onOpenSong={openFromLibrary}
+          onOpenPlaylist={(path) => void selectPlaylist(path)}
+          onBible={(query) => {
+            openBible();
+            setBibleRequest({ query, key: Date.now() });
+          }}
+          onClose={() => setShowPalette(false)}
         />
       )}
       {showPco && <PlanningCenterDialog library={library} onImport={importPlan} onClose={() => setShowPco(false)} />}

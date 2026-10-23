@@ -28,6 +28,8 @@ export type AppCommand =
   | 'shortcuts'
   | 'stream-look'
   | 'planning-center'
+  | 'palette'
+  | 'welcome'
   | `output:${string}`
   | `stage:${string}`;
 

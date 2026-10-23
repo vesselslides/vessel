@@ -3,6 +3,7 @@ import { formatClock, formatDuration, isRunning, parseDuration, parseTimeOfDay, 
 import { DEFAULT_STAGE_LAYOUT, presetOf, STAGE_PRESETS, type StageLayout } from '../../shared/stage';
 import type { StageState } from '../../shared/types';
 import { StageView } from './StageView';
+import { Fold } from './Fold';
 
 /** Operator controls for the stage display: preview, timer and stage message. */
 export function StagePanel({
@@ -46,8 +47,7 @@ export function StagePanel({
   };
 
   return (
-    <section className="stage-section">
-      <h3>Stage</h3>
+    <Fold id="stage" title="Stage" className="stage-section" active={isRunning(t) && 'timer running'} defaultOpen={true}>
       <div className="stage-preview">
         <StageView state={stage} />
       </div>
@@ -180,6 +180,6 @@ export function StagePanel({
           </button>
         </div>
       </div>
-    </section>
+    </Fold>
   );
 }

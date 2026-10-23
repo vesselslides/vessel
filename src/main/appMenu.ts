@@ -151,6 +151,8 @@ export function rebuildAppMenu(): void {
     {
       label: mnemonic('&View'),
       submenu: [
+        { label: 'Find Anything…', accelerator: 'CmdOrCtrl+K', click: send('palette') },
+        { type: 'separator' },
         { label: 'Show', type: 'radio', checked: !editing, accelerator: 'CmdOrCtrl+1', click: send('mode-show') },
         { label: 'Edit', type: 'radio', checked: editing, accelerator: 'CmdOrCtrl+2', enabled: state.hasPresentation, click: send('mode-edit') },
         { type: 'separator' },
@@ -196,6 +198,7 @@ export function rebuildAppMenu(): void {
       role: 'help',
       label: mnemonic('&Help'),
       submenu: [
+        { label: 'Welcome to Vessel…', click: send('welcome') },
         { label: 'Keyboard Shortcuts', accelerator: 'CmdOrCtrl+/', click: send('shortcuts') },
         ...(isMac ? [] : [{ type: 'separator' as const }, { label: 'Check for Updates…', click: checkUpdates }, { label: 'About Vessel', click: showAbout }])
       ]

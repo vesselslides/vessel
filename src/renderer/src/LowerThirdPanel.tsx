@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { cleanLowerThird, DEFAULT_LOWER_THIRD_COLOR, sameLowerThird, type LowerThird, type SavedLowerThird } from '../../shared/lowerThirds';
+import { Fold } from './Fold';
 
 /** Operator controls for the lower third: a name and second line over the slides, and earlier ones to reuse. */
 export function LowerThirdPanel({
@@ -25,8 +26,7 @@ export function LowerThirdPanel({
   };
 
   return (
-    <section className="lower-third-section">
-      <h3>Lower third</h3>
+    <Fold id="lower-third" title="Lower third" className="lower-third-section" active={!!shown && 'showing'} defaultOpen={false}>
       <div className="stage-controls">
         <div className="stage-row">
           <input className="grow" placeholder="Name, e.g. Pastor Sam" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} onKeyDown={enter} />
@@ -72,6 +72,6 @@ export function LowerThirdPanel({
           </ul>
         )}
       </div>
-    </section>
+    </Fold>
   );
 }

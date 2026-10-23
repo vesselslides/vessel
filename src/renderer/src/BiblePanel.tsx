@@ -56,7 +56,8 @@ export function BiblePanel({
   onAddToService,
   onSave,
   onStatus,
-  onClose
+  onClose,
+  request
 }: {
   themes: ThemeLibrary;
   /** Slide size for passages (Preferences ▸ Screens). */
@@ -72,6 +73,8 @@ export function BiblePanel({
   onSave: (a: ScriptureAction) => void;
   onStatus: (message: string) => void;
   onClose: () => void;
+  /** A passage or words to look up, from the ⌘K palette (`key` changes for each request). */
+  request?: { query: string; key: number } | null;
 }): React.JSX.Element {
   const [opts, setOpts] = useState<Remembered>(remembered);
   const [bibles, setBibles] = useState<BibleInfo[] | null>(null);
@@ -94,6 +97,9 @@ export function BiblePanel({
   };
   const [bible, setBible] = useState<Bible | null>(null);
   const [query, setQuery] = useState('');
+  useEffect(() => {
+    if (request) setQuery(request.query);
+  }, [request]);
   const [busy, setBusy] = useState(false);
   const [download, setDownload] = useState<{ id: string; received: number; total: number } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);

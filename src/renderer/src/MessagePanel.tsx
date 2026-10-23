@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { hasTokens, MESSAGE_TOKENS, type LiveMessage, type SavedMessage } from '../../shared/messages';
 import { isRunning, type TimerState } from '../../shared/timer';
+import { Fold } from './Fold';
 
 /** Operator controls for the audience message: write one, show it, hide it, reuse an earlier one. */
 export function MessagePanel({
@@ -35,8 +36,7 @@ export function MessagePanel({
   };
 
   return (
-    <section className="message-section">
-      <h3>Message</h3>
+    <Fold id="message" title="Message" className="message-section" active={!!shown && 'showing'} defaultOpen={false}>
       <div className="stage-controls">
         <textarea
           ref={box}
@@ -85,6 +85,6 @@ export function MessagePanel({
           </ul>
         )}
       </div>
-    </section>
+    </Fold>
   );
 }
