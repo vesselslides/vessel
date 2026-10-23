@@ -209,3 +209,9 @@ export const HelpIcon = (p: IconProps): React.JSX.Element => (
     <path d="M12 17h.01" />
   </Icon>
 );
+
+export const CheckIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M5 12.5l4.5 4.5L19 7.5" />
+  </Icon>
+);

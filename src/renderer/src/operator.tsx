@@ -47,7 +47,7 @@ import { copyrightLine, hasCopyrightDetails, isScripture, localDate, showsCopyri
 import { BiblePanel } from './BiblePanel';
 import { AudioPlayer, type AudioTrack } from './AudioPlayer';
 import { mediaName } from '../../shared/media';
-import { BibleIcon, HelpIcon, ImportIcon, MutedIcon, NewSongIcon, OpenIcon, PlayIcon, PlaylistIcon, RemoteIcon, SaveIcon, SettingsIcon, SoundIcon, ThemesIcon, WarningIcon } from './Icons';
+import { BibleIcon, CheckIcon, HelpIcon, ImportIcon, MutedIcon, NewSongIcon, OpenIcon, PlayIcon, PlaylistIcon, RemoteIcon, SaveIcon, SettingsIcon, SoundIcon, ThemesIcon, WarningIcon } from './Icons';
 import { ModeSwitch, ScreensButton, ToolButton } from './Toolbar';
 import { CommandPalette, type PaletteAction } from './CommandPalette';
 import { WelcomeDialog } from './WelcomeDialog';
@@ -1056,12 +1056,42 @@ function Operator(): React.JSX.Element {
     );
   };
 
+  /** A short notice at the top of the window (Saved, and so on) that fades by itself. */
+  const [toast, setToast] = useState<{ text: string; tone: 'ok' | 'info' | 'error'; key: number } | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), toast.tone === 'error' ? 5000 : 2200);
+    return () => clearTimeout(t);
+  }, [toast]);
+  /** The Save button shows a tick for a moment after saving. */
+  const [justSaved, setJustSaved] = useState(false);
+  useEffect(() => {
+    if (!justSaved) return;
+    const t = setTimeout(() => setJustSaved(false), 1600);
+    return () => clearTimeout(t);
+  }, [justSaved]);
+
   const save = async (): Promise<void> => {
     if (!selected) return;
-    const path = await window.vessel.saveFile(serializePresentation(selected.presentation), selected.deck.name, selected.path);
+    const name = selected.deck.name || 'Untitled';
+    // Nothing new to write: autosave already has it (or it was never changed).
+    if (!selected.dirty && selected.path) {
+      setJustSaved(true);
+      setToast({ text: settings?.autosave !== false ? `“${name}” is saved. Vessel saves your changes as you go.` : `“${name}” has no unsaved changes.`, tone: 'info', key: Date.now() });
+      return;
+    }
+    let path: string | null;
+    try {
+      path = await window.vessel.saveFile(serializePresentation(selected.presentation), selected.deck.name, selected.path);
+    } catch (err) {
+      setToast({ text: `Couldn’t save “${name}”: ${(err as Error).message.replace(/^.*Error: /, '')}`, tone: 'error', key: Date.now() });
+      return;
+    }
     if (!path) return;
     setDecks((prev) => prev.map((d) => (d.deck.id === selected.deck.id ? { ...d, path, dirty: false, deck: { ...d.deck, sourcePath: path } } : d)));
     setStatus(`Saved ${fileName(path)}`);
+    setJustSaved(true);
+    setToast({ text: selected.path ? `Saved “${name}”` : `Saved “${name}” to the library`, tone: 'ok', key: Date.now() });
   };
 
   // Autosave (Preferences ▸ General): a moment after the last edit, write each
@@ -2000,7 +2030,7 @@ function Operator(): React.JSX.Element {
             <ToolButton
               label={selected?.dirty ? 'Save (unsaved changes)' : 'Save'}
               keys="Mod+S"
-              icon={<SaveIcon size={20} />}
+              icon={justSaved ? <CheckIcon size={20} className="icon saved-tick" /> : <SaveIcon size={20} />}
               onClick={() => void save()}
               disabled={!selected}
               dot={selected?.dirty ? 'unsaved' : undefined}
@@ -2388,6 +2418,12 @@ function Operator(): React.JSX.Element {
             <span>Songs, PowerPoint, Word and text files go to the library (drop on the service to add them there too)</span>
             <span>Pictures and videos go to the media bin · Bible files to the Bible · Playlists become service playlists</span>
           </div>
+        </div>
+      )}
+      {toast && (
+        <div key={toast.key} className={`toast ${toast.tone}`} role="status" aria-live="polite">
+          {toast.tone === 'ok' && <CheckIcon size={16} />}
+          {toast.text}
         </div>
       )}
       <footer className="statusbar" title={status}>
