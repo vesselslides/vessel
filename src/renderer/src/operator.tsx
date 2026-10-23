@@ -260,7 +260,10 @@ function Operator(): React.JSX.Element {
   // The newest live state we sent. React state only catches up when main echoes
   // it back, so quick successive actions must build on this, not on `live`.
   const liveRef = useRef<LiveState>(INITIAL_LIVE);
-  /** Media the operator cleared; slides with that same background don't bring it back. */
+  /**
+   * Media the operator cleared: moving through the song (→, ←, a group's key)
+   * doesn't bring it back, but clicking a slide with media does.
+   */
   const clearedMedia = useRef<string | null>(null);
   const pushLive = useCallback((patch: Partial<LiveState> | ((prev: LiveState) => Partial<LiveState>)) => {
     const prev = liveRef.current;
@@ -1024,6 +1027,7 @@ function Operator(): React.JSX.Element {
     const d = await openPath(item.path, { arrangementName: item.arrangementName });
     if (!d) return;
     setCurrentRow(row);
+    clearedMedia.current = null;
     goLiveDeck(d.deck, 0, row);
   };
 
@@ -1386,6 +1390,15 @@ function Operator(): React.JSX.Element {
       if (deck) goLiveDeck(deck, index, rowOfDeck(deck));
     },
     [goLiveDeck, rowOfDeck]
+  );
+
+  /** A slide the operator chose (clicked, picked from a menu, tapped on the remote): its media shows even if just cleared. */
+  const goLiveChosen = useCallback(
+    (deckId: string, index: number) => {
+      clearedMedia.current = null;
+      goLive(deckId, index);
+    },
+    [goLive]
   );
 
   /** Step through slides, rolling into the next or previous song of the service at the ends. */
@@ -1883,7 +1896,7 @@ function Operator(): React.JSX.Element {
       case 'black':
         return toggleBlackout();
       case 'goto':
-        if (selected) goLive(selected.deck.id, c.index);
+        if (selected) goLiveChosen(selected.deck.id, c.index);
         return;
       case 'openRow':
         return openRow(c.row);
@@ -2277,7 +2290,13 @@ function Operator(): React.JSX.Element {
         onServiceItems={changeServiceItems}
         onOpenRow={openRow}
         onGoLiveRow={(row) => void goLiveRow(row)}
-        onGoLivePath={(path) => void openPath(path).then((d) => d && goLiveDeck(d.deck, 0, rowForPath(d.path)))}
+        onGoLivePath={(path) =>
+          void openPath(path).then((d) => {
+            if (!d) return;
+            clearedMedia.current = null;
+            goLiveDeck(d.deck, 0, rowForPath(d.path));
+          })
+        }
         onNewSong={() => setShowNewSong(true)}
         onOpenFiles={() => void openPresentations()}
         onImportDocuments={() => setShowImport(true)}
@@ -2368,14 +2387,14 @@ function Operator(): React.JSX.Element {
                       index={index}
                       live={liveSlide?.deckId === selected.deck.id && liveSlide.index === index}
                       next={index === upNext}
-                      onClick={() => goLive(selected.deck.id, index)}
+                      onClick={() => goLiveChosen(selected.deck.id, index)}
                       onMenu={() =>
                         void openSlideMenu({
                           deck: selected.deck,
                           slide,
                           media,
                           apply,
-                          onGoLive: () => goLive(selected.deck.id, index),
+                          onGoLive: () => goLiveChosen(selected.deck.id, index),
                           onCustomTimer: () => setAskTimer({ kind: 'slide', cueId: slide.cueId, seconds: slide.advance?.seconds, to: slide.advance?.to ?? 'next' }),
                           onEditText: () => {
                             setFocusCue(slide.cueId);

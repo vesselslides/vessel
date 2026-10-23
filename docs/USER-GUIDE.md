@@ -17,6 +17,8 @@ in-app tour (the **?** button at the top right) shows where things are, and
   it's live, clear, black, showing the logo, in practice mode or off. Clear
   text, Clear media, Clear all, Logo, Black and **Practice**. Message, Lower
   third and Stage fold away and say when they're in use.
+  After **Clear media**, → and ← move on without bringing that media back;
+  clicking a slide shows its media again.
 - **Slide grid:** click a slide to show it. The live slide is marked LIVE and
   the one → or Space will show next is marked NEXT.
 
