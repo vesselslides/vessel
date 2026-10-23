@@ -164,7 +164,8 @@ function LyricsDocument({ job }: { job: ExportJob }): React.JSX.Element {
 
 function Print(): React.JSX.Element | null {
   const [job, setJob] = useState<ExportJob | null>(null);
-  const [shown, setShown] = useState<SlideView | null>(null);
+  // The slide shown for a picture, with a number so each one draws afresh (its own background loaded and waited for).
+  const [shown, setShown] = useState<{ slide: SlideView; n: number } | null>(null);
   const done = useRef<(() => void) | null>(null);
   const jobRef = useRef<ExportJob | null>(null);
 
@@ -181,7 +182,8 @@ function Print(): React.JSX.Element | null {
           new Promise<void>((resolve) => {
             const songs = jobRef.current?.entries.filter((e): e is ExportSong => e.kind === 'song') ?? [];
             done.current = resolve;
-            setShown(songs[song]?.slides[slide] ?? null);
+            const next = songs[song]?.slides[slide];
+            setShown((prev) => (next ? { slide: next, n: (prev?.n ?? 0) + 1 } : null));
           })
       }),
     []
@@ -196,9 +198,12 @@ function Print(): React.JSX.Element | null {
   }, [job, shown]);
 
   if (!job) return null;
-  if (job.format === 'images') return shown ? <div className="print-one">
-        <Slide slide={shown} job={job} />
-      </div> : null;
+  if (job.format === 'images')
+    return shown ? (
+      <div className="print-one">
+        <Slide key={shown.n} slide={shown.slide} job={job} />
+      </div>
+    ) : null;
   return (
     <>
       <style>{`@page { size: ${job.options.paper === 'letter' ? 'letter' : 'A4'} ${job.format === 'pdf-slides' && job.options.perPage === 1 ? 'landscape' : 'portrait'}; margin: 14mm; }`}</style>

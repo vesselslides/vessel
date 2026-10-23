@@ -79,17 +79,19 @@ export async function unzipTo(file: string, into: string): Promise<void> {
       bad = new Error(`This file has something inside that Vessel won’t unpack (${name})`);
       return;
     }
+    let finished!: () => void;
+    let failed!: (e: Error) => void;
+    writes.push(new Promise<void>((res, rej) => ((finished = res), (failed = rej))));
     let stream: WriteStream | null = null;
     const pending: Uint8Array[] = [];
     const ready = mkdir(dirname(target), { recursive: true }).then(() => {
       stream = createWriteStream(target);
+      // A write that fails (a full disk, say) fails the unpacking rather than the app.
+      stream.on('error', failed);
       open.push(stream);
       for (const c of pending) stream.write(c);
       return stream;
     });
-    let finished!: () => void;
-    let failed!: (e: Error) => void;
-    writes.push(new Promise<void>((res, rej) => ((finished = res), (failed = rej))));
     entry.ondata = (err, chunk, final) => {
       if (err) return failed(err);
       if (stream) stream.write(chunk);
@@ -99,12 +101,19 @@ export async function unzipTo(file: string, into: string): Promise<void> {
     entry.start();
   });
   unzip.register(UnzipInflate);
-  for await (const chunk of createReadStream(file)) {
-    unzip.push(chunk as Uint8Array);
-    for (const s of open) if (s.writableLength > HIGH_WATER) await once(s, 'drain');
-    if (bad) break;
+  try {
+    for await (const chunk of createReadStream(file)) {
+      unzip.push(chunk as Uint8Array);
+      for (const s of open) if (s.writableLength > HIGH_WATER) await once(s, 'drain');
+      // Stop at the first refused name: what's half-written is removed by the caller.
+      if (bad) throw bad;
+    }
+    unzip.push(new Uint8Array(0), true);
+    if (bad) throw bad;
+    await Promise.all(writes);
+  } catch (err) {
+    // Close what's open, so the half-unpacked folder can be removed (Windows won't delete open files).
+    for (const s of open) s.destroy();
+    throw err;
   }
-  if (!bad) unzip.push(new Uint8Array(0), true);
-  await Promise.all(writes);
-  if (bad) throw bad;
 }

@@ -53,10 +53,16 @@ async function printPage(job: ExportJob, load: (w: BrowserWindow) => void, size?
     win.webContents.once('did-finish-load', () => resolve());
     win.webContents.once('did-fail-load', (_e, _code, why) => reject(new Error(why)));
   });
-  load(win);
-  await loaded;
-  await win.webContents.executeJavaScript(`window.__vesselPrint(${JSON.stringify(job)})`);
-  return win;
+  try {
+    load(win);
+    await loaded;
+    await win.webContents.executeJavaScript(`window.__vesselPrint(${JSON.stringify(job)})`);
+    return win;
+  } catch (err) {
+    // The page didn't load or draw: don't leave the hidden window behind.
+    win.destroy();
+    throw err;
+  }
 }
 
 async function writePdf(job: ExportJob, target: string, load: (w: BrowserWindow) => void): Promise<number> {
