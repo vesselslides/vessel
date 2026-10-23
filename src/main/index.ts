@@ -124,19 +124,42 @@ function createScreenWindow(displayId: number, page: 'output' | 'stage' | 'strea
   return win;
 }
 
+/**
+ * Take a screen window away. A full-screen window on a Mac leaves full screen
+ * first; closing it straight away can leave the display black. If that takes
+ * too long, the window is removed anyway.
+ */
+function closeScreenWindow(win: BrowserWindow | null): void {
+  if (!win || win.isDestroyed()) return;
+  if (process.platform === 'darwin' && win.isFullScreen()) {
+    const fallback = setTimeout(() => !win.isDestroyed() && win.destroy(), 1500);
+    win.once('leave-full-screen', () => {
+      clearTimeout(fallback);
+      if (!win.isDestroyed()) win.close();
+    });
+    win.setFullScreen(false);
+    return;
+  }
+  win.close();
+}
+
 function setOutput(displayId: number | null): void {
-  outputWindow?.close();
-  outputWindow = displayId === null ? null : createScreenWindow(displayId, 'output', () => ['live:update', liveState]);
-  outputWindow?.on('closed', () => {
-    outputWindow = null;
+  closeScreenWindow(outputWindow);
+  const win = displayId === null ? null : createScreenWindow(displayId, 'output', () => ['live:update', liveState]);
+  outputWindow = win;
+  // Only forget the window if it's still the current one: the old window's
+  // "closed" can arrive after a new one has replaced it.
+  win?.on('closed', () => {
+    if (outputWindow === win) outputWindow = null;
   });
 }
 
 function setStageOutput(displayId: number | null): void {
-  stageWindow?.close();
-  stageWindow = displayId === null ? null : createScreenWindow(displayId, 'stage', () => ['stage:update', stageState]);
-  stageWindow?.on('closed', () => {
-    stageWindow = null;
+  closeScreenWindow(stageWindow);
+  const win = displayId === null ? null : createScreenWindow(displayId, 'stage', () => ['stage:update', stageState]);
+  stageWindow = win;
+  win?.on('closed', () => {
+    if (stageWindow === win) stageWindow = null;
   });
 }
 
@@ -189,7 +212,7 @@ function applyNdi(settings: Settings): void {
 function setStreamOutput(target: StreamTarget): void {
   const old = streamWindow;
   streamWindow = null;
-  old?.close();
+  closeScreenWindow(old);
   streamTarget = target;
   if (target === 'window') {
     // An ordinary window, so capture software can find it by name; sized like a 720p picture.
