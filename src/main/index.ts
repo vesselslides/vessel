@@ -118,6 +118,7 @@ function createScreenWindow(displayId: number, page: 'output' | 'stage' | 'strea
     // Background videos must start with sound without a click on the output.
     webPreferences: { preload, sandbox: false, contextIsolation: true, autoplayPolicy: 'no-user-gesture-required' }
   });
+  if (process.platform === 'darwin' && win.isFullScreenable() && !display.internal && secondary) fullScreenSettled.set(win, fullScreenChange(win, 'enter-full-screen'));
   loadPage(win, page);
   win.once('ready-to-show', () => win.showInactive());
   win.webContents.on('did-finish-load', () => win.webContents.send(...initial()));
@@ -125,26 +126,53 @@ function createScreenWindow(displayId: number, page: 'output' | 'stage' | 'strea
 }
 
 /**
- * Take a screen window away. A full-screen window on a Mac leaves full screen
- * first; closing it straight away can leave the display black. If that takes
- * too long, the window is removed anyway.
+ * A Mac moves a window into or out of full screen with an animation. Closing
+ * the window before that has completely finished can crash the app (macOS
+ * still sends the window its "finished" notice), so each screen window
+ * remembers when its last change will be over.
  */
-function closeScreenWindow(win: BrowserWindow | null): void {
+const fullScreenSettled = new WeakMap<BrowserWindow, Promise<void>>();
+
+/** Resolves once a full-screen change has finished (and a moment more for macOS to tidy up), or after `limit`. */
+function fullScreenChange(win: BrowserWindow, event: 'enter-full-screen' | 'leave-full-screen', limit = 5000): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const done = (): void => {
+      clearTimeout(timer);
+      win.removeListener(event as 'enter-full-screen', done);
+      win.removeListener('closed', done);
+      // Not straight away: other parts of macOS are still handling the same notice.
+      setTimeout(resolve, 300);
+    };
+    const timer = setTimeout(done, limit);
+    // (The two events have the same listener type; TypeScript can't pick an overload for the union.)
+    win.once(event as 'enter-full-screen', done);
+    win.once('closed', done);
+  });
+}
+
+/**
+ * Take a screen window away. Its picture goes black at once; on a Mac a
+ * full-screen window then leaves full screen, and only when that has
+ * completely finished is it closed.
+ */
+async function closeScreenWindow(win: BrowserWindow | null): Promise<void> {
   if (!win || win.isDestroyed()) return;
-  if (process.platform === 'darwin' && win.isFullScreen()) {
-    const fallback = setTimeout(() => !win.isDestroyed() && win.destroy(), 1500);
-    win.once('leave-full-screen', () => {
-      clearTimeout(fallback);
-      if (!win.isDestroyed()) win.close();
-    });
-    win.setFullScreen(false);
-    return;
+  // Black straight away, so nothing lingers on the screen while it closes.
+  win.webContents.send('live:update', { ...INITIAL_LIVE, blackout: true, transitionMs: 0 });
+  if (process.platform === 'darwin') {
+    await fullScreenSettled.get(win);
+    if (win.isDestroyed()) return;
+    if (win.isFullScreen()) {
+      const left = fullScreenChange(win, 'leave-full-screen');
+      win.setFullScreen(false);
+      await left;
+    }
   }
-  win.close();
+  if (!win.isDestroyed()) win.close();
 }
 
 function setOutput(displayId: number | null): void {
-  closeScreenWindow(outputWindow);
+  void closeScreenWindow(outputWindow);
   const win = displayId === null ? null : createScreenWindow(displayId, 'output', () => ['live:update', liveState]);
   outputWindow = win;
   // Only forget the window if it's still the current one: the old window's
@@ -155,7 +183,7 @@ function setOutput(displayId: number | null): void {
 }
 
 function setStageOutput(displayId: number | null): void {
-  closeScreenWindow(stageWindow);
+  void closeScreenWindow(stageWindow);
   const win = displayId === null ? null : createScreenWindow(displayId, 'stage', () => ['stage:update', stageState]);
   stageWindow = win;
   win?.on('closed', () => {
@@ -212,7 +240,7 @@ function applyNdi(settings: Settings): void {
 function setStreamOutput(target: StreamTarget): void {
   const old = streamWindow;
   streamWindow = null;
-  closeScreenWindow(old);
+  void closeScreenWindow(old);
   streamTarget = target;
   if (target === 'window') {
     // An ordinary window, so capture software can find it by name; sized like a 720p picture.
