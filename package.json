@@ -2,7 +2,9 @@
   "name": "vessel-presenter",
   "productName": "Vessel",
   "version": "0.1.0",
-  "description": "Cross-platform worship presentation app",
+  "description": "Free presentation software for churches: songs, Bible, media and screens",
+  "license": "GPL-3.0-or-later",
+  "author": "Vessel contributors",
   "private": true,
   "main": "out/main/index.js",
   "scripts": {
@@ -19,6 +21,7 @@
   "build": {
     "appId": "com.vessel.presenter",
     "productName": "Vessel",
+    "copyright": "Copyright © 2026 Vessel contributors",
     "files": [
       "out/**/*"
     ],
@@ -29,6 +32,14 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
+      },
+      {
+        "from": "THIRD-PARTY-NOTICES.md",
+        "to": "THIRD-PARTY-NOTICES.md"
       }
     ],
     "mac": {

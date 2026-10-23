@@ -1,7 +1,9 @@
 // The menu bar (macOS top bar, Windows window menu), modelled on ProPresenter's.
 // Most items send a command to the operator window, which runs it through the
 // same code as the buttons and keys.
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, type MenuItemConstructorOptions } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, type MenuItemConstructorOptions } from 'electron';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import type { AppCommand } from '../shared/shortcuts';
 import { checkForUpdates } from './updates';
 import { backUp, restore } from './backup';
@@ -22,7 +24,8 @@ let operator: () => BrowserWindow | null = () => null;
 let stream: { get: () => StreamTarget; set: (t: StreamTarget) => void } = { get: () => null, set: () => undefined };
 let iconPath = '';
 
-const ABOUT = 'Presentation software for worship.\n\nNDI® is a registered trademark of Vizrt NDI AB. NDI output uses the NDI Runtime from ndi.video.';
+const ABOUT =
+  'Free presentation software for churches.\n\nCopyright © 2026 Vessel contributors. Free software under the GNU General Public License, version 3 or later: you can use, change and share it.\n\nNDI® is a registered trademark of Vizrt NDI AB. NDI output uses the NDI Runtime from ndi.video.';
 
 /** Windows has no standard About panel, so it gets a small window of its own. */
 function showAbout(): void {
@@ -91,6 +94,18 @@ function screensMenu(kind: 'output' | 'stage'): MenuItemConstructorOptions[] {
       })
     )
   ];
+}
+
+/** The licence and third-party notices: inside the installed app, or the project while developing. */
+function openNotices(): void {
+  const dir = app.isPackaged ? process.resourcesPath : app.getAppPath();
+  for (const name of ['THIRD-PARTY-NOTICES.md', 'LICENSE.txt', 'LICENSE']) {
+    const path = join(dir, name);
+    if (existsSync(path)) {
+      void shell.openPath(path);
+      return;
+    }
+  }
 }
 
 const checkUpdates = (): void => void checkForUpdates(operator(), true);
@@ -210,6 +225,7 @@ export function rebuildAppMenu(): void {
         { label: 'Keyboard Shortcuts', accelerator: 'CmdOrCtrl+/', click: send('shortcuts') },
         { type: 'separator' },
         { label: 'Report a Problem…', click: () => void saveProblemReport(operator()) },
+        { label: 'Licence and Notices', click: openNotices },
         ...(isMac ? [] : [{ type: 'separator' as const }, { label: 'Check for Updates…', click: checkUpdates }, { label: 'About Vessel', click: showAbout }])
       ]
     }
@@ -222,7 +238,14 @@ export function setupAppMenu(getOperator: () => BrowserWindow | null, icon: stri
   stream = streamOutput;
   iconPath = icon;
   // The version shows which build is running (arm64 or x64), e.g. "0.1.0 (arm64)".
-  app.setAboutPanelOptions({ applicationName: 'Vessel', applicationVersion: app.getVersion(), version: process.arch, credits: ABOUT, iconPath: icon });
+  app.setAboutPanelOptions({
+    applicationName: 'Vessel',
+    applicationVersion: app.getVersion(),
+    version: process.arch,
+    credits: ABOUT,
+    copyright: 'Copyright © 2026 Vessel contributors',
+    iconPath: icon
+  });
   ipcMain.on('menu:state', (_e, next: MenuState) => {
     state = next;
     rebuildAppMenu();
