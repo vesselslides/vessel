@@ -4062,3 +4062,13 @@ html.see-through .output-stage {
 .help-button {
   display: inline-flex;
 }
+
+.welcome-samples {
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--selected);
+  font-size: 13px;
+  line-height: 1.45;
+}
+

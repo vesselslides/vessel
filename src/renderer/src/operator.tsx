@@ -306,8 +306,8 @@ function Operator(): React.JSX.Element {
     if (!settings || welcomeChecked.current) return;
     welcomeChecked.current = true;
     if (!settings.welcomed) {
-      // Someone already using Vessel (songs in the library) isn't shown it; it's marked as seen either way.
-      void window.vessel.listLibrary().then((songs) => songs.length === 0 && setShowWelcome(true));
+      // Once, on the first start (the sample songs are already in the library by then).
+      setShowWelcome(true);
       void window.vessel.updateSettings({ welcomed: true }).then(setSettings);
     }
   }, [settings]);
@@ -997,6 +997,22 @@ function Operator(): React.JSX.Element {
     refreshLibrary();
     setStatus('Added the practice song to your library. Try anything with it; when you’re done, right-click it in the library ▸ Move to Trash.');
     return deck;
+  };
+
+  /** Help ▸ Add the Sample Songs and Media: set them up (again), then show what came in. */
+  const addSamples = async (): Promise<void> => {
+    const r = await window.vessel.installSamples();
+    refreshLibrary();
+    setMedia(await window.vessel.listMedia());
+    setMediaFolders(await window.vessel.listMediaFolders());
+    setSettings(await window.vessel.getSettings());
+    if (r.bible) setBibleVersion((v) => v + 1);
+    if (r.playlist) await selectPlaylist(r.playlist);
+    setStatus(
+      r.songs || r.media || r.bible
+        ? `Added the samples: ${r.songs} presentations, ${r.media} backgrounds and audio files${r.bible ? ', and the World English Bible' : ''}. The songs are in the library’s Samples folder.`
+        : 'The samples are already here: the Sample Sunday Service, and the songs in the library’s Samples folder.'
+    );
   };
 
   const changeThemes = (lib: ThemeLibrary): void => {
@@ -1750,6 +1766,8 @@ function Operator(): React.JSX.Element {
         return toggleLogo();
       case 'practice':
         return togglePractice();
+      case 'samples':
+        return void addSamples();
       case 'practice-song':
         return void openPracticeSong().then(() => setMode('show'));
       case 'themes':
@@ -1929,6 +1947,7 @@ function Operator(): React.JSX.Element {
     { id: 'clear-all', label: 'Clear all', words: 'reset nothing', run: clearAll },
     { id: 'logo', label: live.logo ? 'Hide the logo' : 'Show the logo', run: toggleLogo },
     { id: 'tour', label: 'Take the tour', words: 'help tutorial learn guide', run: startTour },
+    { id: 'samples', label: 'Add the sample songs and media', words: 'demo example service backgrounds', run: () => void addSamples() },
     { id: 'practice-song', label: 'Open the practice song', words: 'sample learn demo try', run: () => void openPracticeSong() },
     { id: 'practice', label: live.practice ? 'Turn practice mode off' : 'Practice mode', words: 'rehearse train learn try safe', run: togglePractice },
     { id: 'screens', label: 'Screens', words: 'output projector display stage stream fade', run: () => setScreensRequest((n) => n + 1) },
@@ -2442,7 +2461,8 @@ function Operator(): React.JSX.Element {
       )}
       {showWelcome && (
         <WelcomeDialog
-          songs={library.length}
+          songs={library.filter((l) => !/[\\/]Samples[\\/][^\\/]+$/.test(l.path)).length}
+          samples={!!settings?.samplesInstalled}
           displays={displays}
           outputDisplay={outputDisplay}
           onImport={() => setShowImport(true)}

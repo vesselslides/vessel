@@ -32,6 +32,7 @@ export type AppCommand =
   | 'practice'
   | 'tour'
   | 'practice-song'
+  | 'samples'
   | 'welcome'
   | `output:${string}`
   | `stage:${string}`;

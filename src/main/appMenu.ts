@@ -205,6 +205,7 @@ export function rebuildAppMenu(): void {
       submenu: [
         { label: 'Take the Tour', click: send('tour') },
         { label: 'Open the Practice Song', click: send('practice-song') },
+        { label: 'Add the Sample Songs and Media', click: send('samples') },
         { label: 'Welcome to Vessel…', click: send('welcome') },
         { label: 'Keyboard Shortcuts', accelerator: 'CmdOrCtrl+/', click: send('shortcuts') },
         { type: 'separator' },

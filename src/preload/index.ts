@@ -100,6 +100,7 @@ const api: VesselApi = {
   removeMedia: (id) => ipcRenderer.invoke('media:remove', id),
   missingMedia: (paths) => ipcRenderer.invoke('media:missing', paths),
   findMovedMedia: (missing) => ipcRenderer.invoke('media:find-moved', missing),
+  installSamples: () => ipcRenderer.invoke('samples:install'),
   logError: (message) => ipcRenderer.send('log:renderer', message),
   lastRunUnclean: () => ipcRenderer.invoke('app:last-run-unclean'),
   reportProblem: () => ipcRenderer.invoke('app:report-problem'),

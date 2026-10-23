@@ -29,6 +29,7 @@ import { findMoved, missingPaths } from './relink';
 import { checkForUpdates, checkForUpdatesOnLaunch } from './updates';
 import { describe, endRun, log, startRun } from './log';
 import { saveProblemReport } from './problemReport';
+import { installSamples } from './samples';
 import { backUp, restore } from './backup';
 
 let operatorWindow: BrowserWindow | null = null;
@@ -43,6 +44,8 @@ const notifyLibrary = (): void => operatorWindow?.webContents.send('library:chan
 
 // Lets tests and multiple installs run with their own media bin and settings.
 if (process.env.VESSEL_USER_DATA) app.setPath('userData', process.env.VESSEL_USER_DATA);
+// Tests also keep their songs and media out of the real Documents folder.
+if (process.env.VESSEL_DOCUMENTS) app.setPath('documents', process.env.VESSEL_DOCUMENTS);
 registerMediaScheme();
 
 // One Vessel at a time: two copies would fight over the same library, settings and screens.
@@ -605,6 +608,7 @@ function registerIpc(): void {
   ipcMain.on('log:renderer', (_e, message: unknown) => log.error(`Operator window: ${String(message ?? '').slice(0, 600)}`));
   ipcMain.handle('app:last-run-unclean', () => lastRunUnclean);
   ipcMain.handle('app:report-problem', () => saveProblemReport(operatorWindow));
+  ipcMain.handle('samples:install', () => installSamples());
   ipcMain.handle('backup:create', () => backUp(operatorWindow));
   ipcMain.handle('backup:restore', () => restore(operatorWindow));
   ipcMain.handle('updates:check', () => checkForUpdates(operatorWindow, true));
@@ -693,12 +697,23 @@ app.whenReady().then(async () => {
       console.error('Moving files from Lumen failed:', err);
     }
   }
+  // A brand-new install (no settings yet) gets the samples, set up before the window opens.
+  const freshInstall = !existsSync(join(app.getPath('userData'), 'settings.json'));
   handleMediaProtocol();
   registerIpc();
   setupRemote(() => operatorWindow);
   setupContextMenu();
   setupAppMenu(() => operatorWindow, appIcon, { get: () => streamTarget, set: (t) => void chooseStreamOutput(t) });
   void watchLibrary(notifyLibrary);
+  if (freshInstall) {
+    try {
+      const samples = await installSamples();
+      // The sample service opens on this first start.
+      if (samples.playlist) await updateSettings({ lastPlaylist: samples.playlist });
+    } catch (err) {
+      log.error(`Setting up the samples failed: ${describe(err)}`);
+    }
+  }
   applyAppearance((await getSettings()).appearance);
   setGroupDefinitions((await getSettings()).groups);
   createOperatorWindow();

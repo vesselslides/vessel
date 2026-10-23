@@ -365,6 +365,8 @@ export interface Settings {
   skippedVersion?: string;
   /** The presentation open last time, reopened at start-up (and after an unexpected quit). */
   lastPresentation?: string;
+  /** The sample songs, service and media have been set up (on the first start, or from Help). */
+  samplesInstalled?: boolean;
   /** The tour has been taken or turned down, so it isn't offered again (the ? button still runs it). */
   toured?: boolean;
   /** The welcome (first-run) window has been seen. */
@@ -469,6 +471,8 @@ export interface VesselApi {
   /** Pick pictures, videos or audio and add them (into `folder` when given). */
   importMedia(folder?: string | null): Promise<MediaItem[]>;
   removeMedia(id: string): Promise<MediaItem[]>;
+  /** Set up the sample songs, service and media (again); says what was added. */
+  installSamples(): Promise<{ songs: number; media: number; bible: boolean; playlist: string | null }>;
   /** Write an error from the operator window into Vessel's log. */
   logError(message: string): void;
   /** Whether the last run ended without quitting properly (a crash or power cut). */

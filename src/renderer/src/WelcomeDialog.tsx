@@ -21,6 +21,7 @@ function Step({ n, done, icon, title, children }: { n: number; done: boolean; ic
 /** The first time Vessel opens (and Help ▸ Welcome): three things to set up, each ticked off once done. */
 export function WelcomeDialog({
   songs,
+  samples,
   displays,
   outputDisplay,
   onImport,
@@ -31,6 +32,8 @@ export function WelcomeDialog({
   onClose
 }: {
   songs: number;
+  /** The sample songs, service and media were set up. */
+  samples: boolean;
   displays: DisplayInfo[];
   outputDisplay: number | null;
   onImport: () => void;
@@ -49,6 +52,12 @@ export function WelcomeDialog({
       <div className="modal welcome" role="dialog" aria-labelledby="welcome-title">
         <h2 id="welcome-title">Welcome to Vessel</h2>
         <p className="muted">Three things and you’re ready for Sunday. You can skip any of them and come back later from Help ▸ Welcome to Vessel.</p>
+        {samples && (
+          <p className="welcome-samples">
+            To show you around, Vessel has set up a <strong>Sample Sunday Service</strong>: hymns, a Bible reading, a sermon and an announcement loop, with motion
+            backgrounds and audio. Try anything; the songs are in the library’s Samples folder, and you can delete them whenever you like.
+          </p>
+        )}
         <ol className="welcome-steps">
           <Step n={1} done={songs > 0} icon={<ImportIcon size={18} />} title="Bring in your songs">
             <p className="hint">{songs > 0 ? `${songs} song${songs === 1 ? '' : 's'} in your library.` : 'From PowerPoint, Word or text, from another presentation program’s library, or type one in.'}</p>

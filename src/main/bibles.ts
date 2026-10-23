@@ -119,6 +119,18 @@ export async function downloadFreeBible(id: string, onProgress: (received: numbe
     bytes.set(c, at);
     at += c.length;
   }
+  return keepCatalogBible(bytes, entry);
+}
+
+/** Add a Bible that comes with Vessel (the samples' World English Bible), named as the catalogue names it. */
+export async function addBundledBible(path: string, id: string): Promise<BibleInfo> {
+  const entry = FREE_BIBLES.find((b) => b.id === id);
+  if (!entry) throw new Error(`No catalogue Bible called ${id}`);
+  return keepCatalogBible(new Uint8Array(await readFile(path)), entry);
+}
+
+/** Keep a catalogue Bible from its downloaded (zipped) bytes. */
+function keepCatalogBible(bytes: Uint8Array, entry: (typeof FREE_BIBLES)[number]): Promise<BibleInfo> {
   const bible = readDownload(`${entry.id}.zip`, bytes, entry.name);
   // The catalogue's names are the familiar ones ("World English Bible", "WEB"), and it knows the credit to show.
   const language = bible.language || entry.language;

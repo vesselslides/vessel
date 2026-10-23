@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "playlist": "Sample Sunday Service.proPlaylist",
+  "media": [
+    {
+      "file": "Soft Light.mp4",
+      "folder": "Motion backgrounds",
+      "muted": true
+    },
+    {
+      "file": "Aurora.mp4",
+      "folder": "Motion backgrounds",
+      "muted": true
+    },
+    {
+      "file": "Rising Embers.mp4",
+      "folder": "Motion backgrounds",
+      "muted": true
+    },
+    {
+      "file": "Dawn.jpg",
+      "folder": "Backgrounds"
+    },
+    {
+      "file": "Deep Blue.jpg",
+      "folder": "Backgrounds"
+    },
+    {
+      "file": "Morning Mist.jpg",
+      "folder": "Backgrounds"
+    },
+    {
+      "file": "Night Sky.jpg",
+      "folder": "Backgrounds"
+    },
+    {
+      "file": "Before the Service.m4a",
+      "folder": "Audio"
+    },
+    {
+      "file": "Prayer Pad.m4a",
+      "folder": "Audio"
+    },
+    {
+      "file": "Your Church Logo.png",
+      "folder": "Backgrounds"
+    }
+  ],
+  "logo": "Your Church Logo.png",
+  "bible": {
+    "file": "eng-web_usfx.zip",
+    "id": "web"
+  },
+  "messages": [
+    "We begin in {timer}",
+    "Welcome! Please take a seat; we’ll start soon."
+  ],
+  "lowerThirds": [
+    {
+      "title": "Pastor Sam",
+      "subtitle": "Lead Pastor",
+      "color": "#e0a526"
+    }
+  ]
+}
