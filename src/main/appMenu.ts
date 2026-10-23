@@ -125,7 +125,7 @@ export function rebuildAppMenu(): void {
         { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: send('open') },
         { label: 'Open Playlist…', click: send('open-playlist') },
         { type: 'separator' },
-        { label: 'Import PowerPoint, Word or Text…', accelerator: 'CmdOrCtrl+I', click: send('import-documents') },
+        { label: 'Import…', accelerator: 'CmdOrCtrl+I', click: send('import-documents') },
         { label: 'Import Media…', click: send('import-media') },
         { type: 'separator' },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', enabled: state.hasPresentation, click: send('save') },

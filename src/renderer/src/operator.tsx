@@ -57,7 +57,7 @@ import { CcliDialog } from './CcliDialog';
 import { normalizeStageLayout, type StageLayout } from '../../shared/stage';
 import { setGroupDefinitions } from '../../shared/groups';
 import { setBackgroundDefaults } from '../../shared/pro/background';
-import type { DocumentImportReport, ImportOptions } from '../../shared/import';
+import type { DocumentImportReport, DocumentKind, ImportOptions } from '../../shared/import';
 import { StagePanel } from './StagePanel';
 import { MessagePanel } from './MessagePanel';
 import { VideoTransport } from './VideoTransport';
@@ -501,9 +501,9 @@ function Operator(): React.JSX.Element {
     await addOpened(await window.vessel.openFiles('presentation'));
   };
 
-  const importDocuments = async (opts: ImportOptions): Promise<void> => {
+  const importDocuments = async (opts: ImportOptions, kind?: DocumentKind): Promise<void> => {
     setShowImport(false);
-    await addOpened(await window.vessel.importDocuments(opts));
+    await addOpened(await window.vessel.importDocuments(opts, kind));
   };
 
   /** Saves a song made from a PowerPoint, Word or text file into the library and says what came across. */
@@ -1737,7 +1737,7 @@ function Operator(): React.JSX.Element {
     { id: 'logo', label: live.logo ? 'Hide the logo' : 'Show the logo', run: toggleLogo },
     { id: 'screens', label: 'Screens', words: 'output projector display stage stream fade', run: () => setScreensRequest((n) => n + 1) },
     { id: 'open', label: 'Open a presentation', keys: 'Mod+O', words: 'file pro', run: () => void openPresentations() },
-    { id: 'import', label: 'Import PowerPoint, Word or text', keys: 'Mod+I', words: 'pptx docx txt', run: () => setShowImport(true) },
+    { id: 'import', label: 'Import', keys: 'Mod+I', words: 'powerpoint word text pptx docx txt pro playlist media bible', run: () => setShowImport(true) },
     { id: 'playlist', label: 'Open playlist', words: 'service', run: () => void openPlaylist() },
     { id: 'bible', label: 'Bible', keys: 'Mod+B', words: 'scripture verse', run: openBible },
     { id: 'themes', label: 'Themes', words: 'style look font', run: () => setShowThemes(true) },
@@ -1766,7 +1766,7 @@ function Operator(): React.JSX.Element {
           <div className="tool-group">
             <ToolButton label="New song" keys="Mod+N" icon={<NewSongIcon size={20} />} onClick={() => setShowNewSong(true)} />
             <ToolButton label="Open a presentation (.pro, or an older .pro5, .pro6, .pro6x)" keys="Mod+O" icon={<OpenIcon size={20} />} onClick={openPresentations} />
-            <ToolButton label="Import PowerPoint, Word or text" keys="Mod+I" icon={<ImportIcon size={20} />} onClick={() => setShowImport(true)} />
+            <ToolButton label="Import songs, slides, documents and more" keys="Mod+I" icon={<ImportIcon size={20} />} onClick={() => setShowImport(true)} />
             <ToolButton label="Open playlist" icon={<PlaylistIcon size={20} />} onClick={openPlaylist} />
           </div>
           <div className="tool-group">
@@ -1962,7 +1962,7 @@ function Operator(): React.JSX.Element {
               <button onClick={() => setShowImport(true)}>
                 <ImportIcon size={26} />
                 <strong>Import</strong>
-                <span>From PowerPoint, Word or text</span>
+                <span>Songs, slides, documents and more</span>
               </button>
               <button onClick={() => void openPlaylist()}>
                 <PlaylistIcon size={26} />
@@ -2263,7 +2263,41 @@ function Operator(): React.JSX.Element {
         />
       )}
       {showPco && <PlanningCenterDialog library={library} onImport={importPlan} onClose={() => setShowPco(false)} />}
-      {showImport && <ImportDialog onImport={(o) => void importDocuments(o)} onCancel={() => setShowImport(false)} />}
+      {showImport && (
+        <ImportDialog
+          folders={mediaFolders}
+          onDocuments={(o, kind) => void importDocuments(o, kind)}
+          onPresentations={() => {
+            setShowImport(false);
+            void window.vessel.openFiles('pro').then(addOpened);
+          }}
+          onPlaylist={() => {
+            setShowImport(false);
+            void openPlaylist();
+          }}
+          onMedia={(folder) => {
+            setShowImport(false);
+            void window.vessel.importMedia(folder).then((items) => {
+              setMedia(items);
+              setStatus('Media added to the media bin.');
+            });
+          }}
+          onBible={() => {
+            setShowImport(false);
+            void window.vessel.addBibles().then((result) => {
+              if (result.added.length) setBibleVersion((v) => v + 1);
+              const notes = result.added.map((b) => `Added ${b.name} (${b.abbreviation}): ${b.books} books, ${b.verses.toLocaleString()} verses.`);
+              const text = [...notes, ...result.errors.map((e) => `Could not add ${e}`)].join('  ·  ');
+              if (text) setStatus(text);
+            });
+          }}
+          onPlanningCenter={() => {
+            setShowImport(false);
+            setShowPco(true);
+          }}
+          onCancel={() => setShowImport(false)}
+        />
+      )}
       {showRemote && <RemoteDialog status={remote} onStatus={setRemote} onClose={() => setShowRemote(false)} />}
       {showNewSong && <NewSongDialog onCreate={(n, l) => void createSong(n, l)} onCancel={() => setShowNewSong(false)} />}
       {showThemes && (

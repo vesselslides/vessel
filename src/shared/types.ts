@@ -2,7 +2,7 @@ import type { Bible } from './bible/formats';
 import type { CopyrightPosition, UsageEntry } from './ccli';
 import type { StageLayout } from './stage';
 import type { GroupDefinition } from './groups';
-import type { DocumentImportReport, ImportOptions } from './import';
+import type { DocumentImportReport, DocumentKind, ImportOptions } from './import';
 import type { LegacyImportReport } from './pro/legacy';
 import type { RemoteCommand, RemoteState, RemoteStatus } from './remote';
 import type { MenuEntry } from './menu';
@@ -371,9 +371,10 @@ export interface PcoConnection {
 
 /** API exposed to renderers by the preload script as window.vessel. */
 export interface VesselApi {
-  openFiles(kind: 'presentation' | 'playlist'): Promise<OpenedFile[]>;
-  /** Pick PowerPoint, Word or text files and turn them into presentations. */
-  importDocuments(opts: ImportOptions): Promise<OpenedFile[]>;
+  /** 'pro' shows only presentation files; 'presentation' also takes documents. */
+  openFiles(kind: 'presentation' | 'playlist' | 'pro'): Promise<OpenedFile[]>;
+  /** Pick PowerPoint, Word or text files (or just one kind) and turn them into presentations. */
+  importDocuments(opts: ImportOptions, kind?: DocumentKind): Promise<OpenedFile[]>;
   /** The paths of files dragged in from Finder or Explorer. */
   pathsOfFiles(files: File[]): string[];
   /** Open or import dropped files, each in the way its kind needs. */

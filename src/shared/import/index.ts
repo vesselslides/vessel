@@ -50,6 +50,15 @@ export const UNSUPPORTED_DOCUMENTS: Record<string, string> = {
   odp: 'OpenDocument presentations can’t be read yet. Save it as PowerPoint (.pptx) and import that.'
 };
 
+/** The kinds of document the Import window offers, with the files each picker shows (and older ones it explains). */
+export type DocumentKind = 'powerpoint' | 'word' | 'text';
+
+export const DOCUMENT_KINDS: Record<DocumentKind, { title: string; filter: string; extensions: string[] }> = {
+  powerpoint: { title: 'Import PowerPoint or Slides', filter: 'PowerPoint (.pptx)', extensions: ['pptx', 'ppsx', 'ppt', 'pps', 'key', 'odp'] },
+  word: { title: 'Import a Word document', filter: 'Word and OpenDocument (.docx, .odt, .rtf)', extensions: ['docx', 'odt', 'rtf', 'doc', 'pages'] },
+  text: { title: 'Import text or chord sheets', filter: 'Text and ChordPro (.txt, .cho)', extensions: ['txt', 'text', 'md', 'cho', 'chopro', 'chordpro', 'crd'] }
+};
+
 export const extensionOf = (path: string): string => path.split('.').pop()?.toLowerCase() ?? '';
 export const sourceOf = (path: string): DocumentImportReport['source'] | undefined => SOURCES[extensionOf(path)];
 export const isDocumentPath = (path: string): boolean => sourceOf(path) !== undefined || extensionOf(path) in UNSUPPORTED_DOCUMENTS;

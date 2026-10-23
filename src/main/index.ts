@@ -10,7 +10,7 @@ import { openDropped } from './dropped';
 import { clearUsage, logUsage, saveReport, usageLog } from './ccliLog';
 import { setGroupDefinitions } from '../shared/groups';
 import { addBible, downloadFreeBible, listBibles, loadBible, removeBible } from './bibles';
-import { DEFAULT_IMPORT_OPTIONS, DOCUMENT_EXTENSIONS, isDocumentPath, UNSUPPORTED_DOCUMENTS, type ImportOptions } from '../shared/import';
+import { DEFAULT_IMPORT_OPTIONS, DOCUMENT_EXTENSIONS, DOCUMENT_KINDS, isDocumentPath, UNSUPPORTED_DOCUMENTS, type DocumentKind, type ImportOptions } from '../shared/import';
 import { loadThemes, saveThemes } from './themes';
 import { insideLibrary, listLibrary, listPlaylists, insidePlaylistFolder, renamePlaylist, saveToLibrary, watchLibrary, writePlaylist } from './library';
 import { getSettings, updateSettings } from './settings';
@@ -252,11 +252,13 @@ function applyAppearance(appearance: Settings['appearance']): void {
 }
 
 function registerIpc(): void {
-  ipcMain.handle('files:open', async (_e, kind: 'presentation' | 'playlist') => {
+  ipcMain.handle('files:open', async (_e, kind: 'presentation' | 'playlist' | 'pro') => {
     const result = await dialog.showOpenDialog(operatorWindow!, {
       properties: ['openFile', 'multiSelections'],
       filters:
-        kind === 'presentation'
+        kind === 'pro'
+          ? [{ name: 'Presentations (.pro, .pro6, .pro6x, .pro5)', extensions: ['pro', 'pro6', 'pro6x', 'pro5', 'pro5x'] }]
+          : kind === 'presentation'
           ? [
               { name: 'Presentations and documents', extensions: ['pro', 'pro6', 'pro6x', 'pro5', 'pro5x', ...DOCUMENT_EXTENSIONS] },
               { name: 'Presentations (.pro, .pro5, .pro6)', extensions: ['pro', 'pro6', 'pro6x', 'pro5', 'pro5x'] }
@@ -267,7 +269,7 @@ function registerIpc(): void {
     return Promise.all(
       result.filePaths.map(async (path): Promise<OpenedFile> => {
         try {
-          if (kind === 'presentation' && isDocumentPath(path)) return await importDocumentFile(path, DEFAULT_IMPORT_OPTIONS);
+          if (kind !== 'playlist' && isDocumentPath(path)) return await importDocumentFile(path, DEFAULT_IMPORT_OPTIONS);
           return /\.pro[56]x?$/i.test(path) ? await importLegacyFile(path) : await readOpened(path);
         } catch (err) {
           return { path, bytes: new Uint8Array(), error: (err as Error).message };
@@ -276,16 +278,20 @@ function registerIpc(): void {
     );
   });
 
-  ipcMain.handle('files:import', async (_e, opts: ImportOptions) => {
+  ipcMain.handle('files:import', async (_e, opts: ImportOptions, kind?: DocumentKind) => {
+    // One kind (from the Import window's cards) shows only its files; otherwise all of them.
+    const only = kind && kind in DOCUMENT_KINDS ? DOCUMENT_KINDS[kind] : null;
     const result = await dialog.showOpenDialog(operatorWindow!, {
-      title: 'Import PowerPoint, Word or text files',
+      title: only?.title ?? 'Import PowerPoint, Word or text files',
       properties: ['openFile', 'multiSelections'],
-      filters: [
-        { name: 'PowerPoint, Word and text', extensions: [...DOCUMENT_EXTENSIONS, ...Object.keys(UNSUPPORTED_DOCUMENTS)] },
-        { name: 'PowerPoint (.pptx)', extensions: ['pptx', 'ppsx'] },
-        { name: 'Word and OpenDocument (.docx, .odt, .rtf)', extensions: ['docx', 'odt', 'rtf'] },
-        { name: 'Text and ChordPro', extensions: ['txt', 'text', 'md', 'cho', 'chopro', 'chordpro', 'crd'] }
-      ]
+      filters: only
+        ? [{ name: only.filter, extensions: only.extensions }]
+        : [
+            { name: 'PowerPoint, Word and text', extensions: [...DOCUMENT_EXTENSIONS, ...Object.keys(UNSUPPORTED_DOCUMENTS)] },
+            { name: 'PowerPoint (.pptx)', extensions: ['pptx', 'ppsx'] },
+            { name: 'Word and OpenDocument (.docx, .odt, .rtf)', extensions: ['docx', 'odt', 'rtf'] },
+            { name: 'Text and ChordPro', extensions: ['txt', 'text', 'md', 'cho', 'chopro', 'chordpro', 'crd'] }
+          ]
     });
     if (result.canceled) return [];
     const options = { ...DEFAULT_IMPORT_OPTIONS, ...opts };

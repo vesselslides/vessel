@@ -1918,8 +1918,14 @@ button.active-toggle {
 
 .import-modal .import-row {
   align-items: center;
-  justify-content: space-between;
-  max-width: 320px;
+  gap: 12px;
+}
+
+.import-modal select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 8px;
 }
 
 /* Tools ▸ Bible */
@@ -3858,4 +3864,86 @@ html.see-through .output-stage {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Import: a card for each kind of file */
+.modal.import-modal {
+  width: min(760px, 94vw);
+}
+
+.import-kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+  gap: 10px;
+  margin: 6px 0 4px;
+}
+
+.import-kind {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 132px;
+  padding: 14px;
+  text-align: left;
+  border-radius: var(--radius-lg);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  transition: transform 140ms ease, border-color 140ms ease, background-color 140ms ease;
+}
+
+.import-kind:hover:not(:disabled),
+.import-kind:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.import-kind .icon {
+  margin-bottom: 4px;
+  color: var(--accent);
+}
+
+.import-kind.last::after {
+  content: 'Last used';
+  margin-top: auto;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--selected);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.import-blurb {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.import-files {
+  color: var(--muted);
+  font: 11px/1.4 ui-monospace, Menlo, Consolas, monospace;
+  opacity: 0.8;
+}
+
+.import-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.import-title .icon {
+  color: var(--accent);
+}
+
+.import-modal .modal-actions .grow {
+  flex: 1;
+}
+
+.import-back {
+  background: none;
+  border-color: transparent;
 }

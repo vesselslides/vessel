@@ -164,3 +164,40 @@ export const ScreensIcon = (p: IconProps): React.JSX.Element => (
     <path d="M9 20h6M12 16.5V20" />
   </Icon>
 );
+
+// Import kinds
+
+export const SlidesIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <rect x="3.5" y="4.5" width="17" height="11.5" rx="1.5" />
+    <path d="M12 16v3.5M8.5 19.5h7M7 8.5h6M7 11.5h4" />
+  </Icon>
+);
+
+export const DocumentIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M13.5 3.5H7a1.5 1.5 0 0 0-1.5 1.5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8.5z" />
+    <path d="M13.5 3.5v5h5M8.5 12.5h7M8.5 15.5h7M8.5 9.5h2.5" />
+  </Icon>
+);
+
+export const TextIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M5 6.5h14M5 10.5h14M5 14.5h9M5 18.5h6" />
+  </Icon>
+);
+
+export const MediaIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <rect x="3.5" y="5" width="17" height="14" rx="1.5" />
+    <circle cx="9" cy="10" r="1.6" />
+    <path d="M20.5 15.5l-4.5-4.5-8.5 8" />
+  </Icon>
+);
+
+export const PlanIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <rect x="4" y="5" width="16" height="15" rx="1.5" />
+    <path d="M4 9.5h16M8.5 3.5v3M15.5 3.5v3M8 13h3M8 16.5h6" />
+  </Icon>
+);

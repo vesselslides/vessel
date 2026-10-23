@@ -6,7 +6,7 @@ import type { StreamLook } from '../shared/stream';
 
 const api: VesselApi = {
   openFiles: (kind) => ipcRenderer.invoke('files:open', kind),
-  importDocuments: (opts) => ipcRenderer.invoke('files:import', opts),
+  importDocuments: (opts, kind) => ipcRenderer.invoke('files:import', opts, kind),
   pathsOfFiles: (files) => files.map((f) => webUtils.getPathForFile(f)).filter(Boolean),
   openDropped: (paths, opts, mediaFolder) => ipcRenderer.invoke('files:dropped', paths, opts, mediaFolder),
   listMediaFolders: () => ipcRenderer.invoke('media:folders'),
