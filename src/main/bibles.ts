@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { FREE_BIBLES } from '../shared/bible/catalog';
-import { parseBibleXml, verseCount, type Bible } from '../shared/bible/formats';
+import { parseBibleXml, tidyBookName, verseCount, type Bible } from '../shared/bible/formats';
 import { decodeText, zipFiles } from '../shared/import/documents';
 import type { BibleInfo } from '../shared/types';
 
@@ -120,8 +120,16 @@ export async function downloadFreeBible(id: string, onProgress: (received: numbe
     at += c.length;
   }
   const bible = readDownload(`${entry.id}.zip`, bytes, entry.name);
-  // The catalogue's names are the familiar ones ("World English Bible", "WEB").
-  return keep({ ...bible, name: entry.name, abbreviation: entry.abbreviation, language: bible.language || entry.language });
+  // The catalogue's names are the familiar ones ("World English Bible", "WEB"), and it knows the credit to show.
+  const language = bible.language || entry.language;
+  return keep({
+    ...bible,
+    name: entry.name,
+    abbreviation: entry.abbreviation,
+    language,
+    books: bible.books.map((b) => ({ ...b, name: tidyBookName(b.name, language) })),
+    ...(entry.credit ? { credit: entry.credit } : {})
+  });
 }
 
 async function keep(bible: Bible): Promise<BibleInfo> {
@@ -140,7 +148,8 @@ async function keep(bible: Bible): Promise<BibleInfo> {
     language: bible.language,
     format: bible.format,
     books: bible.books.length,
-    verses: verseCount(bible)
+    verses: verseCount(bible),
+    ...(bible.credit ? { credit: bible.credit } : {})
   };
   await saveIndex([...list.filter((b) => b.id !== id), info]);
   return info;

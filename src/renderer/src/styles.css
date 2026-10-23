@@ -3107,3 +3107,22 @@ html.see-through .output-stage {
   padding: 5px 8px;
   color: var(--text);
 }
+
+.bible-free-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bible-free-head select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  color: var(--text);
+}
+
+.bible-licence {
+  font-size: 11px;
+}

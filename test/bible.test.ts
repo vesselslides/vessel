@@ -199,3 +199,26 @@ describe('adding a passage to a presentation', () => {
     expect(sermon.cues.length).toBe(1);
   });
 });
+
+describe('free Bible catalogue', () => {
+  it('lists each translation once, from eBible, with a credit wherever the licence asks for one', async () => {
+    const { FREE_BIBLES, FREE_BIBLE_LANGUAGES } = await import('../src/shared/bible/catalog');
+    expect(new Set(FREE_BIBLES.map((b) => b.id)).size).toBe(FREE_BIBLES.length);
+    expect(new Set(FREE_BIBLES.map((b) => b.abbreviation)).size).toBe(FREE_BIBLES.length);
+    for (const b of FREE_BIBLES) expect(b.url).toMatch(/^https:\/\/ebible\.org\/Scriptures\/[\w-]+_usfx\.zip$/);
+    // The ids people already downloaded keep working.
+    expect(FREE_BIBLES.filter((b) => ['web', 'kjv', 'asv'].includes(b.id))).toHaveLength(3);
+    expect(FREE_BIBLE_LANGUAGES.slice(0, 2)).toEqual(['English', 'Tagalog']);
+    expect(FREE_BIBLES.filter((b) => b.credit).map((b) => b.abbreviation).sort()).toEqual(['APSD', 'APSDH', 'CULB', 'IULB', 'LSV', 'TULB']);
+    for (const b of FREE_BIBLES.filter((x) => x.credit)) expect(b.credit).toMatch(/Creative Commons Attribution-ShareAlike 4\.0\.$/);
+  });
+
+  it('writes book names given in capitals in normal case', async () => {
+    const { tidyBookName } = await import('../src/shared/bible/formats');
+    expect(tidyBookName('JUAN', 'tgl')).toBe('Juan');
+    expect(tidyBookName('1 JUAN', 'tgl')).toBe('1 Juan');
+    expect(tidyBookName('GIĂNG', 'vie')).toBe('Giăng');
+    expect(tidyBookName('John', 'eng')).toBe('John');
+    expect(tidyBookName('约翰福音', 'cmn')).toBe('约翰福音');
+  });
+});

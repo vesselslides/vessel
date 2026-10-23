@@ -270,6 +270,8 @@ export interface BibleInfo {
   format: string;
   books: number;
   verses: number;
+  /** Credit line for an openly licensed translation. */
+  credit?: string;
 }
 
 /** A presentation file found in a library folder. */

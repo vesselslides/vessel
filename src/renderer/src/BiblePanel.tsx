@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FREE_BIBLES } from '../../shared/bible/catalog';
+import { FREE_BIBLE_LANGUAGES, FREE_BIBLES } from '../../shared/bible/catalog';
 import type { Bible } from '../../shared/bible/formats';
 import { lookUp, searchBible, type Passage } from '../../shared/bible/reference';
 import { DEFAULT_SCRIPTURE_OPTIONS, passageToPresentation, type ScriptureOptions } from '../../shared/bible/slides';
@@ -34,7 +34,7 @@ const RESTART = 'Restart Vessel to use the Bible. (It was updated while it was r
 function slidesFor(bible: Bible, info: BibleInfo, passage: Passage, theme: Theme, opts: ScriptureOptions, size?: { width: number; height: number }): Presentation {
   return passageToPresentation(
     passage,
-    { abbreviation: info.abbreviation, bookNames: (b) => bible.books[b].name, oneChapter: (b) => bible.books[b].chapters.length === 1 },
+    { abbreviation: info.abbreviation, bookNames: (b) => bible.books[b].name, oneChapter: (b) => bible.books[b].chapters.length === 1, credit: info.credit ?? bible.credit },
     theme,
     opts,
     size
@@ -75,6 +75,23 @@ export function BiblePanel({
 }): React.JSX.Element {
   const [opts, setOpts] = useState<Remembered>(remembered);
   const [bibles, setBibles] = useState<BibleInfo[] | null>(null);
+  /** The language shown in the free Bibles list (remembered on this computer). */
+  const [language, setLanguageState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('vessel.bibleLanguage');
+      return saved && FREE_BIBLE_LANGUAGES.includes(saved) ? saved : FREE_BIBLE_LANGUAGES[0];
+    } catch {
+      return FREE_BIBLE_LANGUAGES[0];
+    }
+  });
+  const setLanguage = (l: string): void => {
+    setLanguageState(l);
+    try {
+      localStorage.setItem('vessel.bibleLanguage', l);
+    } catch {
+      // Not remembered; fine.
+    }
+  };
   const [bible, setBible] = useState<Bible | null>(null);
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
@@ -213,9 +230,18 @@ export function BiblePanel({
       ) : getView ? (
         <div className="bible-get">
           {bibles.length === 0 && <p>Add a Bible to get started.</p>}
-          <h3>Free Bibles</h3>
+          <div className="bible-free-head">
+            <h3>Free Bibles</h3>
+            <select value={language} onChange={(e) => setLanguage(e.target.value)} aria-label="Language">
+              {FREE_BIBLE_LANGUAGES.map((l) => (
+                <option key={l} value={l}>
+                  {l} ({FREE_BIBLES.filter((f) => f.languageName === l).length})
+                </option>
+              ))}
+            </select>
+          </div>
           <ul className="bible-free">
-            {FREE_BIBLES.map((f) => {
+            {FREE_BIBLES.filter((f) => f.languageName === language).map((f) => {
               const have = bibles.some((b) => b.abbreviation === f.abbreviation && b.name === f.name);
               const mine = download?.id === f.id ? download : null;
               const pct = mine ? Math.min(100, Math.round((mine.received / mine.total) * 100)) : 0;
@@ -226,6 +252,7 @@ export function BiblePanel({
                       {f.name} ({f.abbreviation}){have && <span className="bible-have"> · added</span>}
                     </strong>
                     <span className="hint">{f.note}</span>
+                    <span className="hint bible-licence">{f.credit ? `Free to use with credit: ${f.credit}` : 'Public domain: free to use.'}</span>
                     {mine && (
                       <span className="bible-progress">
                         <span className="bible-progress-bar">
@@ -242,7 +269,10 @@ export function BiblePanel({
               );
             })}
           </ul>
-          <p className="hint">Downloaded once from ebible.org (it can take a minute), then kept on this computer, so it works without internet.</p>
+          <p className="hint">
+            Downloaded once from ebible.org (it can take a minute), then kept on this computer, so it works without internet. Popular modern translations such as the
+            NIV, ESV and NLT belong to their publishers and can’t be offered here.
+          </p>
           <h3>From a file</h3>
           <div className="bible-file">
             <span className="hint">
@@ -302,6 +332,7 @@ export function BiblePanel({
 
           <div className="bible-results">
             {!bible && <p className="hint">Opening {info?.name ?? 'the Bible'}…</p>}
+            {info?.credit && <p className="hint bible-licence">{info.credit}</p>}
             {found && 'error' in found && <p className="error">{found.error}</p>}
             {result && (
               <>

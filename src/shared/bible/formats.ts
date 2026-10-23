@@ -24,6 +24,15 @@ export interface Bible {
   language: string;
   format: 'Zefania' | 'OSIS' | 'USFX' | 'OpenSong' | 'Holy Bible XML';
   books: BibleBook[];
+  /** The credit an openly licensed translation asks for, shown with it. */
+  credit?: string;
+}
+
+/** "JUAN" → "Juan", "1 JUAN" → "1 Juan": names written all in capitals, in normal case (others are left alone). */
+export function tidyBookName(name: string, language = ''): string {
+  const letters = name.replace(/[^\p{L}]/gu, '');
+  if (!letters || letters !== letters.toLocaleUpperCase(language || undefined) || letters === letters.toLocaleLowerCase(language || undefined)) return name;
+  return name.toLocaleLowerCase(language || undefined).replace(/(^|[\s.-])(\p{L})/gu, (_m, sep: string, c: string) => sep + c.toLocaleUpperCase(language || undefined));
 }
 
 const kid = (n: XNode | undefined, tag: string): XNode | undefined => n?.children.find((c) => c.tag.toLowerCase() === tag);

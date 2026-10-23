@@ -57,7 +57,7 @@ function slideLabel(passage: Passage, verses: Verse[], bookName: string, oneChap
 
 export function passageToPresentation(
   passage: Passage,
-  translation: { abbreviation: string; bookNames: (book: number) => string; oneChapter: (book: number) => boolean },
+  translation: { abbreviation: string; bookNames: (book: number) => string; oneChapter: (book: number) => boolean; credit?: string },
   theme: Theme,
   opts: ScriptureOptions,
   /** Slide size for the new presentation (Preferences ▸ Screens); 1920×1080 when not given. */
@@ -76,6 +76,8 @@ export function passageToPresentation(
     translationName: translation.abbreviation,
     translationInternalAbbreviation: translation.abbreviation
   });
+  // An openly licensed translation's credit travels with the passage.
+  if (translation.credit) presentation.notes = translation.credit;
   if (opts.reference === 'none') return presentation;
 
   // The reference sits along the bottom of the theme's text area, in its font at about half size.
