@@ -169,6 +169,34 @@ in-app tour (the **?** button at the top right) shows where things are, and
   attributes, shadow and box), so a saved `.pro` keeps it; slides with several
   text boxes keep their layout. Custom themes live in `themes.json` in the app's
   settings folder.
+- **Theme gallery** (Themes ▸ *Browse the gallery*): themes made by churches for
+  churches. A starter set comes with Vessel (Hymnal, High Contrast, Stream
+  Caption, Christmas Gold and more); community themes are listed too once
+  Vessel's public website is set up. *Add* copies one into your themes. *Share
+  one of yours…* opens a page proposing your theme for the gallery; only the
+  theme is sent (font, colours and layout).
+- **Export** (File ▸ Export…, ⇧⌘E / Ctrl+Shift+E, or right-click the service):
+  for the open presentation or the whole service, in order:
+  - *PDF of the slides*: as they look on screen, 1, 2, 4 or 6 a page, with or
+    without backgrounds and captions; A4 or US Letter.
+  - *Lyrics sheet*: the words by group with the group order and the CCLI line,
+    in one or two columns, for the band or a printed order of service.
+  - *Pictures of the slides*: PNG or JPEG, 1080 to 3840 pixels wide, one
+    folder per song for a service. Video backgrounds show one frame.
+  - *Plain text*: the words, for an email, bulletin or website.
+  - *Playlist with media*: one `.proPlaylist` with the running order, every
+    song and all their pictures, videos and audio, for presentation software
+    that opens playlist files with media. Opening one in Vessel (Import ▸
+    Playlist, or drop it on the window) copies its songs into the library and
+    its media into the media bin.
+- **Vessel files** (File ▸ Share as Vessel File… / Open Vessel File…): one
+  `.vessel` file to share with another church using Vessel: a presentation, a
+  whole service with its songs and media, your themes, or a collection of any of
+  them. Whoever opens it (double-click, drop it on the window, or Import ▸
+  Vessel file) sees who made it and what's inside, and chooses what to add;
+  nothing they already have is overwritten. Sharing songs asks you to confirm
+  they're yours to share. Right-click the service for *Duplicate playlist…*
+  (Save As) too.
 - **Remote control** (the phone icon in the toolbar, off by default): a web page for
   any phone or tablet on the same Wi-Fi. Scan the QR code or open the address
   shown, then enter the 6-digit PIN. The phone shows what's on screen and

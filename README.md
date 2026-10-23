@@ -26,6 +26,9 @@ using it.
 - **Announcement loops**, slide timers, a logo button and a black screen.
 - **Control** from a phone, a Stream Deck, Companion or a MIDI pad.
 - **CCLI** copyright lines and usage reports.
+- **Sharing**: `.vessel` files carry a service, songs, themes and media to
+  another church; a theme gallery; and export to PDF (slides or a lyrics
+  sheet), pictures, plain text, or a playlist with all its media.
 - **Peace of mind**: changes save as you go, screens that stop working reopen
   by themselves, backups in one file, and a practice mode that keeps the real
   screens dark while someone learns.

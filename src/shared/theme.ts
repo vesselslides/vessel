@@ -255,3 +255,47 @@ export function duplicateTheme(theme: Theme, name = `${theme.name} copy`): Theme
   const { builtIn: _builtIn, ...rest } = theme;
   return { ...rest, box: { ...theme.box }, bar: theme.bar ? { ...theme.bar } : null, id: crypto.randomUUID(), name };
 }
+
+const hex = (v: unknown, fallback: string): string => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : fallback);
+const num = (v: unknown, min: number, max: number, fallback: number): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+};
+
+/**
+ * A theme from outside (a Vessel file someone shared), checked: known values
+ * only, real colours, sizes in range. Null if it isn't a theme at all.
+ */
+export function cleanTheme(raw: unknown): Theme | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const t = raw as Partial<Theme>;
+  if (typeof t.name !== 'string' || !t.name.trim() || typeof t.font !== 'string') return null;
+  const box = t.box ?? { x: 0.05, y: 0.1, width: 0.9, height: 0.8 };
+  return {
+    id: typeof t.id === 'string' && /^[\w-]{1,60}$/.test(t.id) ? t.id : `theme-${Math.random().toString(36).slice(2, 10)}`,
+    name: t.name.trim().slice(0, 60),
+    font: t.font.replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 60) || 'Helvetica',
+    bold: !!t.bold,
+    italic: !!t.italic,
+    sizePt: num(t.sizePt, 12, 300, 72),
+    color: hex(t.color, '#ffffff'),
+    align: t.align === 'left' || t.align === 'right' ? t.align : 'center',
+    valign: t.valign === 'top' || t.valign === 'bottom' ? t.valign : 'middle',
+    box: { x: num(box.x, 0, 0.95, 0.05), y: num(box.y, 0, 0.95, 0.1), width: num(box.width, 0.05, 1, 0.9), height: num(box.height, 0.05, 1, 0.8) },
+    uppercase: !!t.uppercase,
+    shadow: !!t.shadow,
+    outlineWidth: num(t.outlineWidth, 0, 20, 0),
+    outlineColor: hex(t.outlineColor, '#000000'),
+    bar: t.bar && typeof t.bar === 'object' ? { color: hex(t.bar.color, '#000000'), opacity: num(t.bar.opacity, 0, 1, 0.6) } : null
+  };
+}
+
+/** Two themes that look the same (names and ids aside). */
+export function sameLook(a: Theme, b: Theme): boolean {
+  // Compared cleaned, so the order of fields and missing defaults don't matter.
+  const look = (t: Theme): string => {
+    const { id: _id, name: _name, ...rest } = cleanTheme({ ...t, name: 'x' }) ?? t;
+    return JSON.stringify(rest);
+  };
+  return look(a) === look(b);
+}

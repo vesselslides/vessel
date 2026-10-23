@@ -43,6 +43,10 @@ import { dropSlideOn, openGroupMenu, openSlideMenu, SLIDE_DRAG } from './slideMe
 import { RemoteDialog } from './RemoteDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { ImportDialog } from './ImportDialog';
+import { ExportDialog, type ExportScope } from './ExportDialog';
+import { exportSong, type ExportEntry, type ExportFormat, type ExportOptions } from '../../shared/exports';
+import { ExportVesselDialog, VesselPreviewDialog, type ExportChoice } from './VesselFileDialogs';
+import type { VesselChoice, VesselKind, VesselPreview } from '../../shared/vesselFile';
 import { copyrightLine, hasCopyrightDetails, isScripture, localDate, showsCopyright, songInfoOf, usageKey, withSongInfo } from '../../shared/ccli';
 import { BiblePanel } from './BiblePanel';
 import { AudioPlayer, type AudioTrack } from './AudioPlayer';
@@ -288,6 +292,12 @@ function Operator(): React.JSX.Element {
   );
   const [showNewSong, setShowNewSong] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  /** Share as a Vessel file: open with this kind chosen. */
+  const [exportVessel, setExportVessel] = useState<VesselKind | null>(null);
+  /** File ▸ Export, opened for the presentation or the service. */
+  const [exportScope, setExportScope] = useState<ExportScope | 'open' | null>(null);
+  /** Vessel files opened and waiting for a choice of what to add, first one shown. */
+  const [vesselQueue, setVesselQueue] = useState<VesselPreview[]>([]);
   const [showBible, setShowBible] = useState(false);
   const [mediaFolders, setMediaFolders] = useState<MediaFolder[]>([]);
   /** Audio from the media bin, playing in the Live panel. */
@@ -720,6 +730,10 @@ function Operator(): React.JSX.Element {
     for (const b of dropped.bibles) notes.push(`Added ${b.name} (${b.abbreviation}) to the Bible: ${b.verses.toLocaleString()} verse${b.verses === 1 ? '' : 's'}.`);
     if (dropped.bibles.length) setBibleVersion((v) => v + 1);
     notes.push(...dropped.errors.map((e) => `Could not use ${e}`));
+    if (dropped.vessel.length) {
+      setVesselQueue((q) => [...q, ...dropped.vessel]);
+      notes.push(`Opened ${dropped.vessel.map((v) => `“${v.manifest.title}”`).join(', ')}: choose what to add.`);
+    }
     if (!notes.length && !dropped.presentations.length && !dropped.playlists.length) notes.push('Those files were already here.');
     const kept = await addOpened(dropped.presentations, notes);
     if (dropped.playlists.length) await importPlaylists(dropped.playlists);
@@ -730,6 +744,151 @@ function Operator(): React.JSX.Element {
     }
     refreshLibrary();
   };
+
+  // ---- Vessel files ------------------------------------------------------
+
+  const openVessel = async (): Promise<void> => {
+    try {
+      const preview = await window.vessel.openVesselFile();
+      if (preview) setVesselQueue((q) => [...q, preview]);
+    } catch (err) {
+      setStatus(`Could not open that Vessel file: ${(err as Error).message}`);
+    }
+  };
+
+  const shareVessel = async (c: ExportChoice): Promise<void> => {
+    setExportVessel(null);
+    const service = serviceRef.current?.service;
+    const playlists: Service[] = [];
+    if (c.kind === 'service' && service) playlists.push(service);
+    if (c.kind === 'collection')
+      for (const path of c.playlists) {
+        const bytes = await window.vessel.readPlaylist(path);
+        if (bytes) playlists.push(decodeService(bytes, fileName(path).replace(/\.proPlaylist$/i, '')));
+      }
+    const chosenThemes = c.kind === 'themes' || c.kind === 'collection' ? themes.custom.filter((t) => c.themes.includes(t.id)) : [];
+    setStatus('Saving the Vessel file…');
+    try {
+      const saved = await window.vessel.exportVesselFile({
+        kind: c.kind,
+        title: c.title,
+        description: c.description,
+        author: c.author,
+        presentations: c.kind === 'presentation' && selected ? [{ name: selected.deck.name || 'Untitled', bytes: serializePresentation(selected.presentation) }] : [],
+        presentationPaths: c.kind === 'collection' ? c.songs : [],
+        playlists,
+        themes: chosenThemes,
+        media: c.kind === 'collection' ? c.media : []
+      });
+      if (!saved) return setStatus('');
+      const missing = saved.missing.length ? `  ·  Not found, so not included: ${saved.missing.map(fileName).join(', ')}` : '';
+      setStatus(`Saved ${fileName(saved.path)}. Send it to anyone with Vessel; they double-click it to see what’s inside.${missing}`);
+    } catch (err) {
+      setStatus(`Could not save the Vessel file: ${(err as Error).message}`);
+    }
+  };
+
+  /** A song as File ▸ Export sees it: open ones as they are now (unsaved edits too), others read from disk. */
+  const songForExport = async (path: string | undefined, presentation?: Presentation, arrangementName?: string): Promise<ExportEntry | null> => {
+    let p = presentation;
+    if (!p && path) {
+      const open = decksRef.current.find((d) => d.path === path);
+      if (open) p = open.presentation;
+      else {
+        const file = await window.vessel.readFile(path);
+        if (!file) return null;
+        p = parsePresentation(file.bytes);
+      }
+    }
+    if (!p) return null;
+    const arrangement = arrangementName && p.arrangements.find((a) => a.name === arrangementName);
+    if (arrangement) p = selectArrangement(p, uuidOf(arrangement.uuid));
+    const info = songInfoOf(p);
+    const copyright = !isScripture(p) && hasCopyrightDetails(info) ? copyrightLine(info, settings?.ccliLicence ?? '') : '';
+    const deck = presentationToDeck(p, crypto.randomUUID(), path);
+    if (!deck.name && path) deck.name = fileName(path);
+    return exportSong(deck, copyright);
+  };
+
+  const runExport = async (kind: ExportFormat | 'bundle', scope: ExportScope, options: ExportOptions): Promise<void> => {
+    setExportScope(null);
+    const svc = serviceRef.current?.service;
+    try {
+      if (kind === 'bundle') {
+        if (!svc) return;
+        setStatus('Exporting the playlist with its songs and media…');
+        await writeChain.current;
+        const r = await window.vessel.exportPlaylistBundle(svc);
+        if (!r) return setStatus('');
+        const missing = r.missing.length ? `  ·  Not found, so not included: ${r.missing.join(', ')}` : '';
+        return setStatus(`Exported ${fileName(r.path)} with ${r.files} song and media file${r.files === 1 ? '' : 's'}.${missing}`);
+      }
+      const entries: ExportEntry[] = [];
+      let skipped = 0;
+      if (scope === 'presentation' && selected) {
+        const song = await songForExport(selected.path, selected.presentation);
+        if (song) entries.push(song);
+      } else if (svc) {
+        for (const it of svc.items) {
+          if (it.kind === 'header') entries.push({ kind: 'header', name: it.name });
+          else {
+            const song = await songForExport(it.path, undefined, it.arrangementName);
+            if (song) entries.push(song);
+            else skipped++;
+          }
+        }
+      }
+      if (!entries.some((e) => e.kind === 'song')) return setStatus('There’s nothing to export yet.');
+      const first = entries.find((e) => e.kind === 'song')?.slides[0]?.layout;
+      const title = scope === 'presentation' ? (selected?.deck.name || 'Untitled') : (svc?.name ?? 'Service');
+      setStatus(kind === 'images' ? 'Making the pictures…' : 'Exporting…');
+      const r = await window.vessel.exportDocument({
+        format: kind,
+        title,
+        entries,
+        options,
+        width: first?.width ?? settings?.slideSize?.width ?? 1920,
+        height: first?.height ?? settings?.slideSize?.height ?? 1080
+      });
+      if (!r) return setStatus('');
+      const notFound = skipped ? `  ·  ${skipped} song${skipped === 1 ? ' wasn’t' : 's weren’t'} found on this computer.` : '';
+      setStatus(`${kind === 'images' ? `Saved ${r.files} picture${r.files === 1 ? '' : 's'} in` : 'Saved'} ${r.path.split(/[\\/]/).pop()}.${notFound}`);
+    } catch (err) {
+      setStatus(`Could not export: ${(err as Error).message}`);
+    }
+  };
+
+  const closeVesselPreview = (): void => setVesselQueue((q) => q.slice(1));
+
+  const addFromVessel = async (choice: VesselChoice): Promise<void> => {
+    closeVesselPreview();
+    setStatus('Adding…');
+    try {
+      const r = await window.vessel.addFromVesselFile(choice);
+      const parts = [
+        r.presentations && `${r.presentations} song${r.presentations === 1 ? '' : 's'} (in the library folder “${fileName(r.folder)}”)`,
+        r.playlists && `${r.playlists} service playlist${r.playlists === 1 ? '' : 's'}`,
+        r.themes && `${r.themes} theme${r.themes === 1 ? '' : 's'}`,
+        r.media && `${r.media} media file${r.media === 1 ? '' : 's'}`
+      ].filter(Boolean);
+      const skipped = r.skipped ? `  ·  ${r.skipped} already here, so left as they were.` : '';
+      setStatus(parts.length ? `Added ${parts.join(', ')}.${skipped}` : `Nothing new to add.${skipped}`);
+      if (r.themes) setThemes(await window.vessel.loadThemes());
+      if (r.media) {
+        setMedia(await window.vessel.listMedia());
+        setMediaFolders(await window.vessel.listMediaFolders());
+      }
+      refreshLibrary();
+      if (r.playlist) await selectPlaylist(r.playlist);
+    } catch (err) {
+      setStatus(`Could not add from the Vessel file: ${(err as Error).message}`);
+    }
+  };
+
+  // Files double-clicked in Finder or Explorer while Vessel is open (or that started it).
+  const openExternal = useRef<(paths: string[]) => void>(() => undefined);
+  openExternal.current = (paths) => void addDropped(paths);
+  useEffect(() => window.vessel.onOpenFiles((paths) => openExternal.current(paths)), []);
 
   // ---- Service playlists -------------------------------------------------
 
@@ -825,6 +984,18 @@ function Operator(): React.JSX.Element {
     setPlaylistFiles(await window.vessel.listPlaylists());
   };
 
+  /** Save As: a copy of the playlist under a new name, which becomes the open one. */
+  const duplicateService = async (name: string): Promise<void> => {
+    const service = serviceRef.current;
+    if (!service) return;
+    await writeChain.current;
+    const copy: Service = { ...service.service, name, items: service.service.items.map((it) => ({ ...it, id: newServiceId() })) };
+    const path = await window.vessel.writePlaylist(encodeService(copy), name);
+    setPlaylistFiles(await window.vessel.listPlaylists());
+    await selectPlaylist(path);
+    setStatus(`Made a copy: “${name}”.`);
+  };
+
   const deleteService = async (): Promise<void> => {
     const service = serviceRef.current;
     if (!service) return;
@@ -916,6 +1087,10 @@ function Operator(): React.JSX.Element {
       setPlaylistFiles(await window.vessel.listPlaylists());
       await selectPlaylist(first);
       setStatus(`Imported ${count} playlist(s) as service playlists.`);
+      // A playlist with media brings songs and media in with it.
+      refreshLibrary();
+      setMedia(await window.vessel.listMedia());
+      setMediaFolders(await window.vessel.listMediaFolders());
     }
   };
 
@@ -1770,6 +1945,12 @@ function Operator(): React.JSX.Element {
         return void openPlaylist();
       case 'import-media':
         return void window.vessel.importMedia().then(setMedia);
+      case 'open-vessel':
+        return void openVessel();
+      case 'export':
+        return setExportScope('open');
+      case 'export-vessel':
+        return setExportVessel(service ? 'service' : selected ? 'presentation' : 'collection');
       case 'save':
         return void save();
       case 'undo':
@@ -1984,6 +2165,14 @@ function Operator(): React.JSX.Element {
     { id: 'open', label: 'Open a presentation', keys: 'Mod+O', words: 'file pro', run: () => void openPresentations() },
     { id: 'import', label: 'Import', keys: 'Mod+I', words: 'powerpoint word text pptx docx txt pro playlist media bible', run: () => setShowImport(true) },
     { id: 'playlist', label: 'Open playlist', words: 'service', run: () => void openPlaylist() },
+    { id: 'export', label: 'Export', keys: 'Mod+Shift+E', words: 'pdf print lyrics sheet pictures images png text playlist media', run: () => setExportScope('open') },
+    { id: 'open-vessel', label: 'Open a Vessel file', words: 'share import church community themes', run: () => void openVessel() },
+    {
+      id: 'export-vessel',
+      label: 'Share as a Vessel file',
+      words: 'export send church community themes service',
+      run: () => setExportVessel(service ? 'service' : selected ? 'presentation' : 'collection')
+    },
     { id: 'bible', label: 'Bible', keys: 'Mod+B', words: 'scripture verse', run: openBible },
     { id: 'themes', label: 'Themes', words: 'style look font', run: () => setShowThemes(true) },
     { id: 'clear-media', label: 'Clear media', words: 'background video', run: () => showBackground(null) },
@@ -2082,6 +2271,9 @@ function Operator(): React.JSX.Element {
         onNewPlaylist={newPlaylist}
         onRenameService={(name) => void renameService(name)}
         onDeleteService={() => void deleteService()}
+        onDuplicateService={(name) => void duplicateService(name)}
+        onShareService={() => setExportVessel('service')}
+        onExportService={() => setExportScope('service')}
         onServiceItems={changeServiceItems}
         onOpenRow={openRow}
         onGoLiveRow={(row) => void goLiveRow(row)}
@@ -2564,6 +2756,10 @@ function Operator(): React.JSX.Element {
             setShowImport(false);
             void openPlaylist();
           }}
+          onVessel={() => {
+            setShowImport(false);
+            void openVessel();
+          }}
           onMedia={(folder) => {
             setShowImport(false);
             void window.vessel.importMedia(folder).then((items) => {
@@ -2585,6 +2781,43 @@ function Operator(): React.JSX.Element {
             setShowPco(true);
           }}
           onCancel={() => setShowImport(false)}
+        />
+      )}
+      {exportScope && (
+        <ExportDialog
+          presentationName={selected ? selected.deck.name || 'Untitled' : null}
+          serviceName={service && service.service.items.length ? service.service.name : null}
+          initialScope={exportScope === 'open' ? (service ? 'service' : 'presentation') : exportScope}
+          onExport={(kind, scope, options) => void runExport(kind, scope, options)}
+          onVessel={() => {
+            setExportScope(null);
+            setExportVessel(service ? 'service' : selected ? 'presentation' : 'collection');
+          }}
+          onCancel={() => setExportScope(null)}
+        />
+      )}
+      {exportVessel && (
+        <ExportVesselDialog
+          presentationName={selected ? selected.deck.name || 'Untitled' : null}
+          serviceName={service && service.service.items.length ? service.service.name : null}
+          themes={themes.custom}
+          library={library}
+          playlists={playlistFiles}
+          media={media}
+          initialKind={exportVessel}
+          onExport={(c) => void shareVessel(c)}
+          onCancel={() => setExportVessel(null)}
+        />
+      )}
+      {vesselQueue[0] && (
+        <VesselPreviewDialog
+          key={vesselQueue[0].token}
+          preview={vesselQueue[0]}
+          onAdd={(choice) => void addFromVessel(choice)}
+          onCancel={() => {
+            void window.vessel.discardVesselFile(vesselQueue[0].token);
+            closeVesselPreview();
+          }}
         />
       )}
       {showRemote && <RemoteDialog status={remote} onStatus={setRemote} onClose={() => setShowRemote(false)} />}

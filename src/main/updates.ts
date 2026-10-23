@@ -18,6 +18,9 @@ const repo = ((): string | null => {
 })();
 let checking = false;
 
+/** Vessel's public repository ("owner/name"), or null until it's set. */
+export const vesselRepo = (): string | null => repo;
+
 async function latestRelease(): Promise<Release | null> {
   const res = await net.fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
     headers: { accept: 'application/vnd.github+json', 'user-agent': `Vessel/${app.getVersion()}` },

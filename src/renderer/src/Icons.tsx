@@ -121,6 +121,14 @@ export const ImportIcon = (p: IconProps): React.JSX.Element => (
   </Icon>
 );
 
+/** A Vessel file: a parcel of songs, themes and media. */
+export const VesselIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M12 3.5l8 4v9l-8 4-8-4v-9z" />
+    <path d="M4 7.5l8 4 8-4M12 11.5v9" />
+  </Icon>
+);
+
 export const PlaylistIcon = (p: IconProps): React.JSX.Element => (
   <Icon {...p}>
     <path d="M4.5 6.5h11M4.5 11.5h11M4.5 16.5h7" />

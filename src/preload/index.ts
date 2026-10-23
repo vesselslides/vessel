@@ -101,6 +101,19 @@ const api: VesselApi = {
   missingMedia: (paths) => ipcRenderer.invoke('media:missing', paths),
   findMovedMedia: (missing) => ipcRenderer.invoke('media:find-moved', missing),
   installSamples: () => ipcRenderer.invoke('samples:install'),
+  exportVesselFile: (req) => ipcRenderer.invoke('vessel:export', req),
+  onlineGallery: () => ipcRenderer.invoke('gallery:online'),
+  submitToGallery: (entry) => ipcRenderer.invoke('gallery:submit', entry),
+  exportDocument: (job) => ipcRenderer.invoke('export:run', job),
+  exportPlaylistBundle: (service) => ipcRenderer.invoke('export:bundle', service),
+  openVesselFile: (path) => ipcRenderer.invoke('vessel:open', path),
+  addFromVesselFile: (choice) => ipcRenderer.invoke('vessel:add', choice),
+  discardVesselFile: (token) => ipcRenderer.invoke('vessel:discard', token),
+  onOpenFiles: (listener) => {
+    const handler = (_e: Electron.IpcRendererEvent, paths: string[]): void => listener(paths);
+    ipcRenderer.on('files:open-external', handler);
+    return () => ipcRenderer.removeListener('files:open-external', handler);
+  },
   logError: (message) => ipcRenderer.send('log:renderer', message),
   lastRunUnclean: () => ipcRenderer.invoke('app:last-run-unclean'),
   reportProblem: () => ipcRenderer.invoke('app:report-problem'),

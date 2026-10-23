@@ -4117,3 +4117,396 @@ html.see-through .output-stage {
     transform: translate(-50%, -4px);
   }
 }
+
+/* Vessel files: sharing, and opening one from another church */
+.modal.vessel-modal {
+  width: min(680px, 94vw);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.vessel-modal .muted {
+  color: var(--muted);
+}
+
+.vessel-kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+
+.vessel-kind {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.vessel-kind > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.vessel-kind strong {
+  font-size: 13px;
+}
+
+.vessel-kind.on {
+  border-color: var(--accent);
+  background: var(--selected);
+}
+
+.vessel-kind.off {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.vessel-collection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.vessel-collection h3,
+.vessel-contents h3 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.vessel-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vessel-picker ul {
+  list-style: none;
+  margin: 0;
+  padding: 4px 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+.vessel-picker li {
+  padding: 2px 0;
+}
+
+.vessel-picker label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vessel-modal .vessel-note textarea {
+  min-height: 60px;
+  font-family: inherit;
+}
+
+.vessel-rights {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--selected);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.vessel-description {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+
+.vessel-contents {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vessel-contents section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.vessel-contents label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The hidden print page (File ▸ Export): slides PDFs, lyrics sheets and pictures */
+body.print,
+body.print #root {
+  background: #fff;
+  color: #111;
+  overflow: visible;
+  height: auto;
+  font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+.print-slide {
+  position: relative;
+  width: 100%;
+  container-type: size;
+  background: #000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.print-slide > .media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.print-one {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+}
+
+.print-one .print-slide {
+  height: 100vh;
+}
+
+.print-slides h1,
+.print-lyrics h1 {
+  margin: 0 0 8px;
+  font-size: 18pt;
+}
+
+.print-header {
+  margin: 14px 0 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #bbb;
+  font-size: 10pt;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #555;
+}
+
+.print-song + .print-song,
+.print-header + .print-song {
+  margin-top: 14px;
+}
+
+.print-grid {
+  display: grid;
+  gap: 10px 14px;
+}
+
+.per-2 .print-grid,
+.per-1 .print-grid {
+  grid-template-columns: 1fr;
+}
+
+.per-4 .print-grid,
+.per-6 .print-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.print-grid figure {
+  margin: 0;
+  break-inside: avoid;
+}
+
+.per-1 .print-grid figure {
+  break-after: page;
+}
+
+.per-1 .print-grid .print-slide {
+  width: auto;
+  height: 165mm;
+  margin: 0 auto;
+}
+
+.per-2 .print-grid .print-slide {
+  width: 78%;
+  margin: 0 auto;
+}
+
+.print-grid figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 3px;
+  font-size: 8.5pt;
+  color: #444;
+}
+
+.print-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: #999;
+}
+
+.print-title {
+  font-size: 22pt !important;
+  margin-bottom: 4px !important;
+}
+
+.print-lyrics-song {
+  margin: 0 0 18px;
+}
+
+.print-lyrics-song.new-page + .print-lyrics-song.new-page {
+  break-before: page;
+}
+
+.print-order {
+  margin: -4px 0 10px;
+  font-size: 9pt;
+  color: #555;
+}
+
+.print-sections.columns-2 {
+  column-count: 2;
+  column-gap: 12mm;
+}
+
+.print-section {
+  break-inside: avoid;
+  margin-bottom: 10px;
+}
+
+.print-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 3px;
+  font-size: 9.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #333;
+}
+
+.print-section p {
+  margin: 0 0 5px;
+  white-space: pre-line;
+  font-size: 11pt;
+  line-height: 1.35;
+}
+
+.print-copyright {
+  margin: 6px 0 0;
+  font-size: 7.5pt;
+  color: #666;
+}
+
+html:has(body.print) {
+  background: #fff;
+  height: auto;
+}
+
+/* Theme gallery */
+.modal.gallery-modal {
+  width: min(980px, 95vw);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.gallery-modal .muted {
+  color: var(--muted);
+}
+
+.gallery-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.gallery-filters input {
+  flex: 1 1 200px;
+}
+
+.gallery-filters .chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.gallery-filters .chip.on {
+  background: var(--selected);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.gallery-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border, var(--border));
+  background: var(--glass, transparent);
+}
+
+.gallery-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  flex: 1;
+}
+
+.gallery-card-text strong {
+  font-size: 14px;
+}
+
+.gallery-description {
+  color: var(--text);
+  opacity: 0.85;
+}
+
+.gallery-open {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.gallery-preview {
+  width: 100%;
+}
+
+/* PDF viewers draw blurred text shadows as dark boxes behind each line, so PDFs go without them. */
+.print-pdf .text-box,
+.print-pdf .text-box * {
+  text-shadow: none !important;
+}
+
+/* A heading never ends a page on its own. */
+.print-slides h1,
+.print-header,
+.print-lyrics-song h1,
+.print-section h3 {
+  break-after: avoid;
+}

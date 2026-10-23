@@ -3,6 +3,7 @@ import { allThemes, duplicateTheme, findTheme, themeLayout, type Theme, type The
 import type { Background } from '../../shared/types';
 import { MediaView } from './AudienceView';
 import { SlideCanvas } from './SlideCanvas';
+import { ThemeGallery } from './ThemeGallery';
 
 const COMMON_FONTS = [
   'Helvetica Neue', 'Helvetica', 'Arial', 'Arial Black', 'Avenir Next', 'Futura', 'Gill Sans', 'Montserrat',
@@ -57,6 +58,7 @@ export function ThemeDialog({
   const [selectedId, setSelectedId] = useState(library.defaultId);
   const theme = findTheme(library, selectedId);
   const editable = !theme.builtIn;
+  const [gallery, setGallery] = useState(false);
 
   const update = (patch: Partial<Theme>): void => {
     if (!editable) return;
@@ -75,6 +77,14 @@ export function ThemeDialog({
     onLibraryChange({ custom, defaultId: library.defaultId === theme.id ? 'classic' : library.defaultId });
     setSelectedId('classic');
   };
+
+  const addFromGallery = (t: Theme): void => {
+    const id = allThemes(library).some((x) => x.id === t.id) ? `${t.id}-${crypto.randomUUID().slice(0, 6)}` : t.id;
+    onLibraryChange({ ...library, custom: [...library.custom, { ...t, id, builtIn: false }] });
+    setSelectedId(id);
+  };
+
+  if (gallery) return <ThemeGallery mine={library.custom} onAdd={addFromGallery} onClose={() => setGallery(false)} />;
 
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
@@ -95,6 +105,9 @@ export function ThemeDialog({
                 Delete
               </button>
             </div>
+            <button className="gallery-open" onClick={() => setGallery(true)}>
+              Browse the gallery…
+            </button>
           </div>
 
           <div className="theme-editor">

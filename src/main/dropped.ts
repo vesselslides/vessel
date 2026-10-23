@@ -6,6 +6,9 @@ import { extname, isAbsolute } from 'node:path';
 import { DEFAULT_IMPORT_OPTIONS, isDocumentPath, type ImportOptions } from '../shared/import';
 import { binKindOf } from '../shared/media';
 import type { DroppedFiles, OpenedFile } from '../shared/types';
+import { VESSEL_EXTENSION } from '../shared/vesselFile';
+import { openVesselFile } from './vesselFiles';
+import { readPlaylistFile } from './playlistBundles';
 import { addBible } from './bibles';
 import { importDocumentFile } from './importDocs';
 import { importLegacyFile } from './legacy';
@@ -15,7 +18,7 @@ const MAX_FILES = 200;
 const BIBLE_EXTENSIONS = new Set(['.xml', '.zip', '.osis', '.usfx', '.zef']);
 
 export async function openDropped(paths: unknown, opts: Partial<ImportOptions>, read: (path: string) => Promise<OpenedFile>, mediaFolder?: string | null): Promise<DroppedFiles> {
-  const result: DroppedFiles = { presentations: [], playlists: [], media: null, bibles: [], errors: [] };
+  const result: DroppedFiles = { presentations: [], playlists: [], media: null, bibles: [], vessel: [], errors: [] };
   // Only real files the user dropped: absolute paths that exist and aren't folders.
   const files: string[] = [];
   for (const p of Array.isArray(paths) ? paths.slice(0, MAX_FILES) : []) {
@@ -34,7 +37,11 @@ export async function openDropped(paths: unknown, opts: Partial<ImportOptions>, 
     try {
       if (ext === '.pro') result.presentations.push(await read(path));
       else if (/^\.pro[56]x?$/.test(ext)) result.presentations.push(await importLegacyFile(path));
-      else if (ext === '.proplaylist') result.playlists.push(await read(path));
+      else if (ext === '.proplaylist') result.playlists.push(await readPlaylistFile(path));
+      else if (ext === `.${VESSEL_EXTENSION}`) {
+        const preview = await openVesselFile(null, path);
+        if (preview) result.vessel.push(preview);
+      }
       else if (binKindOf(path)) media.push(path);
       else if (isDocumentPath(path)) result.presentations.push(await importDocumentFile(path, options));
       else if (BIBLE_EXTENSIONS.has(ext)) result.bibles.push(await addBible(path));

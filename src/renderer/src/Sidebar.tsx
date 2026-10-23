@@ -34,6 +34,12 @@ export interface SidebarProps {
   onNewPlaylist: (name: string) => void;
   onRenameService: (name: string) => void;
   onDeleteService: () => void;
+  /** Save a copy of the open playlist under this name, and open it. */
+  onDuplicateService: (name: string) => void;
+  /** Share the open playlist, its songs and media as a Vessel file. */
+  onShareService: () => void;
+  /** File ▸ Export, for the open playlist. */
+  onExportService: () => void;
   /** Change the service's items; gets the latest list, so quick successive drops don't clash. */
   onServiceItems: (change: (items: ServiceItem[]) => ServiceItem[]) => void;
   onOpenRow: (index: number) => void;
@@ -135,7 +141,7 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
   const [showFolders, setShowFolders] = useState(false);
   const [dropRow, setDropRow] = useState<number | null>(null);
   /** The playlist row shows the dropdown, or a name field while creating or renaming. */
-  const [naming, setNaming] = useState<'new' | 'rename' | null>(null);
+  const [naming, setNaming] = useState<'new' | 'rename' | 'duplicate' | null>(null);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -169,6 +175,9 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
             { id: 'header', label: 'Add header…' },
             { type: 'separator' as const },
             { id: 'rename', label: 'Rename playlist…' },
+            { id: 'duplicate', label: 'Duplicate playlist…', enabled: service.service.items.length > 0 },
+            { id: 'export', label: 'Export…', enabled: service.service.items.length > 0 },
+            { id: 'share', label: 'Share as Vessel file…', enabled: service.service.items.length > 0 },
             { id: 'delete', label: service.path ? 'Delete playlist…' : 'Discard playlist' }
           ]
         : [])
@@ -176,6 +185,9 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
     if (choice === 'new') setNaming('new');
     else if (choice === 'header') setHeaderDraft('');
     else if (choice === 'rename') setNaming('rename');
+    else if (choice === 'duplicate') setNaming('duplicate');
+    else if (choice === 'share') props.onShareService();
+    else if (choice === 'export') props.onExportService();
     else if (choice === 'delete') props.onDeleteService();
     else if (choice?.startsWith('song:')) {
       const it = songs[Number(choice.slice(5))];
@@ -305,11 +317,12 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
           {naming ? (
             <NameField
               key={naming}
-              initial={naming === 'rename' && service ? service.service.name : nextSundayName()}
+              initial={naming === 'rename' && service ? service.service.name : naming === 'duplicate' && service ? `${service.service.name} copy` : nextSundayName()}
               placeholder="Playlist name"
               onCommit={(name) => {
                 setNaming(null);
                 if (naming === 'new') props.onNewPlaylist(name);
+                else if (naming === 'duplicate') props.onDuplicateService(name);
                 else if (service && name !== service.service.name) props.onRenameService(name);
               }}
               onCancel={() => setNaming(null)}

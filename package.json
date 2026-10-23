@@ -89,6 +89,12 @@
         "ext": "proPlaylist",
         "name": "Playlist",
         "role": "Editor"
+      },
+      {
+        "ext": "vessel",
+        "name": "Vessel File",
+        "description": "Themes, songs and services shared from Vessel",
+        "role": "Editor"
       }
     ],
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"

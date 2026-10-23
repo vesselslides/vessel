@@ -8,6 +8,9 @@ export type AppCommand =
   | 'import-documents'
   | 'open-playlist'
   | 'import-media'
+  | 'export'
+  | 'export-vessel'
+  | 'open-vessel'
   | 'save'
   | 'undo'
   | 'redo'
@@ -62,6 +65,7 @@ export const SHORTCUTS: ShortcutGroup[] = [
       { keys: ['⌘/Ctrl', 'N'], action: 'New song' },
       { keys: ['⌘/Ctrl', 'O'], action: 'Open a presentation' },
       { keys: ['⌘/Ctrl', 'I'], action: 'Import PowerPoint, Word or text files' },
+      { keys: ['⇧⌘ E', 'Ctrl Shift E'], action: 'Export: PDF, lyrics sheet, pictures, text or a playlist with media' },
       { keys: ['⌘/Ctrl', 'B'], action: 'Bible: find and show verses' },
       { keys: ['⌘/Ctrl', ','], action: 'Preferences' },
       { keys: ['⌘/Ctrl', 'S'], action: 'Save' },

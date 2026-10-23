@@ -30,6 +30,10 @@ import { checkForUpdates, checkForUpdatesOnLaunch } from './updates';
 import { describe, endRun, log, startRun } from './log';
 import { saveProblemReport } from './problemReport';
 import { installSamples } from './samples';
+import { exportDocument } from './exports';
+import { onlineGallery, submitToGallery } from './themeGallery';
+import { exportPlaylistBundle, readPlaylistFile } from './playlistBundles';
+import { addFromVesselFile, clearOldVesselFiles, discardVesselFile, exportVesselFile, openVesselFile } from './vesselFiles';
 import { backUp, restore } from './backup';
 
 let operatorWindow: BrowserWindow | null = null;
@@ -52,7 +56,29 @@ registerMediaScheme();
 // Opening it again brings the running one forward instead.
 const primaryInstance = app.requestSingleInstanceLock();
 if (!primaryInstance) app.quit();
-app.on('second-instance', () => {
+// ---- Files opened from Finder or Explorer (double-clicked, or dropped on Vessel's icon)
+
+const OPENABLE = /\.(pro|pro5|pro5x|pro6|pro6x|proplaylist|vessel)$/i;
+let operatorReady = false;
+const pendingOpen: string[] = [];
+
+function openExternal(paths: string[]): void {
+  const files = paths.filter((p) => OPENABLE.test(p) && isAbsolute(p) && existsSync(p));
+  if (!files.length) return;
+  log.info(`Opening ${files.length} file(s) from the system`);
+  if (operatorWindow && operatorReady) operatorWindow.webContents.send('files:open-external', files);
+  else pendingOpen.push(...files);
+}
+
+// A Mac sends the files as events, possibly before Vessel is ready.
+app.on('open-file', (e, path) => {
+  e.preventDefault();
+  openExternal([path]);
+});
+
+app.on('second-instance', (_e, argv) => {
+  // Windows passes a double-clicked file to the copy that's already running.
+  openExternal(argv.slice(1));
   if (!operatorWindow) return;
   if (operatorWindow.isMinimized()) operatorWindow.restore();
   operatorWindow.focus();
@@ -60,7 +86,7 @@ app.on('second-instance', () => {
 
 const preload = join(__dirname, '../preload/index.js');
 
-function loadPage(win: BrowserWindow, page: 'index' | 'output' | 'stage' | 'stream', hash = ''): void {
+function loadPage(win: BrowserWindow, page: 'index' | 'output' | 'stage' | 'stream' | 'print', hash = ''): void {
   const devUrl = process.env['ELECTRON_RENDERER_URL'];
   if (!app.isPackaged && devUrl) void win.loadURL(`${devUrl}/${page}.html${hash ? `#${hash}` : ''}`);
   else void win.loadFile(join(__dirname, `../renderer/${page}.html`), hash ? { hash } : undefined);
@@ -79,6 +105,10 @@ function createOperatorWindow(): void {
     webPreferences: { preload, sandbox: false, contextIsolation: true }
   });
   loadPage(operatorWindow, 'index');
+  operatorWindow.webContents.on('did-finish-load', () => {
+    operatorReady = true;
+    if (pendingOpen.length) operatorWindow?.webContents.send('files:open-external', pendingOpen.splice(0));
+  });
   // A file dropped where nothing handles it would otherwise replace Vessel with that file.
   operatorWindow.webContents.on('will-navigate', (e) => e.preventDefault());
   operatorWindow.on('close', (e) => {
@@ -425,6 +455,7 @@ function registerIpc(): void {
       result.filePaths.map(async (path): Promise<OpenedFile> => {
         try {
           if (kind !== 'playlist' && isDocumentPath(path)) return await importDocumentFile(path, DEFAULT_IMPORT_OPTIONS);
+          if (kind === 'playlist') return await readPlaylistFile(path);
           return /\.pro[56]x?$/i.test(path) ? await importLegacyFile(path) : await readOpened(path);
         } catch (err) {
           return { path, bytes: new Uint8Array(), error: (err as Error).message };
@@ -609,6 +640,14 @@ function registerIpc(): void {
   ipcMain.handle('app:last-run-unclean', () => lastRunUnclean);
   ipcMain.handle('app:report-problem', () => saveProblemReport(operatorWindow));
   ipcMain.handle('samples:install', () => installSamples());
+  ipcMain.handle('vessel:export', (_e, req) => exportVesselFile(operatorWindow, req));
+  ipcMain.handle('gallery:online', () => onlineGallery());
+  ipcMain.handle('gallery:submit', (_e, entry) => submitToGallery(entry));
+  ipcMain.handle('export:bundle', (_e, service) => exportPlaylistBundle(operatorWindow, service));
+  ipcMain.handle('export:run', (_e, job) => exportDocument(operatorWindow, job, (w) => loadPage(w, 'print')));
+  ipcMain.handle('vessel:open', (_e, path?: string) => openVesselFile(operatorWindow, typeof path === 'string' ? path : undefined));
+  ipcMain.handle('vessel:add', (_e, choice) => addFromVesselFile(choice));
+  ipcMain.handle('vessel:discard', (_e, token: string) => discardVesselFile(String(token)));
   ipcMain.handle('backup:create', () => backUp(operatorWindow));
   ipcMain.handle('backup:restore', () => restore(operatorWindow));
   ipcMain.handle('updates:check', () => checkForUpdates(operatorWindow, true));
@@ -717,6 +756,9 @@ app.whenReady().then(async () => {
   applyAppearance((await getSettings()).appearance);
   setGroupDefinitions((await getSettings()).groups);
   createOperatorWindow();
+  // On Windows a double-clicked file arrives as an argument.
+  if (process.platform !== 'darwin') openExternal(process.argv.slice(1));
+  void clearOldVesselFiles();
   void checkForUpdatesOnLaunch(() => operatorWindow);
   void getSettings().then(applyNdi);
   app.on('before-quit', () => ndiSender?.stop());

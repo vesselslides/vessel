@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { DEFAULT_IMPORT_OPTIONS, type DocumentKind, type ImportOptions } from '../../shared/import';
 import type { MediaFolder } from '../../shared/types';
-import { BibleIcon, DocumentIcon, MediaIcon, OpenIcon, PlanIcon, PlaylistIcon, SlidesIcon, TextIcon } from './Icons';
+import { BibleIcon, DocumentIcon, MediaIcon, OpenIcon, PlanIcon, PlaylistIcon, SlidesIcon, TextIcon, VesselIcon } from './Icons';
 
 const STORE = 'vessel.importOptions';
 const KIND_STORE = 'vessel.importKind';
@@ -15,7 +15,7 @@ function remembered(): ImportOptions {
 }
 
 /** What can be imported, in the order the cards show. */
-export type ImportKind = 'presentation' | DocumentKind | 'playlist' | 'media' | 'bible' | 'planning-center';
+export type ImportKind = 'presentation' | DocumentKind | 'playlist' | 'vessel' | 'media' | 'bible' | 'planning-center';
 
 interface Kind {
   id: ImportKind;
@@ -31,13 +31,14 @@ const KINDS: Kind[] = [
   { id: 'word', title: 'Word document', blurb: 'Lyrics written in a document', files: '.docx · .odt · .rtf', icon: <DocumentIcon size={26} /> },
   { id: 'text', title: 'Text or chord sheet', blurb: 'Plain lyrics, or chord charts', files: '.txt · ChordPro', icon: <TextIcon size={26} /> },
   { id: 'playlist', title: 'Playlist', blurb: 'A service order from presentation software', files: '.proPlaylist', icon: <PlaylistIcon size={26} /> },
+  { id: 'vessel', title: 'Vessel file', blurb: 'Songs, services and themes shared by another church', files: '.vessel', icon: <VesselIcon size={26} /> },
   { id: 'media', title: 'Pictures, videos, audio', blurb: 'For the media bin', files: 'jpg · png · mp4 · mov · mp3 …', icon: <MediaIcon size={26} /> },
   { id: 'bible', title: 'Bible', blurb: 'A Bible file you downloaded', files: 'XML · zipped XML', icon: <BibleIcon size={26} /> },
   { id: 'planning-center', title: 'Planning Center', blurb: 'A service plan becomes a playlist', files: 'Needs a connection', icon: <PlanIcon size={26} /> }
 ];
 
 /** Kinds with nothing to choose go straight to the file picker. */
-const DIRECT: ImportKind[] = ['playlist', 'bible', 'planning-center'];
+const DIRECT: ImportKind[] = ['playlist', 'vessel', 'bible', 'planning-center'];
 
 function lastKind(): ImportKind | null {
   try {
@@ -57,6 +58,7 @@ export function ImportDialog({
   onDocuments,
   onPresentations,
   onPlaylist,
+  onVessel,
   onMedia,
   onBible,
   onPlanningCenter,
@@ -66,6 +68,7 @@ export function ImportDialog({
   onDocuments: (opts: ImportOptions, kind: DocumentKind) => void;
   onPresentations: () => void;
   onPlaylist: () => void;
+  onVessel: () => void;
   /** Into this media folder (null: not in a folder). */
   onMedia: (folder: string | null) => void;
   onBible: () => void;
@@ -88,6 +91,7 @@ export function ImportDialog({
     if (k === 'presentation') onPresentations();
     else if (k === 'powerpoint' || k === 'word' || k === 'text') onDocuments(opts, k);
     else if (k === 'playlist') onPlaylist();
+    else if (k === 'vessel') onVessel();
     else if (k === 'media') onMedia(folder || null);
     else if (k === 'bible') onBible();
     else onPlanningCenter();

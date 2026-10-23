@@ -7,7 +7,7 @@ import type { LegacyImportReport } from './pro/legacy';
 import type { RemoteCommand, RemoteState, RemoteStatus } from './remote';
 import type { MenuEntry } from './menu';
 import type { AppCommand } from './shortcuts';
-import type { ThemeLibrary } from './theme';
+import type { Theme, ThemeLibrary } from './theme';
 import type { LiveMessage, SavedMessage } from './messages';
 import type { LowerThird, SavedLowerThird } from './lowerThirds';
 import { INITIAL_TIMER, type TimerState } from './timer';
@@ -15,6 +15,10 @@ import type { VideoClock } from './videoClock';
 import type { MidiSettings } from './control';
 import type { StreamLook, StreamTarget } from './stream';
 import type { NdiSettings, NdiStatus } from './ndi';
+import type { ExportJob, ExportResult } from './exports';
+import type { Service } from './pro/service';
+import type { GalleryEntry } from './themeGallery';
+import type { VesselChoice, VesselExportRequest, VesselPreview, VesselReport } from './vesselFile';
 import type { PcoItem, PcoPlan, PcoServiceType } from './planningCenter';
 
 /** Media that can be a background or a picture on a slide. */
@@ -265,6 +269,8 @@ export interface DroppedFiles {
   /** The media bin after adding dropped pictures and videos, or null if none were dropped. */
   media: MediaItem[] | null;
   bibles: BibleInfo[];
+  /** Vessel files, opened and waiting for the person to choose what to add. */
+  vessel: VesselPreview[];
   errors: string[];
 }
 
@@ -471,6 +477,22 @@ export interface VesselApi {
   /** Pick pictures, videos or audio and add them (into `folder` when given). */
   importMedia(folder?: string | null): Promise<MediaItem[]>;
   removeMedia(id: string): Promise<MediaItem[]>;
+  /** Save a Vessel file (asks where); the path and anything that couldn't be included, or null if cancelled. */
+  exportVesselFile(req: VesselExportRequest): Promise<{ path: string; missing: string[] } | null>;
+  /** Open a Vessel file (asks which, unless given) and say what's inside. */
+  openVesselFile(path?: string): Promise<VesselPreview | null>;
+  addFromVesselFile(choice: VesselChoice): Promise<VesselReport>;
+  /** The theme gallery's community list (fetched now); `available` is false until Vessel's repository is set. */
+  onlineGallery(): Promise<{ available: boolean; entries: GalleryEntry[]; error?: string }>;
+  /** Open the browser to propose a theme for the gallery; false when there's nowhere to send it yet. */
+  submitToGallery(entry: { theme: Theme; author: string; description: string }): Promise<boolean>;
+  /** File ▸ Export: asks where, then saves a PDF, pictures or text. Null if cancelled. */
+  exportDocument(job: ExportJob): Promise<ExportResult | null>;
+  /** Save a service with its songs and media as one playlist file. Null if cancelled. */
+  exportPlaylistBundle(service: Service): Promise<(ExportResult & { missing: string[] }) | null>;
+  discardVesselFile(token: string): Promise<void>;
+  /** Files opened from Finder or Explorer (double-clicked, or dropped on Vessel's icon). */
+  onOpenFiles(listener: (paths: string[]) => void): () => void;
   /** Set up the sample songs, service and media (again); says what was added. */
   installSamples(): Promise<{ songs: number; media: number; bible: boolean; playlist: string | null }>;
   /** Write an error from the operator window into Vessel's log. */

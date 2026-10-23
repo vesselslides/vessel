@@ -113,6 +113,13 @@ export async function addToMediaBin(paths: string[], folder?: string | null): Pr
   return items;
 }
 
+/** Add files to the bin in the folder called `name`, made if it isn't there yet. */
+export async function addToMediaFolderNamed(paths: string[], name: string): Promise<MediaItem[]> {
+  let folder = (await loadMediaFolders()).find((f) => f.name === tidyName(name));
+  if (!folder) folder = (await createMediaFolder(name)).find((f) => f.name === tidyName(name));
+  return addToMediaBin(paths, folder?.id);
+}
+
 // ---- Media folders (in the bin only; files stay where they are on disk) -------
 
 const foldersFile = (): string => join(app.getPath('userData'), 'media-folders.json');

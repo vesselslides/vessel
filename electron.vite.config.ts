@@ -13,7 +13,8 @@ export default defineConfig({
           index: resolve(__dirname, 'src/renderer/index.html'),
           output: resolve(__dirname, 'src/renderer/output.html'),
           stage: resolve(__dirname, 'src/renderer/stage.html'),
-          stream: resolve(__dirname, 'src/renderer/stream.html')
+          stream: resolve(__dirname, 'src/renderer/stream.html'),
+          print: resolve(__dirname, 'src/renderer/print.html')
         }
       }
     }
