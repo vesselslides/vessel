@@ -12,7 +12,7 @@ import {
   serializePresentation,
   uuidOf
 } from '../../shared/pro/presentation';
-import { addSlideImage, appendPresentation, resizePresentation, selectArrangement, setPresentationTimer, setSlideAdvance, setSlideBackground } from '../../shared/pro/edit';
+import { addMediaSlides, addSlideImage, appendPresentation, resizePresentation, selectArrangement, setPresentationTimer, setSlideAdvance, setSlideBackground } from '../../shared/pro/edit';
 import { EMPTY_THEME_LIBRARY, findTheme, type Theme, type ThemeLibrary } from '../../shared/theme';
 import type { RemoteCommand, RemoteState, RemoteStatus } from '../../shared/remote';
 import type { AppCommand } from '../../shared/shortcuts';
@@ -39,7 +39,7 @@ import { Editor, type Apply } from './Editor';
 import { jumpForKey, nextEnabled, slideForNumber } from '../../shared/hotkeys';
 import { backgroundForSlide, rememberCleared } from '../../shared/live';
 import { Sidebar } from './Sidebar';
-import { dropSlideOn, openGroupMenu, openSlideMenu, SLIDE_DRAG } from './slideMenus';
+import { dropSide, dropSlideOn, openGroupMenu, openSlideMenu, SLIDE_DRAG, type DropSide } from './slideMenus';
 import { RemoteDialog } from './RemoteDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { ImportDialog } from './ImportDialog';
@@ -50,7 +50,8 @@ import type { VesselChoice, VesselKind, VesselPreview } from '../../shared/vesse
 import { copyrightLine, hasCopyrightDetails, isScripture, localDate, showsCopyright, songInfoOf, usageKey, withSongInfo } from '../../shared/ccli';
 import { BiblePanel } from './BiblePanel';
 import { AudioPlayer, type AudioTrack } from './AudioPlayer';
-import { mediaName } from '../../shared/media';
+import { binKindOf, mediaName } from '../../shared/media';
+import { backgroundForPath } from '../../shared/pro/background';
 import { BibleIcon, CheckIcon, HelpIcon, ImportIcon, MutedIcon, NewSongIcon, OpenIcon, PlayIcon, PlaylistIcon, RemoteIcon, SaveIcon, SettingsIcon, SoundIcon, ThemesIcon, WarningIcon } from './Icons';
 import { ModeSwitch, ScreensButton, ToolButton } from './Toolbar';
 import { CommandPalette, type PaletteAction } from './CommandPalette';
@@ -76,7 +77,7 @@ import { pauseClock, playClock, startClock } from '../../shared/videoClock';
 import { actionForTrigger, normalizeMidi, type ControlAction } from '../../shared/control';
 import { listenMidi } from './midi';
 import { ThemeDialog } from './ThemeDialog';
-import { MediaBin } from './MediaBin';
+import { MEDIA_MIME, MediaBin } from './MediaBin';
 import { AudienceView, MediaView } from './AudienceView';
 import { SlideCanvas } from './SlideCanvas';
 import './styles.css';
@@ -171,6 +172,48 @@ function formatSeconds(seconds: number, long = false): string {
   return `${seconds} second${seconds === 1 ? '' : 's'}`;
 }
 
+/** Media being dropped: a media bin item's path, or files from Finder or Explorer. */
+interface MediaDrop {
+  binPath: string;
+  files: string[];
+}
+
+const isMediaDrag = (dt: DataTransfer): boolean => dt.types.includes(MEDIA_MIME) || dt.types.includes('Files');
+
+/** The media in a drop, read while the drop event lasts; null when there's none. */
+function mediaDropOf(dt: DataTransfer): MediaDrop | null {
+  const binPath = dt.getData(MEDIA_MIME);
+  const files = binPath ? [] : window.vessel.pathsOfFiles([...dt.files]).filter((f) => binKindOf(f) === 'image' || binKindOf(f) === 'video');
+  return binPath || files.length ? { binPath, files } : null;
+}
+
+/** Drop pictures or videos here for new slides with no words. */
+function NewMediaSlide({ first = false, onDropMedia }: { first?: boolean; onDropMedia: (drop: MediaDrop) => void }): React.JSX.Element {
+  const [hint, setHint] = useState(false);
+  return (
+    <div
+      className={`slide-tile new-media-slide ${hint ? 'drop-media' : ''}`}
+      onDragOver={(e) => {
+        if (!isMediaDrag(e.dataTransfer)) return;
+        e.preventDefault();
+        setHint(true);
+      }}
+      onDragLeave={() => setHint(false)}
+      onDrop={(e) => {
+        setHint(false);
+        const media = mediaDropOf(e.dataTransfer);
+        if (!media) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onDropMedia(media);
+      }}
+    >
+      <span>+</span>
+      <span>{first ? 'Drop here for a new first slide' : 'Drop here for a new slide'}</span>
+    </div>
+  );
+}
+
 function SlideTile({
   slide,
   index,
@@ -178,7 +221,8 @@ function SlideTile({
   next,
   onClick,
   onMenu,
-  onDropSlide
+  onDropSlide,
+  onDropMedia
 }: {
   slide: SlideView;
   index: number;
@@ -187,12 +231,15 @@ function SlideTile({
   next: boolean;
   onClick: () => void;
   onMenu: () => void;
-  onDropSlide: (drag: { groupId: string; cueId: string }) => void;
+  /** A slide dropped on this one's left half (before it) or right half (after it). */
+  onDropSlide: (drag: { groupId: string; cueId: string }, side: DropSide) => void;
+  /** A picture or video dropped on the slide (from the media bin, or files from Finder or Explorer) becomes its background. */
+  onDropMedia: (drop: MediaDrop) => void;
 }): React.JSX.Element {
-  const [dropHint, setDropHint] = useState(false);
+  const [dropHint, setDropHint] = useState<DropSide | 'media' | null>(null);
   return (
     <button
-      className={`slide-tile ${live ? 'live' : ''} ${next ? 'next' : ''} ${dropHint ? 'drop-before' : ''} ${slide.enabled ? '' : 'disabled'}`}
+      className={`slide-tile ${live ? 'live' : ''} ${next ? 'next' : ''} ${dropHint ? `drop-${dropHint}` : ''} ${slide.enabled ? '' : 'disabled'}`}
       aria-current={live ? 'true' : undefined}
       title={slide.enabled ? undefined : 'Turned off: Next and Previous skip it. Click to show it anyway; right-click to turn it back on.'}
       onClick={onClick}
@@ -206,15 +253,22 @@ function SlideTile({
         e.dataTransfer.effectAllowed = 'move';
       }}
       onDragOver={(e) => {
-        if (!e.dataTransfer.types.includes(SLIDE_DRAG)) return;
+        const kind = e.dataTransfer.types.includes(SLIDE_DRAG) ? dropSide(e) : isMediaDrag(e.dataTransfer) ? 'media' : null;
+        if (!kind) return;
         e.preventDefault();
-        setDropHint(true);
+        setDropHint(kind);
       }}
-      onDragLeave={() => setDropHint(false)}
+      onDragLeave={() => setDropHint(null)}
       onDrop={(e) => {
-        setDropHint(false);
+        setDropHint(null);
+        const media = mediaDropOf(e.dataTransfer);
+        if (media) {
+          e.preventDefault();
+          e.stopPropagation();
+          return onDropMedia(media);
+        }
         const raw = e.dataTransfer.getData(SLIDE_DRAG);
-        if (raw) onDropSlide(JSON.parse(raw) as { groupId: string; cueId: string });
+        if (raw) onDropSlide(JSON.parse(raw) as { groupId: string; cueId: string }, dropSide(e));
       }}
     >
       <div className="slide-canvas">
@@ -747,6 +801,51 @@ function Operator(): React.JSX.Element {
     }
     refreshLibrary();
   };
+
+  // ---- Media dragged onto slides -------------------------------------------
+
+  /** The media in a drop as paths in the media bin; files from Finder or Explorer are added to the bin first. */
+  const backgroundsFor = async ({ binPath, files }: MediaDrop): Promise<string[]> => {
+    if (binPath) return [binPath];
+    const dropped = await window.vessel.openDropped(files, {}, null);
+    const bin = dropped.media ?? media;
+    if (dropped.media) setMedia(dropped.media);
+    // With "Copy media into Vessel" on, the bin holds a copy under the same name.
+    return files.map((f) => bin.find((i) => i.path === f)?.path ?? bin.find((i) => i.name === mediaName(f))?.path ?? f);
+  };
+
+  /** A picture or video dropped on a slide becomes its background, words or not. */
+  const dropMediaOnSlide = async (slide: SlideView, index: number, drop: MediaDrop): Promise<void> => {
+    const [path] = await backgroundsFor(drop);
+    const bg = path ? backgroundForPath(path) : null;
+    if (!bg) return;
+    apply((p) => setSlideBackground(p, slide.cueId, bg));
+    setStatus(`${mediaName(path)} is now the background of slide ${index + 1}. ⌘Z / Ctrl+Z undoes it.`);
+  };
+
+  /** Pictures or videos dropped in a group's "new slide" space: a slide with no words for each. */
+  const dropMediaAsSlides = async (groupId: string | null, drop: MediaDrop, beforeCueId?: string): Promise<void> => {
+    const backgrounds = (await backgroundsFor(drop)).map(backgroundForPath).filter((b): b is Background => !!b);
+    if (!backgrounds.length) return;
+    apply((p) => addMediaSlides(p, groupId, backgrounds, beforeCueId).presentation);
+    setStatus(`Added ${backgrounds.length === 1 ? `a slide with ${mediaName(backgrounds[0].path)}` : `${backgrounds.length} slides with pictures and videos`}. ⌘Z / Ctrl+Z undoes it.`);
+  };
+
+  // A media bin item being dragged: the "new slide" spaces show while it is.
+  const [draggingMedia, setDraggingMedia] = useState(false);
+  useEffect(() => {
+    const start = (e: DragEvent): void => setDraggingMedia(!!e.dataTransfer?.types.includes(MEDIA_MIME));
+    // Later, not during the drop: see the note on files dragged in, below.
+    const end = (): void => void setTimeout(() => setDraggingMedia(false), 0);
+    window.addEventListener('dragstart', start);
+    window.addEventListener('dragend', end);
+    window.addEventListener('drop', end, true);
+    return () => {
+      window.removeEventListener('dragstart', start);
+      window.removeEventListener('dragend', end);
+      window.removeEventListener('drop', end, true);
+    };
+  }, []);
 
   // ---- Vessel files ------------------------------------------------------
 
@@ -2028,9 +2127,14 @@ function Operator(): React.JSX.Element {
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
     };
-    const drop = (e: DragEvent): void => {
+    // Every drop ends the drag, including one a slide or the media bin handles itself.
+    // After the drop has reached its target: hiding the drop spaces any sooner
+    // would remove the one being dropped on.
+    const ended = (): void => {
       depth = 0;
-      setDraggingFiles(false);
+      setTimeout(() => setDraggingFiles(false), 0);
+    };
+    const drop = (e: DragEvent): void => {
       if (!hasFiles(e)) return;
       e.preventDefault();
       dropFiles.current(window.vessel.pathsOfFiles([...(e.dataTransfer?.files ?? [])]));
@@ -2039,7 +2143,9 @@ function Operator(): React.JSX.Element {
     window.addEventListener('dragleave', leave);
     window.addEventListener('dragover', over);
     window.addEventListener('drop', drop);
+    window.addEventListener('drop', ended, true);
     return () => {
+      window.removeEventListener('drop', ended, true);
       window.removeEventListener('dragenter', enter);
       window.removeEventListener('dragleave', leave);
       window.removeEventListener('dragover', over);
@@ -2380,6 +2486,9 @@ function Operator(): React.JSX.Element {
                   </div>
                 )}
                 <div className="slide-grid">
+                  {(draggingMedia || draggingFiles) && gi === 0 && group.slides[0] && (
+                    <NewMediaSlide first onDropMedia={(drop) => void dropMediaAsSlides(group.groupId, drop, group.slides[0].slide.cueId)} />
+                  )}
                   {group.slides.map(({ slide, index }) => (
                     <SlideTile
                       key={slide.id}
@@ -2402,12 +2511,19 @@ function Operator(): React.JSX.Element {
                           }
                         })
                       }
-                      onDropSlide={(drag) => dropSlideOn(selected.deck, drag, slide, apply)}
+                      onDropSlide={(drag, side) => dropSlideOn(selected.deck, drag, slide, apply, side)}
+                      onDropMedia={(drop) => void dropMediaOnSlide(slide, index, drop)}
                     />
                   ))}
+                  {(draggingMedia || draggingFiles) && groups.findIndex((g) => g.groupId === group.groupId) === gi && <NewMediaSlide onDropMedia={(drop) => void dropMediaAsSlides(group.groupId, drop)} />}
                 </div>
               </div>
             ))}
+            {!groups.length && (draggingMedia || draggingFiles) && (
+              <div className="slide-grid">
+                <NewMediaSlide onDropMedia={(drop) => void dropMediaAsSlides(null, drop)} />
+              </div>
+            )}
           </>
         ) : (
           <div className="empty-state">
@@ -2628,6 +2744,7 @@ function Operator(): React.JSX.Element {
             <strong>Drop to add</strong>
             <span>Songs, PowerPoint, Word and text files go to the library (drop on the service to add them there too)</span>
             <span>Pictures and videos go to the media bin · Bible files to the Bible · Playlists become service playlists</span>
+            <span>Drop a picture or video on a slide to make it the background, or in the dashed space for a new slide</span>
           </div>
         </div>
       )}

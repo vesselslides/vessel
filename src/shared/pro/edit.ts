@@ -352,6 +352,39 @@ export function addSlide(p: Presentation, groupId: string, text = '', afterCueId
   return { presentation, cueId };
 }
 
+/**
+ * Media dragged in as slides of their own: a new slide with no words for each
+ * background, at the end of `groupId` (or of the last group; a presentation
+ * with no groups gets one), or before the slide `beforeCueId` in that group.
+ */
+export function addMediaSlides(
+  p: Presentation,
+  groupId: string | null,
+  backgrounds: Background[],
+  beforeCueId?: string
+): { presentation: Presentation; cueIds: string[] } {
+  let next = p;
+  const cueIds: string[] = [];
+  let group = groupId ?? (p.cueGroups.length ? uuidOf(p.cueGroups[p.cueGroups.length - 1].group?.uuid) : null);
+  for (const bg of backgrounds) {
+    let cueId: string;
+    if (!group) {
+      // addGroup starts the group with one empty slide: that's the first one.
+      const added = addGroup(next, 'Media');
+      group = added.groupId;
+      next = added.presentation;
+      cueId = uuidOf(next.cueGroups[next.cueGroups.length - 1].cueIdentifiers[0]);
+    } else {
+      const added = beforeCueId ? insertSlideBefore(next, group, beforeCueId) : addSlide(next, group, '');
+      next = added.presentation;
+      cueId = added.cueId;
+    }
+    next = setSlideBackground(next, cueId, bg);
+    cueIds.push(cueId);
+  }
+  return { presentation: next, cueIds };
+}
+
 export function duplicateSlide(p: Presentation, groupId: string, cueId: string): Presentation {
   return edit(p, (d) => {
     const group = findGroup(d, groupId);

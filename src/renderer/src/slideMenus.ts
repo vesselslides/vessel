@@ -166,12 +166,20 @@ export async function openGroupMenu(deck: Deck, groupId: string, apply: Apply): 
 }
 
 /** Where a dragged slide lands: before `target` in its group. */
-export function dropSlideOn(deck: Deck, drag: { groupId: string; cueId: string }, target: SlideView, apply: Apply): void {
+export type DropSide = 'before' | 'after';
+
+/** Which half of a slide the pointer is over: dropped on the left half, a slide goes before it; on the right half, after it. */
+export function dropSide(e: { clientX: number; currentTarget: EventTarget }): DropSide {
+  const r = (e.currentTarget as Element).getBoundingClientRect();
+  return e.clientX < r.left + r.width / 2 ? 'before' : 'after';
+}
+
+export function dropSlideOn(deck: Deck, drag: { groupId: string; cueId: string }, target: SlideView, apply: Apply, side: DropSide = 'before'): void {
   if (drag.cueId === target.cueId) return;
   const group = deck.groups.find((x) => x.id === target.groupId);
   const index = group?.slides.findIndex((s) => s.cueId === target.cueId) ?? -1;
   if (index < 0) return;
-  apply((p) => moveSlide(p, drag.groupId, drag.cueId, target.groupId, index));
+  apply((p) => moveSlide(p, drag.groupId, drag.cueId, target.groupId, side === 'after' ? index + 1 : index));
 }
 
 /** Drag type for slides, shared by Show and Edit; payload is JSON {groupId, cueId}. */

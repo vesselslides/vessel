@@ -36,7 +36,7 @@ import type { Deck, GroupView, MediaItem, SlideView } from '../../shared/types';
 import { MediaView } from './AudienceView';
 import { MEDIA_MIME } from './MediaBin';
 import { SlideCanvas } from './SlideCanvas';
-import { openGroupMenu, openSlideMenu, SLIDE_DRAG } from './slideMenus';
+import { dropSide, openGroupMenu, openSlideMenu, SLIDE_DRAG, type DropSide } from './slideMenus';
 
 export type Apply = (change: (p: Presentation) => Presentation) => void;
 
@@ -77,7 +77,7 @@ interface CardProps {
 
 function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }: CardProps): React.JSX.Element {
   const [text, setText] = useState(slide.text);
-  const [dropHint, setDropHint] = useState<'slide' | 'media' | null>(null);
+  const [dropHint, setDropHint] = useState<DropSide | 'media' | null>(null);
   const area = useRef<HTMLTextAreaElement>(null);
   const card = useRef<HTMLDivElement>(null);
   useEffect(() => setText(slide.text), [slide.text]);
@@ -112,13 +112,13 @@ function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }
   const visual = media.filter((m) => m.kind !== 'audio');
   const options = bgPath && !visual.some((m) => m.path === bgPath) ? [...visual, { id: 'current', path: bgPath, name: mediaName(bgPath), kind: slide.background!.kind }] : visual;
 
-  const accepts = (e: DragEvent): 'slide' | 'media' | null =>
-    e.dataTransfer.types.includes(SLIDE_DRAG) ? 'slide' : e.dataTransfer.types.includes(MEDIA_MIME) ? 'media' : null;
+  const accepts = (e: DragEvent): DropSide | 'media' | null =>
+    e.dataTransfer.types.includes(SLIDE_DRAG) ? dropSide(e) : e.dataTransfer.types.includes(MEDIA_MIME) ? 'media' : null;
 
   return (
     <div
       ref={card}
-      className={`edit-card ${dropHint === 'slide' ? 'drop-before' : dropHint === 'media' ? 'drop-media' : ''}`}
+      className={`edit-card ${dropHint ? `drop-${dropHint}` : ''}`}
       onContextMenu={(e) => {
         e.preventDefault();
         menu();
@@ -142,7 +142,8 @@ function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }
         e.preventDefault();
         e.stopPropagation();
         const drag = JSON.parse(raw) as { groupId: string; cueId: string };
-        if (drag.cueId !== slide.cueId) apply((p) => moveSlide(p, drag.groupId, drag.cueId, group.id, index));
+        // The left half of a slide puts it before this one, the right half after.
+        if (drag.cueId !== slide.cueId) apply((p) => moveSlide(p, drag.groupId, drag.cueId, group.id, dropSide(e) === 'after' ? index + 1 : index));
       }}
     >
       {/* Drag the picture to move the slide; the text box stays free for selecting text. */}

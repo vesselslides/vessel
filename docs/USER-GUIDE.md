@@ -21,6 +21,12 @@ in-app tour (the **?** button at the top right) shows where things are, and
   clicking a slide shows its media again.
 - **Slide grid:** click a slide to show it. The live slide is marked LIVE and
   the one → or Space will show next is marked NEXT.
+- **Drag media onto slides:** drop a picture or video from the media bin (or
+  from Finder or Explorer) on a slide to make it that slide's background; the
+  words stay. While you drag, each group shows a dashed *Drop here for a new
+  slide* space, and the first slide has one before it: drop there for a new
+  slide with just that media and no words.
+  ⌘Z / Ctrl+Z undoes either.
 
 ## Features
 
@@ -235,7 +241,8 @@ in-app tour (the **?** button at the top right) shows where things are, and
   its text, insert before/after, duplicate, move to another group, set its
   background, add a picture or delete it; right-click a group label to add a
   slide, change its colour or delete it. Drag slides to reorder them, also into
-  another group.
+  another group: drop on the left half of a slide to put it before, the right
+  half to put it after (a line shows which).
 - **CCLI (copyright and reporting)** (*Tools ▸ CCLI…*): for churches with a
   CCLI licence. Each song's title, writers, copyright year, publisher and CCLI
   song number live in *Edit ▸ Song info (CCLI)…*, saved in the `.pro` file the

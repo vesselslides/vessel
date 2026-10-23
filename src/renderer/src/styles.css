@@ -579,6 +579,10 @@ body.output #root {
   border-left-color: var(--accent);
 }
 
+.edit-card.drop-after {
+  border-right-color: var(--accent);
+}
+
 .edit-card textarea {
   border: none !important;
   border-radius: 0 !important;
@@ -1713,6 +1717,11 @@ kbd.hotkey,
 .slide-tile.drop-before {
   border-left-color: var(--accent);
   box-shadow: -4px 0 0 var(--accent);
+}
+
+.slide-tile.drop-after {
+  border-right-color: var(--accent);
+  box-shadow: 4px 0 0 var(--accent);
 }
 
 .group-label {
@@ -4509,4 +4518,34 @@ html:has(body.print) {
 .print-lyrics-song h1,
 .print-section h3 {
   break-after: avoid;
+}
+
+/* Media dragged onto slides: a slide that will take it as its background, and the space for a new slide */
+.slide-tile.drop-media {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.slide-tile.new-media-slide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  aspect-ratio: 16 / 9;
+  border: 2px dashed var(--border-strong);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.slide-tile.new-media-slide span:first-child {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.slide-tile.new-media-slide.drop-media {
+  border-style: solid;
+  color: var(--accent);
 }
