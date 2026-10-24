@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="build/logo/vessel-logo-light.svg">
+    <img src="build/logo/vessel-logo.svg" alt="Vessel" width="96">
+  </picture>
+</p>
+
 # Vessel
 
 **Free presentation software for churches.** Songs, Bible verses, videos and

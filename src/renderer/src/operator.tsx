@@ -52,7 +52,7 @@ import { BiblePanel } from './BiblePanel';
 import { AudioPlayer, type AudioTrack } from './AudioPlayer';
 import { binKindOf, mediaName } from '../../shared/media';
 import { backgroundForPath } from '../../shared/pro/background';
-import { BibleIcon, CheckIcon, HelpIcon, ImportIcon, MutedIcon, NewSongIcon, OpenIcon, PlayIcon, PlaylistIcon, RemoteIcon, SaveIcon, SettingsIcon, SoundIcon, ThemesIcon, WarningIcon } from './Icons';
+import { BibleIcon, CheckIcon, HelpIcon, ImportIcon, MutedIcon, NewSongIcon, OpenIcon, PlayIcon, PlaylistIcon, RemoteIcon, SaveIcon, SettingsIcon, SoundIcon, ThemesIcon, VesselMark, WarningIcon } from './Icons';
 import { ModeSwitch, ScreensButton, ToolButton } from './Toolbar';
 import { CommandPalette, type PaletteAction } from './CommandPalette';
 import { WelcomeDialog } from './WelcomeDialog';
@@ -2331,7 +2331,10 @@ function Operator(): React.JSX.Element {
     <div className={`app ${mediaDrag ? 'resizing' : ''}`} style={{ '--media-height': `${mediaHeight}px` } as React.CSSProperties}>
       <header className="toolbar">
         <div className="toolbar-start">
-          <div className="brand">Vessel</div>
+          <div className="brand">
+            <VesselMark size={22} />
+            Vessel
+          </div>
           <div className="tool-group">
             <ToolButton label="New song" keys="Mod+N" icon={<NewSongIcon size={20} />} onClick={() => setShowNewSong(true)} />
             <ToolButton label="Open a presentation (.pro, or an older .pro5, .pro6, .pro6x)" keys="Mod+O" icon={<OpenIcon size={20} />} onClick={openPresentations} />

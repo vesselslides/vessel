@@ -223,3 +223,22 @@ export const CheckIcon = (p: IconProps): React.JSX.Element => (
     <path d="M5 12.5l4.5 4.5L19 7.5" />
   </Icon>
 );
+
+/**
+ * Vessel's mark: a play button split into a gold V and its tip. The tip takes
+ * the text colour, so it shows on light and dark themes. Same shapes as
+ * build/logo/vessel-logo.svg.
+ */
+export const VesselMark = ({ size = 20, title }: { size?: number; title?: string }): React.JSX.Element => (
+  <svg className="vessel-mark" width={size * 0.9} height={size} viewBox="290 206 518 588" role={title ? 'img' : undefined} aria-hidden={title ? undefined : true} focusable="false">
+    {title && <title>{title}</title>}
+    <defs>
+      <linearGradient id="vesselMarkGold" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stopColor="#d9b97a" />
+        <stop offset="1" stopColor="#a77d43" />
+      </linearGradient>
+    </defs>
+    <polygon points="322,238.1 322,761.9 562.7,622.9 509.7,531.1 428,578.3 428,299.3" fill="url(#vesselMarkGold)" stroke="url(#vesselMarkGold)" strokeWidth="44" strokeLinejoin="round" />
+    <polygon points="638.9,578.9 775.6,500 502.1,342.1" fill="currentColor" stroke="currentColor" strokeWidth="44" strokeLinejoin="round" />
+  </svg>
+);
