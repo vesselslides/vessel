@@ -30,6 +30,7 @@ import { checkForUpdates, checkForUpdatesOnLaunch } from './updates';
 import { describe, endRun, log, startRun } from './log';
 import { saveProblemReport } from './problemReport';
 import { installSamples } from './samples';
+import { shouldInstallSamples } from '../shared/samples';
 import { exportDocument } from './exports';
 import { onlineGallery, submitToGallery } from './themeGallery';
 import { exportPlaylistBundle, readPlaylistFile } from './playlistBundles';
@@ -752,8 +753,15 @@ app.whenReady().then(async () => {
   setupContextMenu();
   setupAppMenu(() => operatorWindow, appIcon, { get: () => streamTarget, set: (t) => void chooseStreamOutput(t) });
   void watchLibrary(notifyLibrary);
-  if (freshInstall) {
+  const needsSamples = shouldInstallSamples({
+    freshInstall,
+    samplesInstalled: (await getSettings()).samplesInstalled,
+    songs: (await listLibrary()).length,
+    playlists: (await listPlaylists()).length
+  });
+  if (needsSamples) {
     try {
+      log.info(freshInstall ? 'First start: setting up the samples' : 'Setting up the samples (never set up, and the library is empty)');
       const samples = await installSamples();
       // The sample service opens on this first start.
       if (samples.playlist) await updateSettings({ lastPlaylist: samples.playlist });
