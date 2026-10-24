@@ -42,8 +42,8 @@ using it.
 
 ## Download and install
 
-Download the right file from the releases page *(the address will be added
-when the public repository is created)*:
+**[Download the latest version](https://github.com/vesselslides/vessel/releases/latest).**
+On that page, under *Assets*, choose the file for your computer:
 
 | Your computer | File |
 |---|---|
@@ -51,13 +51,31 @@ when the public repository is created)*:
 | Mac with an Intel chip | `Vessel-<version>-mac-x64.dmg` |
 | Windows (any) | `Vessel-<version>-win.exe` (installs the right version for the PC) |
 
-Vessel isn't code-signed yet, so the first start needs one extra step:
+Not sure which Mac you have? Choose **Apple menu ▸ About This Mac**: "Chip"
+means Apple chip; "Processor … Intel" means Intel.
 
-- **Mac:** open the `.dmg` and drag Vessel into Applications. The first time you
-  open it, macOS may say it can't check the app. Open **System Settings ▸
-  Privacy & Security**, scroll down and choose **Open Anyway**, then **Open**.
-- **Windows:** if "Windows protected your PC" appears, choose **More info**, then
-  **Run anyway**.
+**Mac**
+
+1. Open the `.dmg` and drag **Vessel** into **Applications**.
+2. Open Vessel from Applications. The first time, macOS may say it can't check
+   the app for malicious software (Vessel isn't code-signed yet).
+3. Open **System Settings ▸ Privacy & Security**, scroll down to the message
+   about Vessel and choose **Open Anyway**, then **Open**. You only do this once.
+
+**Windows**
+
+1. Run `Vessel-<version>-win.exe`.
+2. If "Windows protected your PC" appears, choose **More info**, then
+   **Run anyway** (Vessel isn't code-signed yet).
+3. Vessel installs for you (no administrator needed) and opens.
+
+**Updates:** Vessel checks for a new version once a day (switch this off in
+Preferences ▸ General) and offers to download it; nothing installs without you.
+**Help ▸ Check for Updates** checks now.
+
+**System requirements:** macOS 12 or later, or Windows 10 or 11 (64-bit or
+Arm). A second screen (projector or TV) for the audience; a third for a stage
+display if you have one.
 
 ## First steps
 
@@ -101,13 +119,20 @@ words, Shift+Esc to clear everything, and `.` (full stop) for a black screen.
 
 - **Help ▸ Take the Tour** and **Help ▸ Open the Practice Song**, to learn by
   doing.
-- **Help ▸ Report a Problem…** saves one file with Vessel's logs (no songs or
-  personal details) to send to whoever looks after Vessel.
+- **Something wrong?** Choose **Help ▸ Report a Problem…**: it saves one file
+  with Vessel's logs (no songs or personal details). Then
+  [open an issue](https://github.com/vesselslides/vessel/issues/new/choose),
+  say what happened and attach the file.
+- **Ideas and questions:** [open an issue](https://github.com/vesselslides/vessel/issues/new/choose)
+  too; there's a form for each.
+- **Share a theme** with other churches: **Themes ▸ Browse the gallery ▸ Share
+  one of yours…** ([how themes are added](gallery/README.md)).
 
 ## Privacy
 
 No accounts, no analytics, no tracking. Vessel only goes online for update
-checks, Bible downloads and Planning Center, and only when you use them. See
+checks, Bible downloads, the theme gallery and Planning Center, and only when
+you use them. See
 [PRIVACY.md](PRIVACY.md).
 
 ## Licence

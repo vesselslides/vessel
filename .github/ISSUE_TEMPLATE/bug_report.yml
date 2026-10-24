@@ -1,0 +1,49 @@
+name: Something isn't working
+description: Vessel did something wrong, crashed, or wouldn't open a file.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Please don't paste song lyrics or personal details here: this page is public.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+      placeholder: I clicked the second slide of a song and the screen stayed black.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can we make it happen?
+      description: The steps, one per line, if you can repeat it.
+      placeholder: |
+        1. Open the Sample Sunday Service
+        2. Click Amazing Grace
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: Vessel version
+      description: Vessel ▸ About Vessel on a Mac, or Help ▸ About Vessel on Windows.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: computer
+    attributes:
+      label: Computer
+      options:
+        - Mac with an Apple chip
+        - Mac with an Intel chip
+        - Windows (Intel or AMD)
+        - Windows (Arm)
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Problem report
+      description: Choose Help ▸ Report a Problem… in Vessel and drag the file it saves here. It holds Vessel's logs, not your songs.

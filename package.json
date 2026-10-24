@@ -5,6 +5,14 @@
   "description": "Free presentation software for churches: songs, Bible, media and screens",
   "license": "GPL-3.0-or-later",
   "author": "Vessel contributors",
+  "homepage": "https://github.com/vesselslides/vessel",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vesselslides/vessel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vesselslides/vessel/issues"
+  },
   "private": true,
   "main": "out/main/index.js",
   "scripts": {

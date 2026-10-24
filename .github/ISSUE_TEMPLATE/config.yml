@@ -1,0 +1,10 @@
+# Blank issues stay on: Vessel's "Share one of yours…" in the theme gallery
+# opens a prefilled new issue (labelled "theme"), which needs them.
+blank_issues_enabled: true
+contact_links:
+  - name: Share a theme
+    url: https://github.com/vesselslides/vessel/blob/main/gallery/README.md
+    about: In Vessel, Themes ▸ Browse the gallery ▸ Share one of yours… fills in the issue for you.
+  - name: User guide
+    url: https://github.com/vesselslides/vessel/blob/main/docs/USER-GUIDE.md
+    about: Every feature, explained.

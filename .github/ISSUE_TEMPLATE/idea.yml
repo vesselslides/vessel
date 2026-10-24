@@ -1,0 +1,17 @@
+name: An idea or a question
+description: Something Vessel could do, or something you'd like to know.
+labels: ["idea"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: What you're trying to do on a Sunday, and what gets in the way.
+      placeholder: We'd like the stage display to show the next song's title.
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: How you do it today, screenshots, or how another program does it.

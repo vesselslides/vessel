@@ -52,10 +52,26 @@ built for (`npm run ndi-binaries`, run by `dist:mac` and `dist:win`).
 ### Releases and update checks
 
 Update checks look at the latest GitHub release of the repository named in
-`package.json`'s `repository` field. Until that's set they're off, and
-*Check for Updates* says so. Release assets need electron-builder's names:
-`Vessel-<version>-mac-arm64.dmg`, `-mac-x64.dmg`, `-win.exe` (both Windows
-versions in one) and `-win-x64.exe`.
+`package.json`'s `repository` field (`vesselslides/vessel`). Release assets
+need electron-builder's names: `Vessel-<version>-mac-arm64.dmg`,
+`-mac-x64.dmg`, `-win.exe` (both Windows versions in one) and `-win-x64.exe`.
+
+To make a release:
+
+1. Raise `version` in `package.json`, write `docs/releases/v<version>.md`, and
+   commit.
+2. `npm test`, then `npm run dist:mac` and `npm run dist:win`.
+3. Tag and publish, attaching the four installers:
+
+   ```bash
+   git tag v<version> && git push origin main v<version>
+   gh release create v<version> --title "Vessel <version>" \
+     --notes-file docs/releases/v<version>.md \
+     dist/Vessel-<version>-mac-arm64.dmg dist/Vessel-<version>-mac-x64.dmg \
+     dist/Vessel-<version>-win.exe dist/Vessel-<version>-win-x64.exe
+   ```
+
+Every copy of Vessel offers the update within a day.
 
 ## Layout
 

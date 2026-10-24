@@ -10,7 +10,7 @@ you use one of the features below, and only for what that feature needs.
 |---|---|---|
 | **Update checks** | Once a day when Vessel starts, if switched on (Preferences ▸ General), and when you choose Help ▸ Check for Updates | Asks GitHub for the latest Vessel version. It sends only the request itself, with Vessel's version in it. Downloading an update only happens if you choose to. |
 | **Bible downloads** | When you download a Bible in the Bible panel | Downloads that Bible from ebible.org. |
-| **Theme gallery** | When you open Themes ▸ Browse the gallery (once Vessel's public repository is set up) | Downloads the list of community themes from GitHub. Submitting a theme opens a page in your web browser; nothing is sent unless you submit it there. |
+| **Theme gallery** | When you open Themes ▸ Browse the gallery | Downloads the list of community themes from GitHub. Submitting a theme opens a page in your web browser; nothing is sent unless you submit it there. |
 | **Planning Center** | Only after you connect it (Tools ▸ Planning Center) | Reads your service types, plans and songs from Planning Center, using the token you gave it. Vessel never changes anything in Planning Center. |
 
 Links such as ndi.video or Planning Center's token page open in your web

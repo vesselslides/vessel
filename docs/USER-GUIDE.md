@@ -179,8 +179,8 @@ in-app tour (the **?** button at the top right) shows where things are, and
   settings folder.
 - **Theme gallery** (Themes ▸ *Browse the gallery*): themes made by churches for
   churches. A starter set comes with Vessel (Hymnal, High Contrast, Stream
-  Caption, Christmas Gold and more); community themes are listed too once
-  Vessel's public website is set up. *Add* copies one into your themes. *Share
+  Caption, Christmas Gold and more), plus community themes shared by other
+  churches. *Add* copies one into your themes. *Share
   one of yours…* opens a page proposing your theme for the gallery; only the
   theme is sent (font, colours and layout).
 - **Export** (File ▸ Export…, ⇧⌘E / Ctrl+Shift+E, or right-click the service):
