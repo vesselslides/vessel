@@ -87,13 +87,72 @@ app.on('second-instance', (_e, argv) => {
 
 const preload = join(__dirname, '../preload/index.js');
 
-function loadPage(win: BrowserWindow, page: 'index' | 'output' | 'stage' | 'stream' | 'print', hash = ''): void {
+function loadPage(win: BrowserWindow, page: 'index' | 'output' | 'stage' | 'stream' | 'print' | 'splash', hash = ''): void {
   const devUrl = process.env['ELECTRON_RENDERER_URL'];
   if (!app.isPackaged && devUrl) void win.loadURL(`${devUrl}/${page}.html${hash ? `#${hash}` : ''}`);
   else void win.loadFile(join(__dirname, `../renderer/${page}.html`), hash ? { hash } : undefined);
 }
 
+/** The splash shows at least this long, so its animation plays through. */
+const SPLASH_MS = 2800;
+
+/** The logo splash while Vessel starts; null once it has handed over to the operator window. */
+let splashWindow: BrowserWindow | null = null;
+let splashShownAt = 0;
+
+function showSplash(): void {
+  splashWindow = new BrowserWindow({
+    width: 720,
+    height: 440,
+    frame: false,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    center: true,
+    show: false,
+    title: 'Vessel',
+    icon: appIcon,
+    backgroundColor: '#16202b',
+    webPreferences: { sandbox: true, contextIsolation: true }
+  });
+  splashWindow.once('ready-to-show', () => {
+    splashShownAt = Date.now();
+    splashWindow?.show();
+  });
+  splashWindow.on('closed', () => (splashWindow = null));
+  loadPage(splashWindow, 'splash', app.getVersion());
+}
+
+/** Show the operator window once it's drawn and the splash has played, then fade the splash out. */
+function handOverFromSplash(win: BrowserWindow): void {
+  let handedOver = false;
+  const handOver = (): void => {
+    if (handedOver) return;
+    handedOver = true;
+    const wait = splashShownAt ? Math.max(0, SPLASH_MS - (Date.now() - splashShownAt)) : 0;
+    setTimeout(() => {
+      if (!win.isDestroyed()) win.show();
+      const splash = splashWindow;
+      if (!splash) return;
+      let opacity = 1;
+      const fade = setInterval(() => {
+        opacity -= 0.1;
+        if (splash.isDestroyed() || opacity <= 0) {
+          clearInterval(fade);
+          if (!splash.isDestroyed()) splash.close();
+        } else splash.setOpacity(opacity);
+      }, 20);
+    }, wait);
+  };
+  win.once('ready-to-show', handOver);
+  // Never leave Vessel hidden behind the splash, whatever happens to the page.
+  setTimeout(handOver, 15000);
+}
+
 function createOperatorWindow(): void {
+  const behindSplash = !!splashWindow;
   operatorWindow = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -103,8 +162,10 @@ function createOperatorWindow(): void {
     // Windows and Linux show it in the title bar and taskbar; on a Mac the app bundle's icon is used.
     icon: appIcon,
     backgroundColor: '#0f161e',
+    show: !behindSplash,
     webPreferences: { preload, sandbox: false, contextIsolation: true }
   });
+  if (behindSplash) handOverFromSplash(operatorWindow);
   loadPage(operatorWindow, 'index');
   // Files opened before the window is listening wait in pendingOpen; the window asks for them ('files:pending').
   operatorReady = false;
@@ -745,6 +806,8 @@ app.whenReady().then(async () => {
       console.error('Moving files from Lumen failed:', err);
     }
   }
+  // The splash covers the rest of starting up. (Reading settings doesn't write settings.json, so a new install still counts as new.)
+  if ((await getSettings()).splash !== false) showSplash();
   // A brand-new install (no settings yet) gets the samples, set up before the window opens.
   const freshInstall = !existsSync(join(app.getPath('userData'), 'settings.json'));
   handleMediaProtocol();

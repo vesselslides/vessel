@@ -173,6 +173,10 @@ export function PreferencesDialog({
                 <input type="checkbox" checked={settings?.reopenLastPlaylist !== false} onChange={(e) => onSettings({ reopenLastPlaylist: e.target.checked })} />
                 Open the last service playlist when Vessel starts
               </label>
+              <label className="pref-check">
+                <input type="checkbox" checked={settings?.splash !== false} onChange={(e) => onSettings({ splash: e.target.checked })} />
+                Show the Vessel logo while it starts
+              </label>
               <h3>Updates</h3>
               <label className="pref-check">
                 <input type="checkbox" checked={settings?.checkUpdates !== false} onChange={(e) => onSettings({ checkUpdates: e.target.checked })} />

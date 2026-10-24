@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:" />
+    <title>Vessel</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #16202b;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        user-select: none;
+        cursor: default;
+        -webkit-app-region: drag;
+      }
+
+      .splash {
+        position: relative;
+        height: 100%;
+        background: radial-gradient(120% 120% at 80% 35%, #26384c 0%, #16202b 55%, #0e151c 100%);
+      }
+
+      .glow {
+        position: absolute;
+        left: 50%;
+        top: 40%;
+        width: 60%;
+        aspect-ratio: 1;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(217, 185, 122, 0.22), transparent 65%);
+        animation: glow 1.4s 0.85s ease-out both;
+      }
+
+      /* The logo appears, is pressed like a play button, then steps aside for the words. */
+      .lockup {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 16%;
+        height: 46%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .mark {
+        height: 100%;
+        flex: none;
+        overflow: visible;
+        animation: pop-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      }
+
+      .press {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: press 0.75s 0.75s cubic-bezier(0.3, 0.7, 0.3, 1.4) both;
+      }
+
+      .ring {
+        fill: none;
+        stroke: #d9b97a;
+        stroke-width: 10;
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: ring 1s 0.9s ease-out both;
+      }
+
+      .ring.white {
+        stroke: #fff;
+        stroke-width: 5;
+        animation-delay: 1.05s;
+      }
+
+      .words {
+        max-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        opacity: 0;
+        animation: reveal 0.8s 1.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+      }
+
+      .wordmark {
+        display: block;
+        height: 72px;
+        margin: 0 0 0 4px;
+      }
+
+      .version {
+        margin: -6px 0 0 28px;
+        color: #b9c2cc;
+        font-size: 10px;
+        letter-spacing: 0.14em;
+      }
+
+      .status {
+        position: absolute;
+        left: 47px;
+        bottom: 75px;
+        color: #b9c2cc;
+        font-size: 13px;
+        animation: fade-up 0.6s 1.3s both;
+      }
+
+      .bar {
+        position: absolute;
+        left: 47px;
+        bottom: 59px;
+        width: 34%;
+        height: 3px;
+        border-radius: 3px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.08);
+        animation: fade-up 0.6s 1.3s both;
+      }
+
+      .bar i {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, #d9b97a, #a77d43);
+        animation: load 2.2s 1.4s ease-in-out forwards;
+      }
+
+      .foot {
+        position: absolute;
+        left: 47px;
+        right: 47px;
+        bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        color: #6f7d8c;
+        font-size: 11px;
+        animation: fade-up 0.6s 1.5s both;
+      }
+
+      @keyframes pop-in {
+        from {
+          opacity: 0;
+          transform: scale(0.85);
+        }
+      }
+
+      @keyframes press {
+        0% {
+          transform: none;
+          filter: drop-shadow(0 0 0 rgba(217, 185, 122, 0));
+        }
+        25% {
+          transform: scale(0.84);
+          filter: drop-shadow(0 0 0 rgba(217, 185, 122, 0));
+        }
+        60% {
+          transform: scale(1.07);
+          filter: drop-shadow(0 0 40px rgba(217, 185, 122, 0.9));
+        }
+        100% {
+          transform: none;
+          filter: drop-shadow(0 0 0 rgba(217, 185, 122, 0));
+        }
+      }
+
+      @keyframes ring {
+        0% {
+          opacity: 0;
+          transform: scale(0.8);
+        }
+        8% {
+          opacity: 0.9;
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1.9);
+        }
+      }
+
+      @keyframes glow {
+        0% {
+          opacity: 0;
+        }
+        30% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0.5;
+        }
+      }
+
+      @keyframes reveal {
+        to {
+          max-width: 420px;
+          opacity: 1;
+        }
+      }
+
+      @keyframes fade-up {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+
+      @keyframes load {
+        to {
+          width: 100%;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 1ms !important;
+          animation-delay: 0s !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="splash">
+      <div class="glow"></div>
+      <div class="lockup">
+        <svg class="mark" viewBox="290 206 518 588" aria-hidden="true">
+          <defs>
+            <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#d9b97a" />
+              <stop offset="1" stop-color="#a77d43" />
+            </linearGradient>
+          </defs>
+          <circle class="ring" cx="549" cy="500" r="270" />
+          <circle class="ring white" cx="549" cy="500" r="270" />
+          <g class="press">
+            <polygon points="322,238.1 322,761.9 562.7,622.9 509.7,531.1 428,578.3 428,299.3" fill="url(#gold)" stroke="url(#gold)" stroke-width="44" stroke-linejoin="round" />
+            <polygon points="638.9,578.9 775.6,500 502.1,342.1" fill="#fff" stroke="#fff" stroke-width="44" stroke-linejoin="round" />
+          </g>
+        </svg>
+        <div class="words">
+          <img class="wordmark" src="./src/assets/vessel-slides-wordmark-reverse.svg" alt="Vessel Slides" />
+          <div class="version" id="version"></div>
+        </div>
+      </div>
+      <div class="status">Starting…</div>
+      <div class="bar"><i></i></div>
+      <div class="foot"><span>Free presentation software for churches</span><span id="copyright">© Vessel contributors</span></div>
+    </div>
+    <script type="module" src="./src/splash.ts"></script>
+  </body>
+</html>

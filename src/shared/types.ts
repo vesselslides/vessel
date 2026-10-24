@@ -335,6 +335,8 @@ export interface Settings {
   slideSize?: { width: number; height: number };
   /** Open the last service playlist when Vessel starts. On unless turned off. */
   reopenLastPlaylist?: boolean;
+  /** Show the logo splash while Vessel starts. On unless turned off. */
+  splash?: boolean;
   /** Put the audience screen back on its display when Vessel starts. On unless turned off. */
   showOutputAtLaunch?: boolean;
   /** The church's logo (a picture), shown by the Logo button. */

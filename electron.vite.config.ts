@@ -14,7 +14,8 @@ export default defineConfig({
           output: resolve(__dirname, 'src/renderer/output.html'),
           stage: resolve(__dirname, 'src/renderer/stage.html'),
           stream: resolve(__dirname, 'src/renderer/stream.html'),
-          print: resolve(__dirname, 'src/renderer/print.html')
+          print: resolve(__dirname, 'src/renderer/print.html'),
+          splash: resolve(__dirname, 'src/renderer/splash.html')
         }
       }
     }
