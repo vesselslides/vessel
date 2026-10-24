@@ -1,15 +1,15 @@
 :root {
-  --bg: #15161a;
-  --panel: #1d1f24;
-  --panel-2: #262930;
-  --border: #33363f;
-  --border-strong: #4a4e59;
-  --text: #e8e9ec;
-  --muted: #8b8f99;
-  --accent: #e0a526;
+  --bg: #0f161e;
+  --panel: #151f2a;
+  --panel-2: #1c2835;
+  --border: #273443;
+  --border-strong: #3a4a5c;
+  --text: #eef0f2;
+  --muted: #8f9cab;
+  --accent: #d9b97a;
   /* Text on an accent-coloured button */
-  --on-accent: #1a1408;
-  --selected: #3a3220;
+  --on-accent: #16202b;
+  --selected: #2c2a20;
   --live: #e5484d;
   --ok: #3fb950;
   --error: #ff8a8a;
@@ -25,7 +25,7 @@
   --glass-highlight: rgba(255, 255, 255, 0.09);
   --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 18px rgba(0, 0, 0, 0.18);
   --glass-thumb: linear-gradient(to bottom, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1));
-  --toolbar-bg: linear-gradient(to bottom, rgba(40, 42, 50, 0.92), rgba(29, 31, 36, 0.96));
+  --toolbar-bg: linear-gradient(to bottom, rgba(27, 39, 53, 0.94), rgba(20, 30, 41, 0.97));
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   font-size: 13px;
@@ -33,53 +33,53 @@
 
 /* Light appearance (Preferences ▸ Appearance). Screens and previews stay black. */
 :root[data-theme='light'] {
-  --bg: #f3f4f6;
+  --bg: #f6f4ef;
   --panel: #ffffff;
-  --panel-2: #eceef2;
-  --border: #d7d9df;
-  --border-strong: #b5b9c3;
-  --text: #1c1e23;
-  --muted: #646975;
-  --accent: #b97f12;
+  --panel-2: #efebe3;
+  --border: #ddd7cb;
+  --border-strong: #bdb5a6;
+  --text: #16202b;
+  --muted: #5b6573;
+  --accent: #8a6633;
   --on-accent: #ffffff;
-  --selected: #f7ecd4;
+  --selected: #f1e6cf;
   --live: #d6343a;
   --ok: #1f8a3b;
   --error: #c62828;
-  --backdrop: rgba(20, 22, 28, 0.35);
+  --backdrop: rgba(22, 32, 43, 0.35);
   --glass: rgba(255, 255, 255, 0.72);
-  --glass-hover: rgba(0, 0, 0, 0.05);
-  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-hover: rgba(138, 102, 51, 0.08);
+  --glass-border: rgba(22, 32, 43, 0.08);
   --glass-highlight: rgba(255, 255, 255, 0.95);
   --glass-shadow: 0 1px 2px rgba(20, 22, 28, 0.08), 0 6px 18px rgba(20, 22, 28, 0.06);
-  --glass-thumb: linear-gradient(to bottom, #ffffff, #f4f5f7);
-  --toolbar-bg: linear-gradient(to bottom, rgba(250, 250, 252, 0.94), rgba(238, 240, 244, 0.96));
+  --glass-thumb: linear-gradient(to bottom, #ffffff, #f6f4ef);
+  --toolbar-bg: linear-gradient(to bottom, rgba(251, 250, 247, 0.96), rgba(242, 239, 232, 0.98));
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: light) {
   :root[data-theme='system'] {
-    --bg: #f3f4f6;
+    --bg: #f6f4ef;
     --panel: #ffffff;
-    --panel-2: #eceef2;
-    --border: #d7d9df;
-    --border-strong: #b5b9c3;
-    --text: #1c1e23;
-    --muted: #646975;
-    --accent: #b97f12;
+    --panel-2: #efebe3;
+    --border: #ddd7cb;
+    --border-strong: #bdb5a6;
+    --text: #16202b;
+    --muted: #5b6573;
+    --accent: #8a6633;
     --on-accent: #ffffff;
-    --selected: #f7ecd4;
+    --selected: #f1e6cf;
     --live: #d6343a;
     --ok: #1f8a3b;
     --error: #c62828;
-    --backdrop: rgba(20, 22, 28, 0.35);
+    --backdrop: rgba(22, 32, 43, 0.35);
     --glass: rgba(255, 255, 255, 0.72);
-    --glass-hover: rgba(0, 0, 0, 0.05);
-    --glass-border: rgba(0, 0, 0, 0.08);
+    --glass-hover: rgba(138, 102, 51, 0.08);
+    --glass-border: rgba(22, 32, 43, 0.08);
     --glass-highlight: rgba(255, 255, 255, 0.95);
     --glass-shadow: 0 1px 2px rgba(20, 22, 28, 0.08), 0 6px 18px rgba(20, 22, 28, 0.06);
-    --glass-thumb: linear-gradient(to bottom, #ffffff, #f4f5f7);
-    --toolbar-bg: linear-gradient(to bottom, rgba(250, 250, 252, 0.94), rgba(238, 240, 244, 0.96));
+    --glass-thumb: linear-gradient(to bottom, #ffffff, #f6f4ef);
+    --toolbar-bg: linear-gradient(to bottom, rgba(251, 250, 247, 0.96), rgba(242, 239, 232, 0.98));
     color-scheme: light;
   }
 }
@@ -184,7 +184,7 @@ button.danger.active {
   gap: 8px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--accent);
+  color: var(--text);
   margin-right: 8px;
 }
 
@@ -2839,15 +2839,15 @@ button.active-toggle {
 }
 
 .pref-look.dark .pref-look-swatch {
-  background: linear-gradient(90deg, #1d1f24 28%, #15161a 28%);
+  background: linear-gradient(90deg, #151f2a 28%, #0f161e 28%);
 }
 
 .pref-look.light .pref-look-swatch {
-  background: linear-gradient(90deg, #eceef2 28%, #ffffff 28%);
+  background: linear-gradient(90deg, #efebe3 28%, #f6f4ef 28%);
 }
 
 .pref-look.system .pref-look-swatch {
-  background: linear-gradient(135deg, #15161a 50%, #ffffff 50%);
+  background: linear-gradient(135deg, #0f161e 50%, #f6f4ef 50%);
 }
 
 .pref-row {

@@ -102,7 +102,7 @@ function createOperatorWindow(): void {
     title: 'Vessel',
     // Windows and Linux show it in the title bar and taskbar; on a Mac the app bundle's icon is used.
     icon: appIcon,
-    backgroundColor: '#15161a',
+    backgroundColor: '#0f161e',
     webPreferences: { preload, sandbox: false, contextIsolation: true }
   });
   loadPage(operatorWindow, 'index');

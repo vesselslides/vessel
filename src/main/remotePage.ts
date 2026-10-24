@@ -7,7 +7,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#15161a">
+<meta name="theme-color" content="#0f161e">
 <title>Vessel Remote</title>
 <link rel="stylesheet" href="/app.css">
 </head>
@@ -70,14 +70,14 @@ const html = `<!doctype html>
 </html>`;
 
 const css = `
-:root { color-scheme: dark; --bg:#15161a; --panel:#1f2127; --border:#33363f; --text:#e8e9ec; --muted:#8b8f99; --accent:#e0a526; --live:#e5484d; }
+:root { color-scheme: dark; --bg:#0f161e; --panel:#151f2a; --border:#273443; --text:#eef0f2; --muted:#8f9cab; --accent:#d9b97a; --live:#e5484d; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body { margin:0; background:var(--bg); color:var(--text); font:16px -apple-system, system-ui, sans-serif; padding: env(safe-area-inset-top) 12px calc(16px + env(safe-area-inset-bottom)); }
 main { max-width: 640px; margin: 0 auto; }
 h1 { font-size: 22px; margin: 32px 0 8px; }
 button { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; min-height: 48px; }
 button:active { transform: scale(0.98); }
-button.primary { background: var(--accent); border-color: var(--accent); color: #1a1408; font-weight: 700; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #16202b; font-weight: 700; }
 button.on { background: var(--live); border-color: var(--live); }
 input, textarea { font: inherit; color: inherit; background: #0f1013; border: 1px solid var(--border); border-radius: 12px; padding: 12px; width: 100%; }
 #login-form { display: flex; gap: 8px; }
