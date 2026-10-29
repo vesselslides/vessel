@@ -152,7 +152,7 @@ export class NdiSender {
       transparent: true,
       frame: false,
       useContentSize: true,
-      webPreferences: { offscreen: true, sandbox: false, contextIsolation: true, autoplayPolicy: 'no-user-gesture-required', preload: this.opts.preload }
+      webPreferences: { offscreen: true, sandbox: false, contextIsolation: true, autoplayPolicy: 'no-user-gesture-required', backgroundThrottling: false, preload: this.opts.preload }
     });
     this.win = win;
     win.webContents.setFrameRate(FPS);

@@ -52,6 +52,9 @@ if (process.env.VESSEL_USER_DATA) app.setPath('userData', process.env.VESSEL_USE
 // Tests also keep their songs and media out of the real Documents folder.
 if (process.env.VESSEL_DOCUMENTS) app.setPath('documents', process.env.VESSEL_DOCUMENTS);
 registerMediaScheme();
+// Windows stops drawing a window it thinks is covered (by OBS, say), so capture
+// software would keep showing an old picture of the screens. They must always draw.
+if (process.platform === 'win32') app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 
 // One Vessel at a time: two copies would fight over the same library, settings and screens.
 // Opening it again brings the running one forward instead.
@@ -269,7 +272,7 @@ function createScreenWindow(displayId: number, page: 'output' | 'stage' | 'strea
     fullscreen: !display.internal && secondary,
     alwaysOnTop: secondary,
     // Background videos must start with sound without a click on the output.
-    webPreferences: { preload, sandbox: false, contextIsolation: true, autoplayPolicy: 'no-user-gesture-required' }
+    webPreferences: { preload, sandbox: false, contextIsolation: true, autoplayPolicy: 'no-user-gesture-required', backgroundThrottling: false }
   });
   if (process.platform === 'darwin' && win.isFullScreenable() && !display.internal && secondary) fullScreenSettled.set(win, fullScreenChange(win, 'enter-full-screen'));
   loadPage(win, page);
@@ -443,7 +446,8 @@ function setStreamOutput(target: StreamTarget): void {
       backgroundColor: '#000000',
       autoHideMenuBar: true,
       show: false,
-      webPreferences: { preload, sandbox: false, contextIsolation: true, autoplayPolicy: 'no-user-gesture-required' }
+      // Captured by streaming software even when it's behind other windows or minimised.
+      webPreferences: { preload, sandbox: false, contextIsolation: true, autoplayPolicy: 'no-user-gesture-required', backgroundThrottling: false }
     });
     streamWindow.setAspectRatio(16 / 9);
     loadPage(streamWindow, 'stream');
