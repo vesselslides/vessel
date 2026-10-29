@@ -24,6 +24,7 @@ import {
   setArrangementGroups,
   setGroupColor,
   setSlideBackground,
+  setSlideNotes,
   setSlideText,
   splitSlide
 } from '../../shared/pro/edit';
@@ -77,10 +78,12 @@ interface CardProps {
 
 function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }: CardProps): React.JSX.Element {
   const [text, setText] = useState(slide.text);
+  const [notes, setNotes] = useState(slide.notes ?? '');
   const [dropHint, setDropHint] = useState<DropSide | 'media' | null>(null);
   const area = useRef<HTMLTextAreaElement>(null);
   const card = useRef<HTMLDivElement>(null);
   useEffect(() => setText(slide.text), [slide.text]);
+  useEffect(() => setNotes(slide.notes ?? ''), [slide.notes]);
 
   // "Edit text…" from Show lands here: scroll into view and put the cursor at the end.
   useEffect(() => {
@@ -93,6 +96,9 @@ function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }
 
   const commit = (): void => {
     if (text !== slide.text) apply((p) => setSlideText(p, slide.cueId, text));
+  };
+  const commitNotes = (): void => {
+    if (notes.trim() !== (slide.notes ?? '').trim()) apply((p) => setSlideNotes(p, slide.cueId, notes));
   };
   const setBackground = (path: string | null): void => {
     const bg = path ? backgroundForPath(path) : null;
@@ -213,6 +219,20 @@ function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }
           })}
         </div>
       )}
+      <textarea
+        className="slide-notes"
+        value={notes}
+        placeholder="Notes for the presenter"
+        title="Shown on the presenter remote, under this slide"
+        aria-label="Notes for the presenter"
+        // Room for wrapped lines too (about 40 characters fit across a card).
+        rows={Math.min(8, Math.max(1, notes.split('\n').reduce((n, line) => n + Math.max(1, Math.ceil(line.length / 40)), 0)))}
+        onChange={(e) => setNotes(e.target.value)}
+        onBlur={commitNotes}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) (e.target as HTMLTextAreaElement).blur();
+        }}
+      />
       <div className="edit-card-bar">
         <select className="bg-select" title="Slide background" value={bgPath ?? ''} onChange={(e) => setBackground(e.target.value || null)}>
           <option value="">No background</option>

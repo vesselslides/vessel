@@ -4,7 +4,7 @@ import { clone, create } from '@bufbuild/protobuf';
 import { Cue_CompletionActionType, Cue_CompletionTargetType, CueSchema, type Cue } from '../gen/presentation_pb';
 import { Presentation_ArrangementSchema, PresentationSchema, type Presentation, type Presentation_CueGroup } from '../gen/presentation_pb';
 import { Slide_ElementSchema, type Slide_Element } from '../gen/presentation_pb';
-import { newCueGroup, newSlideCue, newUuid, presentationToDeck, slideCue, slideOfCue, slideTextOfCue, SLIDE_HEIGHT, SLIDE_WIDTH, textElement, textElements, uuidOf, hexToColor } from './presentation';
+import { newCueGroup, newSlideCue, newUuid, presentationToDeck, writeCueNotes, slideCue, slideOfCue, slideTextOfCue, SLIDE_HEIGHT, SLIDE_WIDTH, textElement, textElements, uuidOf, hexToColor } from './presentation';
 import type { Background, SlideAdvance } from '../types';
 import { backgroundAction, isBackgroundAction } from './background';
 import { plainTextToRtf, replaceRtfText, rtfToPlainText } from './rtf';
@@ -178,6 +178,11 @@ function writeCueText(d: Draft, cue: Cue, text: string): void {
   const [first] = textElements(slide);
   if (first) first.element!.text!.rtfData = replaceRtfText(first.element!.text!.rtfData, text);
   else slide.elements.push(textElement(replaceRtfText(styleSource(d), text)));
+}
+
+/** Set (or, with blank text, remove) the presenter's notes for a slide. */
+export function setSlideNotes(p: Presentation, cueId: string, notes: string): Presentation {
+  return edit(p, (d) => writeCueNotes(findCue(d, cueId), notes));
 }
 
 /** The group a slide belongs to (its first one, if it's in several). */

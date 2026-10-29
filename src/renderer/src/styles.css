@@ -1799,6 +1799,24 @@ button.active-toggle {
   overflow: hidden;
 }
 
+/* The presenter's notes: quieter than the slide text, in italics until there are some. */
+.edit-card textarea.slide-notes {
+  min-height: 0;
+  overflow-y: auto;
+  font-size: 12px !important;
+  color: var(--muted);
+  background: var(--panel-2);
+}
+
+.edit-card textarea.slide-notes:focus,
+.edit-card textarea.slide-notes:not(:placeholder-shown) {
+  color: var(--text);
+}
+
+.edit-card textarea.slide-notes::placeholder {
+  font-style: italic;
+}
+
 .edit-card .edit-card-bar {
   background: var(--panel-2);
   gap: 4px;

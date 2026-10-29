@@ -12,7 +12,7 @@ import type { Slide_Element } from '../gen/presentation_pb';
 import { mediaKindOf } from '../media';
 import { imageElement, shapeElement, type Box } from '../pro/graphics';
 import type { XNode } from '../pro/legacy';
-import { createPresentation, newCueGroup, slideCue, textElement } from '../pro/presentation';
+import { createPresentation, newCueGroup, slideCue, textElement, writeCueNotes } from '../pro/presentation';
 import { plainTextToRtf, type RtfStyle } from '../pro/rtf';
 import { xmlOf, zipFiles } from './documents';
 import { extractStanzas, stanzasToPresentation, type LyricsOptions, type LyricsReport } from './lyrics';
@@ -29,6 +29,8 @@ export interface PptxReport {
   groups: number;
   pictures: number;
   hiddenSlides: number;
+  /** Slides that came with speaker notes. */
+  notes: number;
   /** Things not brought across, by kind (tables, charts, videos…). */
   skipped: Record<string, number>;
   lyrics?: LyricsReport;
@@ -540,6 +542,27 @@ function backgroundOf(part: Part, file: PptxFile): Fill | undefined {
 
 // ---- The whole file ------------------------------------------------------------------
 
+/** The speaker notes for a slide: the notes page's body text, as plain lines. */
+function speakerNotes(file: PptxFile, slidePath: string): string {
+  const notesPath = file.rels(slidePath).ofType('/notesSlide');
+  const root = notesPath ? file.xml(notesPath) : null;
+  if (!root) return '';
+  const lines: string[] = [];
+  for (const shape of shapesOf(path(root, 'p:cSld', 'p:spTree'))) {
+    // The notes are in the body placeholder; the others hold the slide picture and the page number.
+    if (placeholderOf(shape)?.type !== 'body') continue;
+    for (const p of kids(kid(shape, 'p:txBody'), 'a:p')) {
+      let line = '';
+      for (const r of p.children) {
+        if (r.tag === 'a:r' || r.tag === 'a:fld') line += kid(r, 'a:t') ? textOf(kid(r, 'a:t')!) : '';
+        else if (r.tag === 'a:br') line += '\n';
+      }
+      lines.push(line);
+    }
+  }
+  return lines.join('\n').replace(/\u000b/g, '\n').trim();
+}
+
 export function convertPptx(bytes: Uint8Array, name: string, opts: PptxOptions): { presentation: Presentation; report: PptxReport } {
   const file = new PptxFile(zipFiles(bytes));
   const presPath = 'ppt/presentation.xml';
@@ -560,7 +583,7 @@ export function convertPptx(bytes: Uint8Array, name: string, opts: PptxOptions):
     }
   }
 
-  const report: PptxReport = { slides: 0, groups: 0, pictures: 0, hiddenSlides: 0, skipped: {} };
+  const report: PptxReport = { slides: 0, groups: 0, pictures: 0, hiddenSlides: 0, notes: 0, skipped: {} };
   const skip = (what: string): void => {
     report.skipped[what] = (report.skipped[what] ?? 0) + 1;
   };
@@ -616,7 +639,13 @@ export function convertPptx(bytes: Uint8Array, name: string, opts: PptxOptions):
     }
     convertShapes(shapesOf(path(slideRoot, 'p:cSld', 'p:spTree')), slide, ctx, identity, out, false);
 
-    slides.push({ cue: slideCue(out.elements, slideSize), section: sectionOf.get(id.attrs.id) ?? '', texts: out.texts });
+    const cue = slideCue(out.elements, slideSize);
+    const notes = speakerNotes(file, slidePath);
+    if (notes) {
+      writeCueNotes(cue, notes);
+      report.notes++;
+    }
+    slides.push({ cue, section: sectionOf.get(id.attrs.id) ?? '', texts: out.texts });
   }
 
   if (opts.look === 'lyrics') return lyricsFromSlides(name, slides, opts, report);
@@ -672,5 +701,5 @@ function lyricsFromSlides(
     extracted.removedChordLines += one.removedChordLines;
   }
   const { presentation, report: lyrics } = stanzasToPresentation(songTitle ?? name, extracted, opts.lyrics);
-  return { presentation, report: { ...report, slides: lyrics.slides, groups: lyrics.groups, pictures: 0, lyrics } };
+  return { presentation, report: { ...report, slides: lyrics.slides, groups: lyrics.groups, pictures: 0, notes: 0, lyrics } };
 }

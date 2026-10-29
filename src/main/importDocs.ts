@@ -59,6 +59,7 @@ export async function importDocumentFile(path: string, opts: ImportOptions): Pro
       repeats: report.lyrics?.repeats ?? 0,
       pictures: report.pictures,
       hiddenSlides: report.hiddenSlides,
+      speakerNotes: report.notes,
       removedChordLines: report.lyrics?.removedChordLines ?? 0,
       ccli: report.lyrics?.ccli ?? false,
       skipped: report.skipped
@@ -78,6 +79,7 @@ export async function importDocumentFile(path: string, opts: ImportOptions): Pro
     repeats: report.repeats,
     pictures: 0,
     hiddenSlides: 0,
+    speakerNotes: 0,
     removedChordLines: report.removedChordLines,
     ccli: report.ccli,
     skipped: {}

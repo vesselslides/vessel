@@ -616,6 +616,7 @@ function Operator(): React.JSX.Element {
     const notes = [plural(report.slides, 'slide'), plural(report.groups, 'group')];
     if (report.repeats) notes.push(`a “Song order” arrangement for ${plural(report.repeats, 'repeat')}`);
     if (report.pictures) notes.push(plural(report.pictures, 'picture'));
+    if (report.speakerNotes) notes.push(`speaker notes on ${plural(report.speakerNotes, 'slide')}, for the presenter remote`);
     if (report.hiddenSlides) notes.push(`${plural(report.hiddenSlides, 'hidden slide')} left out`);
     if (report.removedChordLines) notes.push(`${plural(report.removedChordLines, 'chord line')} left out`);
     if (report.ccli) notes.push('CCLI/copyright details moved into the song info');

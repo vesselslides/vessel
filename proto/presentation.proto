@@ -31,7 +31,12 @@ message Slide {
 }
 
 message PresentationSlide {
+  // The presenter's notes for the slide (ProPresenter's "Slide Notes").
+  message Notes {
+    bytes rtf_data = 1;
+  }
   Slide base_slide = 1;
+  Notes notes = 2;
 }
 
 // Something a slide does when it's shown: show its own content, or put media on a layer.

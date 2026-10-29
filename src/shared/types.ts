@@ -122,6 +122,8 @@ export interface SlideView {
   enabled: boolean;
   /** Moves on by itself after this many seconds (ProPresenter's slide timer), if set. */
   advance?: SlideAdvance;
+  /** The presenter's notes for this slide, if any: from PowerPoint's speaker notes or typed in Edit. */
+  notes?: string;
 }
 
 export interface SlideAdvance {

@@ -11,7 +11,7 @@ import {
   type Presentation,
   type Presentation_CueGroup
 } from '../gen/presentation_pb';
-import { Slide_Element_Info, Slide_ElementSchema, type Slide, type Slide_Element } from '../gen/presentation_pb';
+import { Slide_Element_Info, Slide_ElementSchema, PresentationSlide_NotesSchema, type PresentationSlide, type Slide, type Slide_Element } from '../gen/presentation_pb';
 import { VersionSchema } from '../gen/common_pb';
 import type { Deck, GraphicLayout, GroupView, SlideAdvance, SlideLayout, SlideView, TextBoxLayout } from '../types';
 import { fillColor, graphicOfElement } from './graphics';
@@ -19,7 +19,7 @@ import { groupKey } from '../hotkeys';
 import { groupDefinitionFor, OTHER_GROUP_COLOR } from '../groups';
 import { backgroundOfCue } from './background';
 import { newUuid, uuidOf } from './ids';
-import { parseRtfStyle, plainTextToRtf, rtfToPlainText } from './rtf';
+import { parseRtfStyle, plainTextToRtf, rtfToPlainText, type RtfStyle } from './rtf';
 
 export const SLIDE_WIDTH = 1920;
 export const SLIDE_HEIGHT = 1080;
@@ -59,6 +59,33 @@ export function slideOfCue(cue: Cue): Slide | undefined {
     if (slide.case === 'presentation') return slide.value.baseSlide;
   }
   return undefined;
+}
+
+/** The cue's PresentationSlide (its slide plus notes), if the cue shows a slide. */
+export function presentationSlideOfCue(cue: Cue): PresentationSlide | undefined {
+  for (const action of cue.actions) {
+    if (action.ActionTypeData.case !== 'slide') continue;
+    const slide = action.ActionTypeData.value.Slide;
+    if (slide.case === 'presentation') return slide.value;
+  }
+  return undefined;
+}
+
+/** The presenter's notes for a slide, as plain text ('' when there are none). */
+export function notesOfCue(cue: Cue): string {
+  const rtf = presentationSlideOfCue(cue)?.notes?.rtfData;
+  return rtf && rtf.length ? rtfToPlainText(rtf).trim() : '';
+}
+
+/** Notes are plain black text, as ProPresenter writes them. */
+const NOTES_RTF_STYLE: RtfStyle = { font: 'Helvetica', sizePt: 18, color: [0, 0, 0], align: 'left' };
+
+/** Set (or, with blank text, remove) a cue's notes, in place. */
+export function writeCueNotes(cue: Cue, notes: string): void {
+  const slide = presentationSlideOfCue(cue);
+  if (!slide) throw new Error('This cue has no slide to add notes to');
+  const text = notes.replace(/\s+$/, '');
+  slide.notes = text.trim() ? create(PresentationSlide_NotesSchema, { rtfData: plainTextToRtf(text, NOTES_RTF_STYLE) }) : undefined;
 }
 
 /** Text elements of a slide, in drawing order. */
@@ -157,6 +184,7 @@ function slideView(cue: Cue, group: Presentation_CueGroup | undefined, position:
     background: backgroundOfCue(cue),
     layout: layoutOfCue(cue),
     enabled: cue.isEnabled,
+    ...(notesOfCue(cue) ? { notes: notesOfCue(cue) } : {}),
     ...(advanceOfCue(cue) ? { advance: advanceOfCue(cue) } : {})
   };
 }

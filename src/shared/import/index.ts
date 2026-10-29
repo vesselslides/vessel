@@ -18,6 +18,8 @@ export interface DocumentImportReport {
   repeats: number;
   pictures: number;
   hiddenSlides: number;
+  /** Slides that came with speaker notes (PowerPoint, kept as the presenter's notes). */
+  speakerNotes: number;
   removedChordLines: number;
   ccli: boolean;
   skipped: Record<string, number>;
