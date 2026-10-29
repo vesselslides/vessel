@@ -66,7 +66,7 @@ describe('remote server', () => {
     expect((await fetch(base + '/api/events')).status).toBe(401);
     expect((await login('000000')).status).toBe(401);
     const ok = await login('123456');
-    expect(ok.status).toBe(204);
+    expect(ok.status).toBe(200);
     expect(ok.cookie).toMatch(/^vessel_session=[a-f0-9]{64}$/);
     expect((await post('/api/command', { type: 'next' }, { Cookie: ok.cookie })).status).toBe(204);
     expect((await post('/api/command', { type: 'nonsense' }, { Cookie: ok.cookie })).status).toBe(400);
@@ -87,7 +87,7 @@ describe('remote server', () => {
     for (let i = 0; i < 3; i++) expect((await login('999999')).status).toBe(401);
     expect((await login('123456')).status).toBe(429); // even the right PIN, while locked
     clock.t += 61_000;
-    expect((await login('123456')).status).toBe(204);
+    expect((await login('123456')).status).toBe(200);
   });
 
   it('streams state to signed-in phones and signs everyone out on demand', async () => {

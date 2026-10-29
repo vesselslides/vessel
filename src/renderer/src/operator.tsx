@@ -14,7 +14,7 @@ import {
 } from '../../shared/pro/presentation';
 import { addMediaSlides, addSlideImage, appendPresentation, resizePresentation, selectArrangement, setPresentationTimer, setSlideAdvance, setSlideBackground } from '../../shared/pro/edit';
 import { EMPTY_THEME_LIBRARY, findTheme, type Theme, type ThemeLibrary } from '../../shared/theme';
-import type { RemoteCommand, RemoteState, RemoteStatus } from '../../shared/remote';
+import type { PresenterState, RemoteCommand, RemoteRole, RemoteState, RemoteStatus } from '../../shared/remote';
 import type { AppCommand } from '../../shared/shortcuts';
 import { isRunning, pauseTimer, resetTimer, startTimer } from '../../shared/timer';
 import {
@@ -44,7 +44,7 @@ import { RemoteDialog } from './RemoteDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { ImportDialog } from './ImportDialog';
 import { ExportDialog, type ExportScope } from './ExportDialog';
-import { exportSong, type ExportEntry, type ExportFormat, type ExportOptions } from '../../shared/exports';
+import { exportSong, presenterSlidesJob, type ExportEntry, type ExportFormat, type ExportOptions } from '../../shared/exports';
 import { ExportVesselDialog, VesselPreviewDialog, type ExportChoice } from './VesselFileDialogs';
 import type { VesselChoice, VesselKind, VesselPreview } from '../../shared/vesselFile';
 import { copyrightLine, hasCopyrightDetails, isScripture, localDate, showsCopyright, songInfoOf, usageKey, withSongInfo } from '../../shared/ccli';
@@ -1940,7 +1940,50 @@ function Operator(): React.JSX.Element {
     sentRemote.current = json;
     window.vessel.setRemoteState(remoteState);
   }, [remoteState]);
-  useEffect(() => window.vessel.onRemoteStateRequest(() => window.vessel.setRemoteState(remoteStateRef.current)), []);
+
+  // The presenter view follows the presentation on screen, or the one the operator has open before it goes live.
+  const presenterDeck = decks.find((d) => d.deck.id === liveSlide?.deckId)?.deck ?? selected?.deck ?? null;
+  /** When the presenter's presentation first went on screen, for their "Speaking" time. */
+  const speaking = useRef<{ deckId: string; since: number } | null>(null);
+  if (liveSlide && speaking.current?.deckId !== liveSlide.deckId) speaking.current = { deckId: liveSlide.deckId, since: Date.now() };
+  const presenterState = useMemo<PresenterState>(
+    () => ({
+      presentation: presenterDeck
+        ? {
+            id: presenterDeck.id,
+            name: presenterDeck.name,
+            slides: presenterDeck.slides.map((s) => ({ text: s.text, notes: s.notes ?? '', group: s.groupName, color: s.groupColor, enabled: s.enabled })),
+            liveIndex: liveSlide?.deckId === presenterDeck.id ? liveSlide.index : null,
+            speakingSince: speaking.current?.deckId === presenterDeck.id ? speaking.current.since : null
+          }
+        : null,
+      blackout: live.blackout
+    }),
+    [presenterDeck, liveSlide, live.blackout]
+  );
+  const presenterStateRef = useRef(presenterState);
+  presenterStateRef.current = presenterState;
+  const sentPresenter = useRef('');
+  useEffect(() => {
+    const json = JSON.stringify(presenterState);
+    if (json === sentPresenter.current) return;
+    sentPresenter.current = json;
+    window.vessel.setPresenterState(presenterState);
+  }, [presenterState]);
+  // Pictures of the presenter's slides, drawn in the background while a presenter is connected.
+  const slideSize = settings?.slideSize;
+  useEffect(() => {
+    if (!remote?.enabled) return;
+    window.vessel.setPresenterSlides(presenterDeck ? presenterSlidesJob(presenterDeck, slideSize ?? { width: 1920, height: 1080 }) : null);
+  }, [presenterDeck, slideSize, remote?.enabled]);
+  useEffect(
+    () =>
+      window.vessel.onRemoteStateRequest(() => {
+        window.vessel.setRemoteState(remoteStateRef.current);
+        window.vessel.setPresenterState(presenterStateRef.current);
+      }),
+    []
+  );
 
   /** Actions from MIDI, a Stream Deck or Companion: the same as the buttons and keys. */
   const runControl = useRef<(a: ControlAction) => void>(() => undefined);
@@ -1997,8 +2040,9 @@ function Operator(): React.JSX.Element {
   }, [midi.enabled]);
 
   // Phone commands run through the same actions as the keyboard and mouse.
-  const remoteCommand = useRef<(c: RemoteCommand) => void>(() => undefined);
-  remoteCommand.current = (c) => {
+  const remoteCommand = useRef<(c: RemoteCommand, role: RemoteRole) => void>(() => undefined);
+  remoteCommand.current = (c, role) => {
+    if (role === 'presenter') return presenterCommand(c);
     switch (c.type) {
       case 'next':
         return void step(1);
@@ -2026,7 +2070,23 @@ function Operator(): React.JSX.Element {
         return runControl.current(c.action);
     }
   };
-  useEffect(() => window.vessel.onRemoteCommand((c) => remoteCommand.current(c)), []);
+  useEffect(() => window.vessel.onRemoteCommand((c, role) => remoteCommand.current(c, role)), []);
+
+  /**
+   * The presenter's buttons act on their own presentation only: Next stops at
+   * its last slide rather than moving the service on, and Back at its first.
+   */
+  const presenterCommand = (c: RemoteCommand): void => {
+    const deck = presenterDeck;
+    if (c.type === 'black') return toggleBlackout();
+    if (!deck) return;
+    const current = liveSlide?.deckId === deck.id ? liveSlide.index : -1;
+    if (c.type === 'goto') return deck.slides[c.index] ? goLiveChosen(deck.id, c.index) : undefined;
+    if (c.type !== 'next' && c.type !== 'prev') return;
+    if (c.type === 'prev' && current < 0) return;
+    const target = current < 0 ? nextEnabled(deck, -1, 1) : nextEnabled(deck, current, c.type === 'next' ? 1 : -1);
+    if (target >= 0) goLiveDeck(deck, target, rowOfDeck(deck));
+  };
 
   // ---- Menu bar ------------------------------------------------------------
 

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
-import type { RemoteCommand, RemoteStatus } from '../shared/remote';
+import type { RemoteCommand, RemoteRole, RemoteStatus } from '../shared/remote';
 import type { AppCommand } from '../shared/shortcuts';
 import type { LiveState, VesselApi, StageState } from '../shared/types';
 import type { StreamLook } from '../shared/stream';
@@ -79,14 +79,17 @@ const api: VesselApi = {
   remoteStatus: () => ipcRenderer.invoke('remote:status'),
   setRemoteEnabled: (enabled) => ipcRenderer.invoke('remote:set-enabled', enabled),
   newRemotePin: () => ipcRenderer.invoke('remote:new-pin'),
+  newRemotePresenterPin: () => ipcRenderer.invoke('remote:new-presenter-pin'),
   onRemoteStatus: (listener) => {
     const handler = (_e: unknown, status: RemoteStatus): void => listener(status);
     ipcRenderer.on('remote:status', handler);
     return () => ipcRenderer.removeListener('remote:status', handler);
   },
   setRemoteState: (state) => ipcRenderer.send('remote:state', state),
+  setPresenterState: (state) => ipcRenderer.send('remote:presenter-state', state),
+  setPresenterSlides: (job) => ipcRenderer.send('remote:presenter-slides', job),
   onRemoteCommand: (listener) => {
-    const handler = (_e: unknown, command: RemoteCommand): void => listener(command);
+    const handler = (_e: unknown, command: RemoteCommand, role: RemoteRole): void => listener(command, role ?? 'operator');
     ipcRenderer.on('remote:command', handler);
     return () => ipcRenderer.removeListener('remote:command', handler);
   },

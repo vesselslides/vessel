@@ -4,7 +4,7 @@ import type { StageLayout } from './stage';
 import type { GroupDefinition } from './groups';
 import type { DocumentImportReport, DocumentKind, ImportOptions } from './import';
 import type { LegacyImportReport } from './pro/legacy';
-import type { RemoteCommand, RemoteState, RemoteStatus } from './remote';
+import type { PresenterState, RemoteCommand, RemoteRole, RemoteState, RemoteStatus } from './remote';
 import type { MenuEntry } from './menu';
 import type { AppCommand } from './shortcuts';
 import type { Theme, ThemeLibrary } from './theme';
@@ -321,6 +321,8 @@ export interface Settings {
   /** Remote control: on/off, the PIN phones sign in with, and the port. */
   remoteEnabled?: boolean;
   remotePin?: string;
+  /** The presenter view's PIN (next, back, black and notes only). */
+  remotePresenterPin?: string;
   remotePort?: number;
   stageDisplayId?: number | null;
   transitionMs?: number;
@@ -473,10 +475,14 @@ export interface VesselApi {
   remoteStatus(): Promise<RemoteStatus>;
   setRemoteEnabled(enabled: boolean): Promise<RemoteStatus>;
   newRemotePin(): Promise<RemoteStatus>;
+  newRemotePresenterPin(): Promise<RemoteStatus>;
   onRemoteStatus(listener: (status: RemoteStatus) => void): () => void;
   /** Send what phones should show. */
   setRemoteState(state: RemoteState): void;
-  onRemoteCommand(listener: (command: RemoteCommand) => void): () => void;
+  setPresenterState(state: PresenterState): void;
+  /** The slides to draw pictures of for the presenter view (null: none). */
+  setPresenterSlides(job: ExportJob | null): void;
+  onRemoteCommand(listener: (command: RemoteCommand, role: RemoteRole) => void): () => void;
   /** The remote server asks for a fresh state (e.g. after starting). */
   onRemoteStateRequest(listener: () => void): () => void;
   saveThemes(library: ThemeLibrary): Promise<void>;

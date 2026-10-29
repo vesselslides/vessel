@@ -812,7 +812,7 @@ app.whenReady().then(async () => {
   const freshInstall = !existsSync(join(app.getPath('userData'), 'settings.json'));
   handleMediaProtocol();
   registerIpc();
-  setupRemote(() => operatorWindow);
+  setupRemote(() => operatorWindow, (w) => loadPage(w, 'print'));
   setupContextMenu();
   setupAppMenu(() => operatorWindow, appIcon, { get: () => streamTarget, set: (t) => void chooseStreamOutput(t) });
   void watchLibrary(notifyLibrary);

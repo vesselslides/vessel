@@ -91,7 +91,8 @@ in-app tour (the **?** button at the top right) shows where things are, and
     their look* brings each slide's background, the master's artwork, pictures
     and text boxes across where they sit, with font, size, colour and
     alignment (pictures go to `Documents/Vessel/Imported Media`). PowerPoint
-    sections become groups; hidden slides are left out. *Words only* makes a
+    sections become groups; hidden slides are left out; speaker notes become
+    each slide's notes for the presenter remote. *Words only* makes a
     plain song from the text instead, shown with your default theme; a title
     repeated on every slide becomes the song's name.
   - **Word (.docx), OpenDocument (.odt), RTF, text and ChordPro:** blank lines
@@ -215,6 +216,18 @@ in-app tour (the **?** button at the top right) shows where things are, and
   messages. Wrong PINs lock the address out for a minute after 5 tries; *New
   PIN* signs every device out. The first time, the computer may ask whether
   Vessel can accept incoming connections: choose Allow.
+- **Presenter remote:** the Remote window also shows a *Presenter PIN* for the
+  person speaking. On their phone or tablet they see the slide on screen and
+  the next one, the notes for the slide on screen in large print (A– / A+ to
+  resize), a clock and how long they've been speaking, and Black, Back and
+  Next. Tapping a slide picture (or the strip of slides on a tablet) jumps
+  straight to a slide. Presenters can't clear the screen or change the
+  service, and Next stops at their last slide rather than moving on into the
+  next song. Turn the phone sideways for the slides on the left and the notes
+  on the right. Notes come from a PowerPoint's speaker notes, or type them in
+  *Edit* in the box under each slide; they're saved where ProPresenter keeps
+  slide notes, so they travel with the file. Stream Deck and Companion only
+  accept the operator's PIN.
 - **Pictures and shapes on slides:** images (logos, title graphics) and
   coloured shapes are drawn on the slide in their stacking order, with
   opacity and rotation. In the editor, *+ Picture* adds an image from the media

@@ -155,7 +155,7 @@ function connect() {
 $('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const res = await api('/api/login', { pin: $('pin').value });
-  if (res.status === 204) { $('pin').value = ''; connect(); }
+  if (res.ok) { $('pin').value = ''; start(await res.json()); }
   else if (res.status === 429) $('login-error').textContent = 'Too many wrong PINs. Try again in ' + (await res.text()) + ' seconds.';
   else $('login-error').textContent = 'That PIN is not right.';
 });
@@ -253,7 +253,13 @@ function tick() {
 }
 setInterval(tick, 250);
 
-fetch('/api/session', { credentials: 'same-origin' }).then((r) => (r.status === 204 ? connect() : showLogin())).catch(() => showLogin());
+// The presenter PIN opens the presenter view instead.
+function start(session) {
+  if (session && session.role === 'presenter') location.replace('/presenter');
+  else connect();
+}
+
+fetch('/api/session', { credentials: 'same-origin' }).then((r) => (r.ok ? r.json().then(start) : showLogin())).catch(() => showLogin());
 `;
 
 export const REMOTE_ASSETS: RemoteAssets = { html, js, css };

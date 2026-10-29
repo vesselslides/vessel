@@ -116,6 +116,23 @@ export function exportSong(deck: Deck, copyright: string): ExportSong {
   return { kind: 'song', name: deck.name || 'Untitled', copyright, slides: withCarriedBackgrounds(slides), sections, order };
 }
 
+/**
+ * Pictures of every slide of a presentation for the presenter remote: small
+ * JPEGs, one per slide in play order (turned-off slides too, so the numbers
+ * match what the operator sees), with backgrounds and no captions.
+ */
+export function presenterSlidesJob(deck: Deck, size: { width: number; height: number }): ExportJob {
+  const first = deck.slides[0]?.layout;
+  return {
+    format: 'images',
+    title: deck.name || 'Untitled',
+    entries: [{ kind: 'song', name: deck.name || 'Untitled', copyright: '', slides: withCarriedBackgrounds(deck.slides), sections: [], order: [] }],
+    options: { ...DEFAULT_EXPORT_OPTIONS, captions: false, backgrounds: true, imageFormat: 'jpeg', imageWidth: 640 },
+    width: first?.width ?? size.width,
+    height: first?.height ?? size.height
+  };
+}
+
 /** Group names in order, with repeats in a row counted ("Chorus ×2"). */
 export function orderLine(order: string[]): string {
   const out: string[] = [];

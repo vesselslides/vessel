@@ -39,11 +39,20 @@ export function RemoteDialog({
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div className="modal remote-modal" onMouseDown={(e) => e.stopPropagation()}>
         <h2>Remote control</h2>
-        <p className="hint">Run slides, the stage timer and stage messages from a phone or tablet on the same Wi-Fi.</p>
+        <p className="hint">
+          Run slides, the stage timer and stage messages from a phone or tablet on the same Wi-Fi. With the presenter PIN, the person speaking
+          sees their slides and notes and can move through them.
+        </p>
         <div className="remote-toggle">
           <span className={`remote-dot ${status?.enabled ? 'on' : ''}`} />
           {status?.enabled ? 'Remote is on' : busy ? 'Starting…' : 'Remote is off'}
-          {status?.enabled && <span className="muted"> · {status.clients === 1 ? '1 device connected' : `${status.clients} devices connected`}</span>}
+          {status?.enabled && (
+            <span className="muted">
+              {' · '}
+              {status.clients === 1 ? '1 device connected' : `${status.clients} devices connected`}
+              {status.presenters ? ` (${status.presenters} presenter${status.presenters === 1 ? '' : 's'})` : ''}
+            </span>
+          )}
           <span className="spacer" />
           {status?.enabled ? (
             <button disabled={busy} onClick={() => void run(() => window.vessel.setRemoteEnabled(false))}>
@@ -70,11 +79,26 @@ export function RemoteDialog({
               ) : (
                 <p className="error">This computer isn't on a network.</p>
               )}
-              <div className="field-label">PIN</div>
-              <div className="remote-pin">{status.pin}</div>
-              <button disabled={busy} onClick={() => void run(() => window.vessel.newRemotePin())}>
-                New PIN (signs out every device)
-              </button>
+              <div className="remote-access">
+                <div>
+                  <div className="field-label">Operator PIN</div>
+                  <div className="hint">Full control</div>
+                </div>
+                <div className="remote-pin">{status.pin}</div>
+                <button disabled={busy} title="Signs out every device" onClick={() => void run(() => window.vessel.newRemotePin())}>
+                  New PIN
+                </button>
+              </div>
+              <div className="remote-access">
+                <div>
+                  <div className="field-label">Presenter PIN</div>
+                  <div className="hint">Their slides and notes, Next, Back, Black</div>
+                </div>
+                <div className="remote-pin">{status.presenterPin}</div>
+                <button disabled={busy} title="Signs out the presenters" onClick={() => void run(() => window.vessel.newRemotePresenterPin())}>
+                  New PIN
+                </button>
+              </div>
             </div>
           </div>
         )}

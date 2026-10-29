@@ -77,6 +77,27 @@ async function writePdf(job: ExportJob, target: string, load: (w: BrowserWindow)
   }
 }
 
+/**
+ * Pictures of every slide of the job's first presentation, as JPEGs in memory
+ * (for the presenter remote). Drawn the same way as File ▸ Export ▸ Pictures.
+ */
+export async function slidePictures(job: ExportJob, load: (w: BrowserWindow) => void, width = 640): Promise<Buffer[]> {
+  const height = Math.round((width * job.height) / job.width);
+  const win = await printPage({ ...job, format: 'images' }, load, { width, height });
+  const out: Buffer[] = [];
+  try {
+    const count = job.entries[0]?.kind === 'song' ? job.entries[0].slides.length : 0;
+    for (let i = 0; i < count; i++) {
+      await win.webContents.executeJavaScript(`window.__vesselShow(0, ${i})`);
+      const image = await win.webContents.capturePage({ x: 0, y: 0, width, height });
+      out.push((image.getSize().width === width ? image : image.resize({ width, height, quality: 'good' })).toJPEG(82));
+    }
+  } finally {
+    win.destroy();
+  }
+  return out;
+}
+
 async function writeImages(job: ExportJob, folder: string, load: (w: BrowserWindow) => void): Promise<number> {
   const width = Math.round(Math.min(7680, Math.max(320, job.options.imageWidth)));
   const height = Math.round((width * job.height) / job.width);

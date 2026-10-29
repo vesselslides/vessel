@@ -1630,11 +1630,29 @@ body.output #root {
 }
 
 .remote-pin {
-  font-size: 30px;
+  font-size: 22px;
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.16em;
   font-variant-numeric: tabular-nums;
   user-select: all;
+  color: var(--accent);
+}
+
+/* One row per PIN: who it's for, the PIN, and a button to change it. */
+.remote-access {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+
+.remote-access .hint {
+  margin: 0;
 }
 
 .modal .error {

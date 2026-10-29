@@ -18,6 +18,33 @@ export interface RemoteState {
   message: string;
 }
 
+/** Who signed in: the operator (everything) or the person speaking (the presenter view). */
+export type RemoteRole = 'operator' | 'presenter';
+
+export interface PresenterSlide {
+  text: string;
+  notes: string;
+  group: string;
+  color?: string;
+  /** Turned-off slides are passed over by Next and Back. */
+  enabled: boolean;
+}
+
+/** What the presenter view shows: the presentation on screen (or about to be), with its notes. */
+export interface PresenterState {
+  presentation: {
+    id: string;
+    name: string;
+    slides: PresenterSlide[];
+    liveIndex: number | null;
+    /** When this presentation first went on screen (ms since 1970), for "Speaking 12:48". */
+    speakingSince: number | null;
+  } | null;
+  blackout: boolean;
+  /** Pictures of the slides once drawn, at /api/slides/<key>/<index>.jpg. */
+  pictures?: { key: string; count: number };
+}
+
 export type RemoteCommand =
   | { type: 'next' }
   | { type: 'prev' }
@@ -32,6 +59,11 @@ export type RemoteCommand =
   | { type: 'action'; action: ControlAction };
 
 export const MAX_MESSAGE_LENGTH = 200;
+
+/** A presenter can move through their own slides and blank the screen, nothing else. */
+export function presenterMay(command: RemoteCommand): boolean {
+  return command.type === 'next' || command.type === 'prev' || command.type === 'goto' || command.type === 'black';
+}
 
 /** Check untrusted input from the network; returns a clean command or null. */
 export function parseRemoteCommand(input: unknown): RemoteCommand | null {
@@ -68,8 +100,12 @@ export function parseRemoteCommand(input: unknown): RemoteCommand | null {
 export interface RemoteStatus {
   enabled: boolean;
   pin: string;
+  /** The presenter view's own PIN. */
+  presenterPin: string;
   port: number | null;
   urls: string[];
   clients: number;
+  /** Of those, how many are presenters. */
+  presenters: number;
   error?: string;
 }
