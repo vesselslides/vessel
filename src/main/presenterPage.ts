@@ -159,7 +159,11 @@ header { grid-area: header; display: flex; align-items: center; gap: 8px; }
   .notes { padding: 14px 20px 16px; }
 }
 @media (min-width: 700px) and (min-height: 600px) and (orientation: landscape) {
-  #view { grid-template-columns: minmax(0, 46%) minmax(0, 1fr);
+  /* The two slides stack (heights .56 + .31 of the column's width) under ~310px
+     of header, clock, strip and buttons, so on a short, wide screen (a small
+     laptop) the column narrows until both fit, rather than overlapping. */
+  #view { grid-template-columns: minmax(0, min(46%, calc((100vh - 310px) * 1.12))) minmax(0, 1fr);
+    grid-template-columns: minmax(0, min(46%, calc((100dvh - 310px) * 1.12))) minmax(0, 1fr);
     grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto;
     grid-template-areas: "header header" "info info" "slides notes" "nextrow notes" ". notes" "strip strip" "controls controls"; }
   .slides { display: contents; }
