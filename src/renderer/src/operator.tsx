@@ -1584,6 +1584,8 @@ function Operator(): React.JSX.Element {
           : live.cleared && !live.background && !live.message && !live.lowerThird
             ? { state: 'clear', label: 'Clear' }
             : { state: 'live', label: 'Live' };
+  /** The audience sees something, black included (practice doesn't count): the Update button waits till it's all cleared. */
+  const showingSomething = !live.practice && (live.blackout || !!live.logo || !(live.cleared && !live.background && !live.message && !live.lowerThird));
   const liveVideo = live.background?.kind === 'video' ? live.background : null;
   const liveVideoItem = liveVideo ? media.find((m) => m.path === liveVideo.path) : undefined;
 
@@ -1868,6 +1870,13 @@ function Operator(): React.JSX.Element {
     const t = setTimeout(() => void window.vessel.updateSettings({ lastPresentation: selectedPath }).then(setSettings), 800);
     return () => clearTimeout(t);
   }, [selectedPath, settings]);
+
+  // A newer Vessel, found by the background check: a quiet Update button in the toolbar, never a pop-up.
+  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+  useEffect(() => {
+    void window.vessel.availableUpdate().then(setUpdateVersion);
+    return window.vessel.onUpdateAvailable(setUpdateVersion);
+  }, []);
 
   // Notices from the main process (a screen reopened after a crash) and this window's own errors, for the log.
   useEffect(() => {
@@ -2428,6 +2437,12 @@ function Operator(): React.JSX.Element {
           <ModeSwitch mode={mode} canEdit={!!selected} onChange={setMode} />
         </div>
         <div className="toolbar-end">
+          {updateVersion && !showingSomething && (
+            <button className="update-button" title={`Vessel ${updateVersion} is available. Click to download and install it.`} onClick={() => void window.vessel.installUpdate()}>
+              <ImportIcon size={16} />
+              Update available
+            </button>
+          )}
           <div className="tool-group">
             <ScreensButton
               displays={displays}

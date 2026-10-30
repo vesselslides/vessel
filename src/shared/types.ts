@@ -540,6 +540,12 @@ export interface VesselApi {
   onStreamLook(listener: (look: StreamLook) => void): () => void;
   /** Look for a newer Vessel now and say what was found. */
   checkForUpdates(): Promise<void>;
+  /** A newer version found by the background check (shown as the toolbar's Update button), or null. */
+  availableUpdate(): Promise<string | null>;
+  /** The background check found a newer version (or null: nothing to offer any more). */
+  onUpdateAvailable(listener: (version: string | null) => void): () => void;
+  /** Offer the newer version: download and install, later, or skip. */
+  installUpdate(): Promise<void>;
   /** Which of these media files can't be found. */
   missingMedia(paths: string[]): Promise<string[]>;
   /**

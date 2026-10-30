@@ -135,6 +135,13 @@ const api: VesselApi = {
   backUp: () => ipcRenderer.invoke('backup:create'),
   restoreBackup: () => ipcRenderer.invoke('backup:restore'),
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  availableUpdate: () => ipcRenderer.invoke('updates:available'),
+  installUpdate: () => ipcRenderer.invoke('updates:install'),
+  onUpdateAvailable: (listener) => {
+    const handler = (_e: Electron.IpcRendererEvent, version: string | null): void => listener(version);
+    ipcRenderer.on('updates:available', handler);
+    return () => ipcRenderer.removeListener('updates:available', handler);
+  },
   setStreamOutput: (target) => ipcRenderer.invoke('stream-output:set', target),
   ndiStatus: () => ipcRenderer.invoke('ndi:status'),
   pcoStatus: () => ipcRenderer.invoke('pco:status'),

@@ -3203,6 +3203,26 @@ html.see-through .output-stage {
   font-size: 11px;
 }
 
+/* A newer Vessel is ready: a quiet pill beside the toolbar's buttons (hidden while anything is on screen). */
+.update-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.update-button:hover {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
 /* Toolbar: icon buttons in glass capsules, with their names on hover */
 .tool-group {
   display: flex;

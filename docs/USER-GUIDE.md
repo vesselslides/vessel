@@ -340,7 +340,10 @@ in-app tour (the **?** button at the top right) shows where things are, and
 - **Backups** (File ▸ Back Up… / Restore from Backup…): one file with your
   songs, playlists, themes, Bibles, media bin, CCLI log and settings, and
   optionally the media itself.
-- **Update checks** (Help ▸ Check for Updates, and once a day if switched on).
+- **Update checks** (Help ▸ Check for Updates, and in the background when Vessel
+  starts and every few hours if switched on). A new version shows as an
+  **Update available** button in the toolbar, kept out of the way while anything
+  is on screen; click it to download and install.
 - **Samples** (Help ▸ Add the Sample Songs and Media): a sample service,
   hymns, backgrounds and audio, set up on the first start.
 - **Crash safety:** if a screen ever stops working, Vessel reopens it on its own;

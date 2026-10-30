@@ -180,9 +180,9 @@ export function PreferencesDialog({
               <h3>Updates</h3>
               <label className="pref-check">
                 <input type="checkbox" checked={settings?.checkUpdates !== false} onChange={(e) => onSettings({ checkUpdates: e.target.checked })} />
-                Check for a new version of Vessel when it starts (once a day)
+                Check for a new version of Vessel (when it starts, and every few hours)
               </label>
-              <p className="hint">Nothing is installed without asking.</p>
+              <p className="hint">A new version shows as an <b>Update available</b> button in the toolbar, never while anything is on screen. Nothing is installed without asking.</p>
               <div className="pref-buttons">
                 <button onClick={() => void window.vessel.checkForUpdates()}>Check now…</button>
               </div>

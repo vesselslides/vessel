@@ -26,7 +26,7 @@ import appIcon from '../../build/icon.png?asset';
 import type { ThemeLibrary } from '../shared/theme';
 import { addToMediaBin, createMediaFolder, deleteMediaFolder, handleMediaProtocol, loadMediaBin, loadMediaFolders, moveMedia, registerMediaScheme, relinkMediaBin, removeFromMediaBin, renameMediaFolder, setMediaMuted } from './media';
 import { findMoved, missingPaths } from './relink';
-import { checkForUpdates, checkForUpdatesOnLaunch } from './updates';
+import { availableUpdate, checkForUpdates, installUpdate, startUpdateChecks } from './updates';
 import { describe, endRun, log, startRun } from './log';
 import { saveProblemReport } from './problemReport';
 import { installSamples } from './samples';
@@ -725,6 +725,8 @@ function registerIpc(): void {
   ipcMain.handle('backup:create', () => backUp(operatorWindow));
   ipcMain.handle('backup:restore', () => restore(operatorWindow));
   ipcMain.handle('updates:check', () => checkForUpdates(operatorWindow, true));
+  ipcMain.handle('updates:available', () => availableUpdate());
+  ipcMain.handle('updates:install', () => installUpdate(operatorWindow));
   ipcMain.handle('media:missing', (_e, paths: unknown) => missingPaths(paths));
   ipcMain.handle('media:find-moved', async (_e, missing: unknown) => {
     const paths = missingPaths(missing);
@@ -842,7 +844,7 @@ app.whenReady().then(async () => {
   // On Windows a double-clicked file arrives as an argument.
   if (process.platform !== 'darwin') openExternal(process.argv.slice(1));
   void clearOldVesselFiles();
-  void checkForUpdatesOnLaunch(() => operatorWindow);
+  startUpdateChecks(() => operatorWindow);
   void getSettings().then(applyNdi);
   app.on('before-quit', () => ndiSender?.stop());
   app.on('activate', () => {
