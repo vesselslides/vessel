@@ -30,7 +30,7 @@ export function StreamView({ live, look }: { live: LiveState; look: StreamLook }
           l.value && (
             <div key={l.key} className={`stage-layer ${l.leaving ? 'leaving' : 'entering'}`}>
               {/* The stream never plays sound: the audience output does. */}
-              <MediaView bg={l.value} muted clock={live.videoClock?.path === l.value.path ? live.videoClock : null} />
+              <MediaView bg={l.value} muted clock={live.videoClock?.path === l.value.path ? live.videoClock : null} look={live.mediaLooks?.[l.value.path] ?? null} />
             </div>
           )
       )}

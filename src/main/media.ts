@@ -4,7 +4,7 @@ import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join, sep } from 'node:path';
 import { getSettings } from './settings';
 import { Readable } from 'node:stream';
-import { binKindOf, mediaName } from '../shared/media';
+import { binKindOf, mediaName, normalizeLook } from '../shared/media';
 import type { MediaFolder, MediaItem } from '../shared/types';
 
 const MIME: Record<string, string> = {
@@ -168,6 +168,14 @@ export async function deleteMediaFolder(id: string): Promise<{ folders: MediaFol
 
 export async function setMediaMuted(id: string, muted: boolean): Promise<MediaItem[]> {
   const items = (await loadMediaBin()).map((i) => (i.id === id ? { ...i, muted: !!muted || undefined } : i));
+  await saveMediaBin(items);
+  return items;
+}
+
+/** Blur, darken or fade a picture or video wherever it's a background (null: as it was). */
+export async function setMediaLook(id: string, look: unknown): Promise<MediaItem[]> {
+  const clean = normalizeLook(look) ?? undefined;
+  const items = (await loadMediaBin()).map((i) => (i.id === id && i.kind !== 'audio' ? { ...i, look: clean } : i));
   await saveMediaBin(items);
   return items;
 }

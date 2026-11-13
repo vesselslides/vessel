@@ -45,6 +45,15 @@ export interface MediaItem {
   folder?: string;
   /** A video that always plays without sound (e.g. a motion background). */
   muted?: boolean;
+  /** How it's drawn as a background: blurred, darkened or less colourful. */
+  look?: MediaLook;
+}
+
+/** A background's look (media bin ▸ Adjust look): each 0–100, where 0 blur, 0 darken and 100 colour leave it as it is. */
+export interface MediaLook {
+  blur: number;
+  darken: number;
+  color: number;
 }
 
 /** A folder in the media bin, to keep media organised (it isn't a folder on disk). */
@@ -202,6 +211,8 @@ export interface LiveState {
   videoMuted?: boolean;
   /** Videos set to always play silently (media bin ▸ Always mute), by path. */
   silentVideos?: string[];
+  /** Backgrounds with an adjusted look (media bin ▸ Adjust look), by path. */
+  mediaLooks?: Record<string, MediaLook>;
   /** A message along the bottom of the screen, over the slides; null or missing shows none. */
   message?: LiveMessage | null;
   /** A name and second line in the lower left, over the slides. */
@@ -415,6 +426,8 @@ export interface VesselApi {
   moveMedia(ids: string[], folder: string | null): Promise<MediaItem[]>;
   /** Always play a video silently, or with its sound again. */
   setMediaMuted(id: string, muted: boolean): Promise<MediaItem[]>;
+  /** Blur, darken or fade a picture or video wherever it's a background; null puts it back as it was. */
+  setMediaLook(id: string, look: MediaLook | null): Promise<MediaItem[]>;
   /** Note that a song was shown today (counted once a day); false if it was already noted. */
   logSongUsage(entry: UsageEntry): Promise<boolean>;
   songUsage(): Promise<UsageEntry[]>;

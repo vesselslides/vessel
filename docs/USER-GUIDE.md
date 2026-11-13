@@ -64,7 +64,9 @@ in-app tour (the **?** button at the top right) shows where things are, and
   imports are saved there straight away; Changes are saved as you go (autosave, on unless turned off in Preferences ▸ General); *Save* (⌘S) saves straight away.
   Quitting with unsaved changes asks first.
 - **Service playlists:** build the running order in the sidebar: drag songs in
-  from the library, add headers, drag to reorder. The arrow keys roll from the
+  from the library (or a presentation's title in Show, or an open file), add
+  headers, drag to reorder. With no playlist open, dropping a song on the
+  Service area starts a new one. The arrow keys roll from the
   last slide of one song into the next (and back), and the stage display's
   *Next* looks ahead into the next song. Playlists save automatically to
   `Documents/Vessel/Playlists` as `.proPlaylist` (ProPresenter's playlist
@@ -134,14 +136,16 @@ in-app tour (the **?** button at the top right) shows where things are, and
   `.proPlaylist` files become service playlists. A hint shows while you drag,
   and the status bar says what happened to each file.
 - **New song from lyrics.** Blank lines separate slides, and `[Chorus]` starts
-  a group. Songs save as `.pro`.
+  a group. Songs save as `.pro`. Leave the words empty (*Create empty*) to start
+  with one blank slide in Edit, for announcements or a sermon.
 - **Audience output** is a borderless full-screen window on any display.
 - **Media bin:** pictures, videos and audio, organised in **folders** of your
   own (*+ New folder*; drag media onto a folder's name, or right-click ▸ *Move
   to folder*; imports and drops go into the folder you're looking at;
   double-click a folder to rename it; deleting a folder keeps its media). Filter
   by pictures, videos or audio, and search by name. Folders only organise the
-  bin: files stay where they are on disk.
+  bin: files stay where they are on disk. Media fills the bin as a grid that
+  scrolls down; drag the bin's top edge to make it taller.
 - **Audio:** MP3, WAV, M4A, AAC, FLAC, OGG and AIFF files in the media bin play
   when clicked, through this computer's sound output, with a player in the Live
   panel (pause, seek, loop, volume, stop). It keeps playing while slides
@@ -156,6 +160,10 @@ in-app tour (the **?** button at the top right) shows where things are, and
   click a video in the media bin ▸ *Always mute this video* for motion
   backgrounds that should never make a sound; it's marked 🔇 and stays silent
   wherever it's used, including as a slide's background.
+- **Background look:** right-click a picture or video in the media bin ▸
+  *Adjust look* to **blur**, **darken** or take the **colour** out of it, with
+  a preview. It looks that way wherever it's a background (screens, stream,
+  NDI® and thumbnails) and is marked ◐. *Reset* puts it back.
 - **Stage display:** a second screen for the people on stage (choose it with the Screens button; one display can't be used for both outputs). It shows the clock, a
   countdown or count-up timer (amber in the last minute, red and negative when
   over time), the current slide and its group, the next slide in amber (or
@@ -289,7 +297,10 @@ in-app tour (the **?** button at the top right) shows where things are, and
   (shown next to each group name; ProPresenter's own group hot keys are used
   when a file has them); `.` blacks out.
 - **Slide editor** (Edit mode): edit slide text (keeps each text box's font,
-  size, colour and alignment), add, duplicate, delete and drag slides between
+  size, colour and alignment; a slide with several text boxes, like a
+  PowerPoint title and body, gets a field for each), the **Text** bar to change
+  the font, size (A− / A+, or type one), bold, italic, colour and alignment of
+  every slide or one group, add, duplicate, delete and drag slides between
   groups, rename, recolour and reorder groups, and build arrangements by
   dragging group chips (groups can repeat). Drag a slide by its picture,
   right-click for the same menu as in Show plus *Split at cursor* (also ⌥Enter),

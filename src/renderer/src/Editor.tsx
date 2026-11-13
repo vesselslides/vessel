@@ -24,9 +24,12 @@ import {
   setArrangementGroups,
   setGroupColor,
   setSlideBackground,
+  setSlideBoxText,
   setSlideNotes,
   setSlideText,
-  splitSlide
+  setTextStyle,
+  splitSlide,
+  type TextStyleChange
 } from '../../shared/pro/edit';
 import { backgroundForPath } from '../../shared/pro/background';
 import { IMAGE_PLACEMENTS, placementOf, type ImagePlacement } from '../../shared/pro/graphics';
@@ -37,6 +40,7 @@ import type { Deck, GroupView, MediaItem, SlideView } from '../../shared/types';
 import { MediaView } from './AudienceView';
 import { MEDIA_MIME } from './MediaBin';
 import { SlideCanvas } from './SlideCanvas';
+import { useFontList } from './ThemeDialog';
 import { dropSide, openGroupMenu, openSlideMenu, SLIDE_DRAG, type DropSide } from './slideMenus';
 
 export type Apply = (change: (p: Presentation) => Presentation) => void;
@@ -44,7 +48,22 @@ export type Apply = (change: (p: Presentation) => Presentation) => void;
 const CHIP_MIME = 'application/x-vessel-chip';
 
 /** A text input that only commits on blur or Enter, so typing isn't one undo step per key. */
-function CommitInput({ value, onCommit, className, placeholder }: { value: string; onCommit: (v: string) => void; className?: string; placeholder?: string }): React.JSX.Element {
+function CommitInput({
+  value,
+  onCommit,
+  className,
+  placeholder,
+  list,
+  title
+}: {
+  value: string;
+  onCommit: (v: string) => void;
+  className?: string;
+  placeholder?: string;
+  /** A datalist of suggestions. */
+  list?: string;
+  title?: string;
+}): React.JSX.Element {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   const commit = (): void => {
@@ -55,6 +74,8 @@ function CommitInput({ value, onCommit, className, placeholder }: { value: strin
       className={className}
       value={draft}
       placeholder={placeholder}
+      list={list}
+      title={title}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
@@ -62,6 +83,91 @@ function CommitInput({ value, onCommit, className, placeholder }: { value: strin
         if (e.key === 'Escape') setDraft(value);
       }}
     />
+  );
+}
+
+/** "rgb(255, 200, 0)" → "#ffc800", for a colour field. */
+function cssToHex(css: string): string {
+  const [r = 255, g = 255, b = 255] = (css.match(/\d+/g) ?? []).map(Number);
+  return `#${[r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
+ * The words' look for the whole presentation or one group: font, size,
+ * bold, italic, colour and alignment. Shows the first slide's settings.
+ */
+function TextBar({ deck, apply }: { deck: Deck; apply: Apply }): React.JSX.Element | null {
+  const fonts = useFontList();
+  const [scope, setScope] = useState('all');
+  const group = deck.groups.find((g) => g.id === scope);
+  const slides = group ? group.slides : deck.groups.flatMap((g) => g.slides);
+  const first = slides.find((s) => s.layout.boxes.length);
+  // A colour picker reports every step of a drag; save once it settles.
+  const colorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => clearTimeout(colorTimer.current ?? undefined), []);
+  if (!first) return null;
+  const box = first.layout.boxes[0];
+  /** The size as the Theme dialog shows it: points on a 1080-high slide. */
+  const size = Math.round((box.sizePt * 1080) / (first.layout.height || 1080));
+  const change = (c: TextStyleChange): void => apply((p) => setTextStyle(p, c, group ? group.slides.map((s) => s.cueId) : undefined));
+  const resize = (to: number): void => {
+    if (to > 0 && to !== size) change({ scale: to / size });
+  };
+  return (
+    <div className="text-bar" aria-label="Text style">
+      <span className="text-bar-label">Text</span>
+      <CommitInput className="text-font" value={box.font} list="editor-fonts" title="Font" onCommit={(font) => font.trim() && change({ font: font.trim() })} />
+      <datalist id="editor-fonts">
+        {fonts.map((f) => (
+          <option key={f} value={f} />
+        ))}
+      </datalist>
+      <span className="text-size" title="Text size (on a 1080-high slide); a title keeps its size compared with the words under it">
+        <button aria-label="Smaller text" onClick={() => resize(Math.max(8, Math.round(size / 1.1)))}>
+          A−
+        </button>
+        <CommitInput className="text-size-value" value={String(size)} onCommit={(v) => resize(Math.round(Number(v)))} />
+        <button aria-label="Bigger text" onClick={() => resize(Math.round(size * 1.1))}>
+          A+
+        </button>
+      </span>
+      <button className={`text-toggle ${box.bold ? 'active-toggle' : ''}`} title="Bold" aria-pressed={box.bold} onClick={() => change({ bold: !box.bold })}>
+        <b>B</b>
+      </button>
+      <button className={`text-toggle ${box.italic ? 'active-toggle' : ''}`} title="Italic" aria-pressed={box.italic} onClick={() => change({ italic: !box.italic })}>
+        <i>I</i>
+      </button>
+      <input
+        type="color"
+        title="Text colour"
+        defaultValue={cssToHex(box.color)}
+        key={box.color}
+        onChange={(e) => {
+          const color = e.target.value;
+          clearTimeout(colorTimer.current ?? undefined);
+          colorTimer.current = setTimeout(() => change({ color }), 300);
+        }}
+      />
+      <span className="segmented small" role="group" aria-label="Alignment">
+        {(['left', 'center', 'right'] as const).map((a) => (
+          <button key={a} className={box.align === a ? 'active' : ''} onClick={() => change({ align: a })}>
+            {a === 'left' ? 'Left' : a === 'center' ? 'Centre' : 'Right'}
+          </button>
+        ))}
+      </span>
+      <span className="spacer" />
+      <label className="text-scope">
+        Change
+        <select value={group ? scope : 'all'} onChange={(e) => setScope(e.target.value)}>
+          <option value="all">every slide</option>
+          {deck.groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name || 'Untitled group'} only
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
   );
 }
 
@@ -78,6 +184,12 @@ interface CardProps {
 
 function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }: CardProps): React.JSX.Element {
   const [text, setText] = useState(slide.text);
+  // A slide with several text boxes (a title and body from PowerPoint) gets a field for each.
+  const boxTexts = slide.layout.boxes.map((b) => b.text);
+  const multi = boxTexts.length > 1;
+  const [boxDrafts, setBoxDrafts] = useState(boxTexts);
+  const boxKey = boxTexts.join('\u0000');
+  useEffect(() => setBoxDrafts(boxKey.split('\u0000')), [boxKey]);
   const [notes, setNotes] = useState(slide.notes ?? '');
   const [dropHint, setDropHint] = useState<DropSide | 'media' | null>(null);
   const area = useRef<HTMLTextAreaElement>(null);
@@ -96,6 +208,9 @@ function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }
 
   const commit = (): void => {
     if (text !== slide.text) apply((p) => setSlideText(p, slide.cueId, text));
+  };
+  const commitBox = (i: number): void => {
+    if (boxDrafts[i] !== boxTexts[i]) apply((p) => setSlideBoxText(p, slide.cueId, i, boxDrafts[i]));
   };
   const commitNotes = (): void => {
     if (notes.trim() !== (slide.notes ?? '').trim()) apply((p) => setSlideNotes(p, slide.cueId, notes));
@@ -163,7 +278,7 @@ function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }
         }}
       >
         {slide.background && <MediaView bg={slide.background} muted thumbnail />}
-        <SlideCanvas layout={layoutWithText(slide.layout, text)} />
+        <SlideCanvas layout={multi ? { ...slide.layout, boxes: slide.layout.boxes.map((b, i) => ({ ...b, text: boxDrafts[i] ?? b.text })) } : layoutWithText(slide.layout, text)} />
         <span className="edit-number" style={{ background: group.color }}>
           {index + 1}
         </span>
@@ -173,20 +288,39 @@ function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }
           </span>
         )}
       </div>
-      <textarea
-        ref={area}
-        value={text}
-        placeholder="Slide text"
-        rows={Math.max(3, text.split('\n').length + 1)}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && e.altKey) {
-            e.preventDefault();
-            split();
-          } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) (e.target as HTMLTextAreaElement).blur();
-        }}
-      />
+      {multi ? (
+        boxDrafts.map((draft, i) => (
+          <textarea
+            key={i}
+            ref={i === 0 ? area : undefined}
+            className="box-text"
+            value={draft}
+            placeholder={`Text box ${i + 1}`}
+            aria-label={`Text box ${i + 1} of ${boxDrafts.length}`}
+            rows={Math.max(2, draft.split('\n').length)}
+            onChange={(e) => setBoxDrafts((d) => d.map((t, j) => (j === i ? e.target.value : t)))}
+            onBlur={() => commitBox(i)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) (e.target as HTMLTextAreaElement).blur();
+            }}
+          />
+        ))
+      ) : (
+        <textarea
+          ref={area}
+          value={text}
+          placeholder="Slide text"
+          rows={Math.max(3, text.split('\n').length + 1)}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.altKey) {
+              e.preventDefault();
+              split();
+            } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) (e.target as HTMLTextAreaElement).blur();
+          }}
+        />
+      )}
       {slide.layout.graphics.length > 0 && (
         <div className="graphic-chips">
           {slide.layout.graphics.map((g) => {
@@ -519,6 +653,7 @@ export function Editor({
         <LyricsEditor presentation={presentation} deck={deck} apply={apply} onClose={() => setLyricsMode(false)} />
       ) : (
         <>
+          <TextBar deck={deck} apply={apply} />
           <ArrangementBar deck={deck} apply={apply} />
 
           {deck.groups.map((group, gi) => (

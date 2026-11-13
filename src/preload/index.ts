@@ -15,6 +15,7 @@ const api: VesselApi = {
   deleteMediaFolder: (id) => ipcRenderer.invoke('media:folder-delete', id),
   moveMedia: (ids, folder) => ipcRenderer.invoke('media:move', ids, folder),
   setMediaMuted: (id, muted) => ipcRenderer.invoke('media:mute', id, muted),
+  setMediaLook: (id, look) => ipcRenderer.invoke('media:look', id, look),
   logSongUsage: (entry) => ipcRenderer.invoke('ccli:log', entry),
   songUsage: () => ipcRenderer.invoke('ccli:usage'),
   saveReport: (csv, name) => ipcRenderer.invoke('ccli:save-report', csv, name),

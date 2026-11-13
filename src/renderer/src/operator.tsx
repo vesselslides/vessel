@@ -38,7 +38,7 @@ import {
 import { Editor, type Apply } from './Editor';
 import { jumpForKey, nextEnabled, slideForNumber } from '../../shared/hotkeys';
 import { backgroundForSlide, rememberCleared } from '../../shared/live';
-import { Sidebar } from './Sidebar';
+import { LIBRARY_MIME, Sidebar } from './Sidebar';
 import { dropSide, dropSlideOn, openGroupMenu, openSlideMenu, SLIDE_DRAG, type DropSide } from './slideMenus';
 import { RemoteDialog } from './RemoteDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
@@ -78,7 +78,7 @@ import { actionForTrigger, normalizeMidi, type ControlAction } from '../../share
 import { listenMidi } from './midi';
 import { ThemeDialog } from './ThemeDialog';
 import { MEDIA_MIME, MediaBin } from './MediaBin';
-import { AudienceView, MediaView } from './AudienceView';
+import { AudienceView, MediaView, showMediaLooks } from './AudienceView';
 import { SlideCanvas } from './SlideCanvas';
 import './styles.css';
 
@@ -116,18 +116,18 @@ function NewSongDialog({ onCreate, onCancel }: { onCreate: (name: string, lyrics
   return (
     <div className="modal-backdrop" onMouseDown={onCancel}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <h2>New song</h2>
+        <h2>New song or presentation</h2>
         <input autoFocus placeholder="Title" value={name} onChange={(e) => setName(e.target.value)} />
         <textarea
           placeholder={'[Verse 1]\nFirst slide line one\nFirst slide line two\n\nSecond slide\n\n[Chorus]\nChorus slide'}
           value={lyrics}
           onChange={(e) => setLyrics(e.target.value)}
         />
-        <p className="hint">Blank lines separate slides. A line like [Chorus] starts a group.</p>
+        <p className="hint">Blank lines separate slides. A line like [Chorus] starts a group. Leave the words empty to start with a blank slide and type in Edit.</p>
         <div className="modal-actions">
           <button onClick={onCancel}>Cancel</button>
-          <button className="primary" disabled={!name.trim() || !lyrics.trim()} onClick={() => onCreate(name.trim(), lyrics)}>
-            Create
+          <button className="primary" disabled={!name.trim()} onClick={() => onCreate(name.trim(), lyrics)}>
+            {lyrics.trim() ? 'Create' : 'Create empty'}
           </button>
         </div>
       </div>
@@ -159,7 +159,7 @@ Delete this song
 whenever you are done`;
 
 /** The media bin's usual height, and the range it can be dragged to. */
-const MEDIA_DEFAULT = 160;
+const MEDIA_DEFAULT = 230;
 const clampMedia = (h: number): number => Math.round(Math.min(Math.max(110, window.innerHeight * 0.55), Math.max(110, h)));
 
 /** Timer lengths offered in the menus. */
@@ -1215,10 +1215,17 @@ function Operator(): React.JSX.Element {
 
   const createSong = async (name: string, lyrics: string): Promise<void> => {
     setShowNewSong(false);
-    const presentation = applyTheme(sized(createPresentation(name, parseLyrics(lyrics))), findTheme(themes, themes.defaultId));
+    // No words yet: one empty slide, opened in Edit to type into.
+    const sections = parseLyrics(lyrics);
+    const blank = sections.length === 0;
+    const presentation = applyTheme(sized(createPresentation(name, blank ? [{ group: 'Slides', slides: [''] }] : sections)), findTheme(themes, themes.defaultId));
     const path = await window.vessel.saveFile(serializePresentation(presentation), name);
-    addDeck(presentation, path ?? undefined, !path);
+    const loaded = addDeck(presentation, path ?? undefined, !path);
     if (path) setStatus(`Saved “${name}” to the library.`);
+    if (blank) {
+      setMode('edit');
+      setFocusCue(loaded.deck.groups[0]?.slides[0]?.cueId ?? null);
+    }
   };
 
   /**
@@ -1571,6 +1578,12 @@ function Operator(): React.JSX.Element {
   useEffect(() => {
     pushLive({ silentVideos: media.filter((m) => m.kind === 'video' && m.muted).map((m) => m.path) });
   }, [media, pushLive]);
+  // Backgrounds' looks (media bin ▸ Adjust look) go wherever they're drawn: thumbnails here, the screens with the live state.
+  const mediaLooks = useMemo(() => Object.fromEntries(media.flatMap((m) => (m.look ? [[m.path, m.look]] : []))), [media]);
+  useEffect(() => {
+    showMediaLooks(mediaLooks);
+    pushLive({ mediaLooks });
+  }, [mediaLooks, pushLive]);
   /** What the audience sees, at a glance, on the Live preview. */
   const onAir: { state: 'practice' | 'off' | 'black' | 'logo' | 'clear' | 'live'; label: string } =
     live.practice
@@ -2551,7 +2564,16 @@ function Operator(): React.JSX.Element {
         ) : selected ? (
           <>
             <div className="deck-head">
-              <h2 className="deck-title">
+              <h2
+                className="deck-title"
+                draggable={!!selected.path}
+                title={selected.path ? 'Drag into the service to add it' : undefined}
+                onDragStart={(e) => {
+                  if (!selected.path) return;
+                  e.dataTransfer.setData(LIBRARY_MIME, JSON.stringify({ path: selected.path, name: selected.deck.name || fileName(selected.path) }));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+              >
                 {selected.deck.name || 'Untitled'}
                 {selected.deck.arrangementName && <span className="arrangement"> · {selected.deck.arrangementName}</span>}
               </h2>
@@ -2820,6 +2842,7 @@ function Operator(): React.JSX.Element {
         onItems={setMedia}
         onFolders={setMediaFolders}
         onMute={(item, muted) => void window.vessel.setMediaMuted(item.id, muted).then(setMedia)}
+        onLook={(item, look) => void window.vessel.setMediaLook(item.id, look).then(setMedia)}
         onDropFiles={(paths, folder) => {
           setDraggingFiles(false);
           void addDropped(paths, undefined, folder);

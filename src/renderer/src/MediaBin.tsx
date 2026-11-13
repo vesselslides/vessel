@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { normalizeLook, PLAIN_LOOK } from '../../shared/media';
 import { backgroundForPath } from '../../shared/pro/background';
-import type { Background, BinKind, MediaFolder, MediaItem } from '../../shared/types';
+import type { Background, BinKind, MediaFolder, MediaItem, MediaLook } from '../../shared/types';
 import { MediaView } from './AudienceView';
 import { MusicIcon, MutedIcon, PauseIcon, PlayIcon, WarningIcon } from './Icons';
 
@@ -23,6 +24,47 @@ const KIND_FILTERS: Array<{ id: 'all' | BinKind; label: string }> = [
 
 const reveal = navigator.platform.startsWith('Mac') ? 'Show in Finder' : 'Show in Explorer';
 
+const LOOK_SLIDERS: Array<{ key: keyof MediaLook; label: string; hint: string }> = [
+  { key: 'blur', label: 'Blur', hint: 'Soften it so the words stand out' },
+  { key: 'darken', label: 'Darken', hint: 'Dim it behind light words' },
+  { key: 'color', label: 'Colour', hint: 'Less colour, down to black and white' }
+];
+
+/** Blur, darken or fade a picture or video; it looks like this wherever it's a background. */
+function LookDialog({ item, onSave, onCancel }: { item: MediaItem; onSave: (look: MediaLook | null) => void; onCancel: () => void }): React.JSX.Element {
+  const [look, setLook] = useState<MediaLook>(item.look ?? PLAIN_LOOK);
+  const bg = backgroundForPath(item.path);
+  return (
+    <div className="modal-backdrop" onMouseDown={onCancel}>
+      <div className="modal look-dialog" onMouseDown={(e) => e.stopPropagation()}>
+        <h2>Adjust look</h2>
+        <p className="hint">“{item.name}” looks like this wherever it’s a background: on the screens, the stream and every song that uses it.</p>
+        <div className="look-preview">
+          {bg && <MediaView bg={bg} muted thumbnail look={look} />}
+          <span className="look-sample">Sample words</span>
+        </div>
+        {LOOK_SLIDERS.map((s) => (
+          <label key={s.key} className="look-slider" title={s.hint}>
+            <span>{s.label}</span>
+            <input type="range" min={0} max={100} value={look[s.key]} onChange={(e) => setLook({ ...look, [s.key]: Number(e.target.value) })} />
+            <span className="look-value">{look[s.key]}%</span>
+          </label>
+        ))}
+        <div className="modal-actions">
+          <button onClick={() => setLook(PLAIN_LOOK)} disabled={!normalizeLook(look)}>
+            Reset
+          </button>
+          <span className="spacer" />
+          <button onClick={onCancel}>Cancel</button>
+          <button className="primary" onClick={() => onSave(normalizeLook(look))}>
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function rememberedFolder(): string {
   try {
     return localStorage.getItem(FOLDER_STORE) ?? ALL;
@@ -43,6 +85,7 @@ export function MediaBin({
   onItems,
   onFolders,
   onMute,
+  onLook,
   onDropFiles,
   songName,
   onSongBackground,
@@ -65,6 +108,8 @@ export function MediaBin({
   onFolders: (folders: MediaFolder[]) => void;
   /** Always play a video silently (or with sound again). */
   onMute: (item: MediaItem, muted: boolean) => void;
+  /** Blur, darken or fade it wherever it's a background (null: as it was). */
+  onLook: (item: MediaItem, look: MediaLook | null) => void;
   /** Files dragged in from Finder or Explorer, for this folder. */
   onDropFiles: (paths: string[], folder: string | null) => void;
   /** The presentation being worked on, if any (for "whole song" actions). */
@@ -82,6 +127,7 @@ export function MediaBin({
   const [query, setQuery] = useState('');
   const [naming, setNaming] = useState<{ id: string | null; name: string } | null>(null);
   const [dropFolder, setDropFolder] = useState<string | null>(null);
+  const [adjusting, setAdjusting] = useState<MediaItem | null>(null);
 
   // A folder deleted elsewhere falls back to everything.
   const current = folderId === ALL || folderId === UNFILED || folders.some((f) => f.id === folderId) ? folderId : ALL;
@@ -103,7 +149,7 @@ export function MediaBin({
     items.filter((i) => (id === ALL ? true : id === UNFILED ? !i.folder || !folders.some((f) => f.id === i.folder) : i.folder === id) && (kind === 'all' || i.kind === kind)).length;
   const inFolderTotal = items.filter(inFolder).length;
   const kindLabel = KIND_FILTERS.find((k) => k.id === kind)?.label.toLowerCase() ?? '';
-  // A different folder or filter starts at the beginning of the row.
+  // A different folder or filter starts at the top.
   const grid = useRef<HTMLDivElement>(null);
   useEffect(() => {
     grid.current?.scrollTo({ left: 0, top: 0 });
@@ -162,6 +208,8 @@ export function MediaBin({
             { type: 'separator' as const },
             { id: 'song-bg', label: `Background for every slide of ${song}`, enabled: !!songName },
             { id: 'song-pic', label: `Picture on every slide of ${song}`, enabled: !!songName && item.kind === 'image' },
+            { type: 'separator' as const },
+            { id: 'look', label: 'Adjust look (blur, darken)…' },
             ...(item.kind === 'video' ? [{ type: 'separator' as const }, { id: 'mute', label: 'Always mute this video', checked: !!item.muted }] : [])
           ]),
       { type: 'separator' },
@@ -175,6 +223,7 @@ export function MediaBin({
     else if (choice === 'song-pic') onSongPicture(item.path);
     else if (choice?.startsWith('move:')) void move([item.id], choice.slice(5) || null);
     else if (choice === 'mute') onMute(item, !item.muted);
+    else if (choice === 'look') setAdjusting(item);
     else if (choice === 'reveal') onReveal(item.path);
     else if (choice === 'find') onFindMissing();
     else if (choice === 'remove') onRemove(item.id);
@@ -368,6 +417,11 @@ export function MediaBin({
                       <WarningIcon size={12} />
                     </span>
                   )}
+                  {item.look && (
+                    <span className="look-badge" title="Look adjusted: blurred, darkened or faded (right-click to change)">
+                      ◐
+                    </span>
+                  )}
                   {item.kind === 'video' && item.muted && (
                     <span className="mute-badge" title="Always muted: plays without sound (right-click to change)">
                       <MutedIcon size={12} />
@@ -393,6 +447,16 @@ export function MediaBin({
           })}
         </div>
       </div>
+      {adjusting && (
+        <LookDialog
+          item={adjusting}
+          onCancel={() => setAdjusting(null)}
+          onSave={(look) => {
+            onLook(adjusting, look);
+            setAdjusting(null);
+          }}
+        />
+      )}
     </section>
   );
 }

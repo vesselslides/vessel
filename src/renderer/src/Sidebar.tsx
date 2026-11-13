@@ -3,7 +3,8 @@ import { moveItem, newServiceId, type Service, type ServiceItem } from '../../sh
 import type { LibraryItem, PlaylistFileInfo, Settings } from '../../shared/types';
 
 /** Drag payloads: a library song (JSON {path, name}) or a service row (its index). */
-const LIBRARY_MIME = 'application/x-vessel-library';
+/** Drag type for a presentation going into the service; the payload is { path, name }. */
+export const LIBRARY_MIME = 'application/x-vessel-library';
 const SERVICE_MIME = 'application/x-vessel-service-row';
 /** Dropdown value for a new playlist that has no file yet. */
 const NEW_PLAYLIST = '__new__';
@@ -269,13 +270,13 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
   };
 
   const accepts = (e: DragEvent): boolean =>
-    e.dataTransfer.types.includes(LIBRARY_MIME) || e.dataTransfer.types.includes(SERVICE_MIME) || (!!service && e.dataTransfer.types.includes('Files'));
+    e.dataTransfer.types.includes(LIBRARY_MIME) || e.dataTransfer.types.includes(SERVICE_MIME) || e.dataTransfer.types.includes('Files');
 
-  /** Drop before row `at`; Infinity appends to whatever the list is by then. */
+  /** Drop before row `at`; Infinity appends to whatever the list is by then. With no playlist open, it starts one. */
   const drop = (e: DragEvent, at: number): void => {
     setDropRow(null);
-    if (!service) return;
     e.preventDefault();
+    if (!service) props.onNewPlaylist(nextSundayName());
     // Files from Finder or Explorer: imported, then added here (the window handles everything else about them).
     if (e.dataTransfer.files.length) {
       e.stopPropagation();
@@ -352,6 +353,20 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
             </>
           )}
         </div>
+        {!service && (
+          <div
+            className={`service-list service-start ${dropRow === 0 ? 'drop' : ''}`}
+            onDragOver={(e) => {
+              if (!accepts(e)) return;
+              e.preventDefault();
+              setDropRow(0);
+            }}
+            onDragLeave={() => setDropRow(null)}
+            onDrop={(e) => drop(e, Infinity)}
+          >
+            <p className="empty">Drag a song here to start a playlist, or press + for an empty one.</p>
+          </div>
+        )}
         {service && (
           <>
             {service.path === null && <p className="hint">New playlist: it's saved once you add a song or header.</p>}
@@ -458,7 +473,18 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
         <section>
           <h3>Open files</h3>
           {outside.map((d) => (
-            <button key={d.index} className={`list-item ${d.selected ? 'selected' : ''}`} title={d.path} onClick={() => props.onSelectOpen(d.index)}>
+            <button
+              key={d.index}
+              className={`list-item ${d.selected ? 'selected' : ''}`}
+              title={d.path ? `${d.path}\nDrag into the service to add it` : 'Not saved yet'}
+              draggable={!!d.path}
+              onDragStart={(e) => {
+                if (!d.path) return;
+                e.dataTransfer.setData(LIBRARY_MIME, JSON.stringify({ path: d.path, name: d.name || fileOf(d.path) }));
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
+              onClick={() => props.onSelectOpen(d.index)}
+            >
               {d.name || 'Untitled'}
               {d.dirty ? ' *' : ''}
             </button>

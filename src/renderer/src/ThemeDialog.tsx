@@ -13,7 +13,7 @@ const COMMON_FONTS = [
 const SAMPLE = 'Amazing grace how sweet the sound\nThat saved a wretch like me';
 
 /** System fonts where the browser allows listing them, else a common set. */
-function useFontList(): string[] {
+export function useFontList(): string[] {
   const [fonts, setFonts] = useState(COMMON_FONTS);
   useEffect(() => {
     const query = (window as unknown as { queryLocalFonts?: () => Promise<Array<{ family: string }>> }).queryLocalFonts;

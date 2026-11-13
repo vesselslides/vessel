@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { mediaUrl } from '../../shared/media';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
+import { lookFilter, mediaUrl } from '../../shared/media';
 import { fillMessage, hasTokens, type LiveMessage } from '../../shared/messages';
 import type { LowerThird } from '../../shared/lowerThirds';
-import type { Background, LiveState, SlideLayout } from '../../shared/types';
+import type { Background, LiveState, MediaLook, SlideLayout } from '../../shared/types';
 import { hasEnded, positionIn, type VideoClock } from '../../shared/videoClock';
 import { SlideCanvas } from './SlideCanvas';
 import { useSoundRouting, type SoundRouting } from './sound';
@@ -80,16 +80,45 @@ function useVideoClock(video: React.RefObject<HTMLVideoElement | null>, clock: V
   }, [video, clock, loop]);
 }
 
+// Backgrounds' looks by path (media bin ▸ Adjust look), for every MediaView in this window.
+let looks: Record<string, MediaLook> = {};
+const lookListeners = new Set<() => void>();
+export function showMediaLooks(next: Record<string, MediaLook>): void {
+  looks = next;
+  for (const listener of lookListeners) listener();
+}
+const subscribeLooks = (listener: () => void): (() => void) => {
+  lookListeners.add(listener);
+  return () => lookListeners.delete(listener);
+};
+
+/** The element's height, kept up to date (a look's blur is a share of it). */
+function useHeight(ref: React.RefObject<HTMLElement | null>, active: boolean): number {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !active) return;
+    const observer = new ResizeObserver(() => setHeight(el.clientHeight));
+    observer.observe(el);
+    setHeight(el.clientHeight);
+    return () => observer.disconnect();
+  }, [ref, active]);
+  return height;
+}
+
 export function MediaView({
   bg,
   muted,
   thumbnail = false,
   volume = 1,
   routing = {},
-  clock = null
+  clock = null,
+  look: lookOverride
 }: {
   bg: Background;
   muted: boolean;
+  /** Overrides the window's looks (the audience screens get theirs with the live state). */
+  look?: MediaLook | null;
   thumbnail?: boolean;
   volume?: number;
   /** Output device and delay (Preferences ▸ Audio and video). */
@@ -98,6 +127,10 @@ export function MediaView({
   clock?: VideoClock | null;
 }): React.JSX.Element {
   const video = useRef<HTMLVideoElement>(null);
+  const image = useRef<HTMLImageElement>(null);
+  const shared = useSyncExternalStore(subscribeLooks, () => looks);
+  const look = lookOverride === undefined ? shared[bg.path] : lookOverride;
+  const height = useHeight(bg.kind === 'image' ? image : video, !!look?.blur);
   useVideoClock(video, thumbnail || bg.kind !== 'video' ? null : clock, bg.loop);
   useSoundRouting(video, routing, bg.kind === 'video' && !thumbnail && !muted);
   // Volume isn't an attribute; set it on the element.
@@ -105,9 +138,14 @@ export function MediaView({
     if (video.current) video.current.volume = Math.min(1, Math.max(0, volume));
   }, [volume, bg.path]);
   const style: CSSProperties = { objectFit: OBJECT_FIT[bg.scale] };
+  if (look) {
+    style.filter = lookFilter(look, height);
+    // A blur softens the edges too: draw it a little larger so they stay off screen.
+    if (look.blur) style.transform = `scale(${1 + look.blur / 1000})`;
+  }
   const src = mediaUrl(bg.path);
-  if (bg.kind === 'image') return <img className="media" src={src} style={style} alt="" draggable={false} />;
-  if (thumbnail) return <video className="media" src={`${src}#t=0.5`} style={style} preload="metadata" muted />;
+  if (bg.kind === 'image') return <img ref={image} className="media" src={src} style={style} alt="" draggable={false} />;
+  if (thumbnail) return <video ref={video} className="media" src={`${src}#t=0.5`} style={style} preload="metadata" muted />;
   return <video ref={video} className="media" src={src} style={style} autoPlay loop={bg.loop} muted={muted} playsInline />;
 }
 
@@ -169,6 +207,7 @@ export function AudienceView({ live, muted }: { live: LiveState; muted: boolean 
               volume={(live.videoVolume ?? 1) * (live.audioLevel ?? 1)}
               routing={{ sinkId: live.audioOutputId, delayMs: live.audioDelayMs }}
               clock={live.videoClock?.path === l.value.path ? live.videoClock : null}
+              look={live.mediaLooks?.[l.value.path] ?? null}
             />
           )}
         </div>

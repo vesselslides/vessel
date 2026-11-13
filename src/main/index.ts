@@ -24,7 +24,7 @@ import { pcoConnect, pcoDisconnect, pcoPlanItems, pcoPlans, pcoServiceTypes, pco
 import { NDI_SITE, NDI_SIZES, normalizeNdi, type NdiStatus } from '../shared/ndi';
 import appIcon from '../../build/icon.png?asset';
 import type { ThemeLibrary } from '../shared/theme';
-import { addToMediaBin, createMediaFolder, deleteMediaFolder, handleMediaProtocol, loadMediaBin, loadMediaFolders, moveMedia, registerMediaScheme, relinkMediaBin, removeFromMediaBin, renameMediaFolder, setMediaMuted } from './media';
+import { addToMediaBin, createMediaFolder, deleteMediaFolder, handleMediaProtocol, loadMediaBin, loadMediaFolders, moveMedia, registerMediaScheme, relinkMediaBin, removeFromMediaBin, renameMediaFolder, setMediaLook, setMediaMuted } from './media';
 import { findMoved, missingPaths } from './relink';
 import { availableUpdate, checkForUpdates, installUpdate, startUpdateChecks } from './updates';
 import { describe, endRun, log, startRun } from './log';
@@ -693,6 +693,7 @@ function registerIpc(): void {
   ipcMain.handle('media:folder-delete', (_e, id: string) => deleteMediaFolder(String(id)));
   ipcMain.handle('media:move', (_e, ids: string[], folder: string | null) => moveMedia(ids, folder ? String(folder) : null));
   ipcMain.handle('media:mute', (_e, id: string, muted: boolean) => setMediaMuted(String(id), !!muted));
+  ipcMain.handle('media:look', (_e, id: string, look: unknown) => setMediaLook(String(id), look));
   ipcMain.handle('media:import', async (_e, folder?: string | null) => {
     const result = await dialog.showOpenDialog(operatorWindow!, {
       properties: ['openFile', 'multiSelections'],

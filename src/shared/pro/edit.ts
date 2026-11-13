@@ -7,9 +7,10 @@ import { Slide_ElementSchema, type Slide_Element } from '../gen/presentation_pb'
 import { newCueGroup, newSlideCue, newUuid, presentationToDeck, writeCueNotes, slideCue, slideOfCue, slideTextOfCue, SLIDE_HEIGHT, SLIDE_WIDTH, textElement, textElements, uuidOf, hexToColor } from './presentation';
 import type { Background, SlideAdvance } from '../types';
 import { backgroundAction, isBackgroundAction } from './background';
-import { plainTextToRtf, replaceRtfText, rtfToPlainText } from './rtf';
+import { parseRtfStyle, plainTextToRtf, replaceRtfText, rtfToPlainText, type RtfStyle } from './rtf';
 import { imageElement, placementBox, type ImagePlacement } from './graphics';
-import { THEME_SCALE_BEHAVIOR, themeAttributes, themeFill, themeRtfStyle, themeShadow, themeVerticalAlignment, type Theme } from '../theme';
+import { hexToRgb, THEME_SCALE_BEHAVIOR, themeAttributes, themeFill, themeRtfStyle, themeShadow, themeVerticalAlignment, type Theme } from '../theme';
+import { Graphics_Text_Attributes_Alignment, Graphics_Text_Attributes_ParagraphSchema } from '../gen/graphics_pb';
 
 type Draft = Presentation;
 
@@ -108,6 +109,60 @@ export function applyTheme(p: Presentation, theme: Theme, cueIds?: string[]): Pr
   });
 }
 
+/** A change to the words' look on some slides (Edit ▸ Text); anything left out stays as it is. */
+export interface TextStyleChange {
+  /** Font family, e.g. "Georgia". */
+  font?: string;
+  /** Multiply every box's size (so a title stays bigger than the words under it). */
+  scale?: number;
+  bold?: boolean;
+  italic?: boolean;
+  /** #rrggbb */
+  color?: string;
+  align?: RtfStyle['align'];
+}
+
+const ALIGNMENT: Record<RtfStyle['align'], Graphics_Text_Attributes_Alignment> = {
+  left: Graphics_Text_Attributes_Alignment.LEFT,
+  center: Graphics_Text_Attributes_Alignment.CENTER,
+  right: Graphics_Text_Attributes_Alignment.RIGHT
+};
+
+/**
+ * Change the font, size, weight, colour or alignment of every text box on
+ * these slides (all of them when `cueIds` is left out), keeping the words.
+ */
+export function setTextStyle(p: Presentation, change: TextStyleChange, cueIds?: string[]): Presentation {
+  return edit(p, (d) => {
+    const only = cueIds ? new Set(cueIds) : null;
+    for (const cue of d.cues) {
+      if (only && !only.has(uuidOf(cue.uuid))) continue;
+      for (const el of textElements(slideOfCue(cue))) {
+        const text = el.element!.text!;
+        const was = parseRtfStyle(text.rtfData!);
+        const style: RtfStyle = {
+          font: change.font?.trim() || was.font,
+          sizePt: Math.max(4, Math.round(was.sizePt * (change.scale ?? 1) * 10) / 10),
+          color: change.color ? hexToRgb(change.color) : was.color,
+          align: change.align ?? was.align
+        };
+        if (change.bold ?? was.bold) style.bold = true;
+        if (change.italic ?? was.italic) style.italic = true;
+        text.rtfData = plainTextToRtf(rtfToPlainText(text.rtfData!), style);
+        // ProPresenter also keeps the first run's look here; keep the two in step.
+        const attrs = text.attributes;
+        if (!attrs) continue;
+        if (attrs.font) Object.assign(attrs.font, { name: style.font, family: style.font, size: style.sizePt, bold: !!style.bold, italic: !!style.italic });
+        if (change.align) {
+          attrs.paragraphStyle ??= create(Graphics_Text_Attributes_ParagraphSchema);
+          attrs.paragraphStyle.alignment = ALIGNMENT[change.align];
+        }
+        if (change.color) attrs.fill = { case: 'textSolidFill', value: hexToColor(change.color) };
+      }
+    }
+  });
+}
+
 /** Put a picture on slides at a placement (on top of what's there). */
 export function addSlideImage(p: Presentation, cueIds: string[], path: string, placement: ImagePlacement): Presentation {
   return edit(p, (d) => {
@@ -178,6 +233,17 @@ function writeCueText(d: Draft, cue: Cue, text: string): void {
   const [first] = textElements(slide);
   if (first) first.element!.text!.rtfData = replaceRtfText(first.element!.text!.rtfData, text);
   else slide.elements.push(textElement(replaceRtfText(styleSource(d), text)));
+}
+
+/**
+ * Set the words of one text box on a slide with several (a PowerPoint title
+ * and body, say). `box` counts the visible text boxes, as the slide shows them.
+ */
+export function setSlideBoxText(p: Presentation, cueId: string, box: number, text: string): Presentation {
+  return edit(p, (d) => {
+    const el = textElements(slideOfCue(findCue(d, cueId))).filter((e) => !e.element!.hidden)[box];
+    if (el) el.element!.text!.rtfData = replaceRtfText(el.element!.text!.rtfData, text);
+  });
 }
 
 /** Set (or, with blank text, remove) the presenter's notes for a slide. */
