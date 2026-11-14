@@ -6,7 +6,20 @@ export interface ImportOptions extends LyricsOptions {
   pptxLook: 'slides' | 'lyrics';
 }
 
-export const DEFAULT_IMPORT_OPTIONS: ImportOptions = { pptxLook: 'slides', linesPerSlide: 0, removeChords: true };
+export const DEFAULT_IMPORT_OPTIONS: ImportOptions = { pptxLook: 'slides', linesPerSlide: 0, removeChords: true, keepChords: true };
+
+/** What happens to chords in imported or pasted lyrics: kept for the band (off the words), left out, or shown as words. */
+export type ChordChoice = 'keep' | 'remove' | 'show';
+
+export const CHORD_CHOICES: Array<{ id: ChordChoice; label: string }> = [
+  { id: 'keep', label: 'Keep them for the band (stage screen and chord charts)' },
+  { id: 'remove', label: 'Leave them out' },
+  { id: 'show', label: 'Show them as words on the slides' }
+];
+
+export const chordChoice = (o: Pick<LyricsOptions, 'removeChords' | 'keepChords'>): ChordChoice => (o.keepChords !== false ? 'keep' : o.removeChords ? 'remove' : 'show');
+
+export const withChordChoice = <T extends LyricsOptions>(o: T, choice: ChordChoice): T => ({ ...o, keepChords: choice === 'keep', removeChords: choice !== 'show' });
 
 export interface DocumentImportReport {
   source: 'PowerPoint' | 'Word' | 'OpenDocument' | 'RTF' | 'text';
@@ -21,6 +34,9 @@ export interface DocumentImportReport {
   /** Slides that came with speaker notes (PowerPoint, kept as the presenter's notes). */
   speakerNotes: number;
   removedChordLines: number;
+  /** Chords kept on the words for the band, and the key they look to be in. */
+  chords: number;
+  key?: string;
   ccli: boolean;
   skipped: Record<string, number>;
 }

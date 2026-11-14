@@ -160,6 +160,14 @@ message Graphics {
       message Paragraph {
         Alignment alignment = 1;
       }
+      // Something extra on a stretch of the text. Vessel uses chords: a chord
+      // name on the character it's played over. Other kinds are kept as they are.
+      message CustomAttribute {
+        IntRange range = 1;
+        oneof attribute {
+          string chord = 7;
+        }
+      }
       Font font = 1;
       Capitalization capitalization = 2;
       oneof fill {
@@ -168,6 +176,7 @@ message Graphics {
       Paragraph paragraph_style = 6;
       double stroke_width = 11;
       Color stroke_color = 12;
+      repeated CustomAttribute custom_attributes = 13;
     }
     Attributes attributes = 3;
     Shadow shadow = 4;

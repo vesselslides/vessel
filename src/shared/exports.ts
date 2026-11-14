@@ -3,14 +3,17 @@
 // gathers the songs (as the screen would show them); the main process saves
 // text directly and draws the rest in a hidden print page.
 import type { Background, Deck, SlideView } from './types';
+import { chordsInKey, guessKey, inlineToChordSheet, joinInline } from './chords';
 
-export type ExportFormat = 'pdf-slides' | 'pdf-lyrics' | 'images' | 'text';
+export type ExportFormat = 'pdf-slides' | 'pdf-lyrics' | 'pdf-chords' | 'images' | 'text';
 
 export interface LyricSection {
   name: string;
   color?: string;
   /** Each slide's words, in order. */
   slides: string[];
+  /** Each slide as a chord sheet (chords on a line above the words, in the key it's played in), for a chord chart. */
+  chordSlides?: string[];
 }
 
 export interface ExportSong {
@@ -24,6 +27,8 @@ export interface ExportSong {
   sections: LyricSection[];
   /** Group names in play order ("Verse 1, Chorus, Verse 2, Chorus"). */
   order: string[];
+  /** The key it's played in, for a chord chart. */
+  key?: string;
 }
 
 export interface ExportHeader {
@@ -109,11 +114,14 @@ export function exportSong(deck: Deck, copyright: string): ExportSong {
     if (seen.has(s.groupId)) continue;
     // Each group's words once, in that group's own slide order.
     const group = deck.groups.find((g) => g.id === s.groupId);
-    const section: LyricSection = { name, color: s.groupColor, slides: (group?.slides ?? [s]).map((x) => x.text.trim()).filter(Boolean) };
+    const groupSlides = (group?.slides ?? [s]).filter((x) => x.text.trim());
+    const section: LyricSection = { name, color: s.groupColor, slides: groupSlides.map((x) => x.text.trim()) };
+    if (groupSlides.some((x) => x.chords?.length)) section.chordSlides = groupSlides.map((x) => inlineToChordSheet(joinInline(x.text, chordsInKey(x.chords ?? [], deck.key))).trim());
     seen.set(s.groupId, section);
     sections.push(section);
   }
-  return { kind: 'song', name: deck.name || 'Untitled', copyright, slides: withCarriedBackgrounds(slides), sections, order };
+  const key = deck.key?.play ?? guessKey(deck.slides.flatMap((s) => (s.chords ?? []).map((c) => c.chord)));
+  return { kind: 'song', name: deck.name || 'Untitled', copyright, slides: withCarriedBackgrounds(slides), sections, order, ...(key ? { key } : {}) };
 }
 
 /**
@@ -181,4 +189,4 @@ export function imageNames(job: Pick<ExportJob, 'entries' | 'options'>): string[
   );
 }
 
-export const FORMAT_EXTENSION: Record<ExportFormat, string | null> = { 'pdf-slides': 'pdf', 'pdf-lyrics': 'pdf', images: null, text: 'txt' };
+export const FORMAT_EXTENSION: Record<ExportFormat, string | null> = { 'pdf-slides': 'pdf', 'pdf-lyrics': 'pdf', 'pdf-chords': 'pdf', images: null, text: 'txt' };

@@ -28,6 +28,8 @@ export interface PresenterSlide {
   color?: string;
   /** Turned-off slides are passed over by Next and Back. */
   enabled: boolean;
+  /** The words as a chord sheet, in the key it's played in, when the slide has chords. */
+  chordLines?: Array<{ chords: string; words: string }>;
 }
 
 /** What the presenter view shows: the presentation on screen (or about to be), with its notes. */
@@ -39,6 +41,8 @@ export interface PresenterState {
     liveIndex: number | null;
     /** When this presentation first went on screen (ms since 1970), for "Speaking 12:48". */
     speakingSince: number | null;
+    /** The key it's played in, when it has chords ("A", "B♭m"). */
+    key?: string;
   } | null;
   blackout: boolean;
   /** Pictures of the slides once drawn, at /api/slides/<key>/<index>.jpg. */

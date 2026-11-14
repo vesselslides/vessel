@@ -15,7 +15,7 @@ export async function exportDocument(win: BrowserWindow | null, job: ExportJob, 
   const ext = FORMAT_EXTENSION[job.format];
   let target: string;
   if (ext) {
-    const opts = { title: 'Export', defaultPath: join(app.getPath('documents'), `${name}${job.format === 'pdf-lyrics' ? ' lyrics' : ''}.${ext}`), filters: [FILTERS[ext]] };
+    const opts = { title: 'Export', defaultPath: join(app.getPath('documents'), `${name}${job.format === 'pdf-lyrics' ? ' lyrics' : job.format === 'pdf-chords' ? ' chords' : ''}.${ext}`), filters: [FILTERS[ext]] };
     const picked = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts);
     if (picked.canceled || !picked.filePath) return null;
     target = picked.filePath;

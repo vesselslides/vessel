@@ -30,6 +30,7 @@ interface Kind {
 const KINDS: Kind[] = [
   { id: 'pdf-slides', title: 'PDF of the slides', blurb: 'Slides as they look on screen, to print or check', files: '.pdf · 1 to 6 a page', icon: <SlidesIcon size={26} /> },
   { id: 'pdf-lyrics', title: 'Lyrics sheet', blurb: 'The words by group, for the band or an order of service', files: '.pdf', icon: <DocumentIcon size={26} /> },
+  { id: 'pdf-chords', title: 'Chord chart', blurb: 'Chords above the words, in the key each song is played in, for the band', files: '.pdf', icon: <DocumentIcon size={26} /> },
   { id: 'images', title: 'Pictures of the slides', blurb: 'One picture per slide, for social media or another screen', files: '.png · .jpg', icon: <MediaIcon size={26} /> },
   { id: 'text', title: 'Plain text', blurb: 'The words, for an email, bulletin or website', files: '.txt', icon: <TextIcon size={26} /> },
   { id: 'bundle', title: 'Playlist with media', blurb: 'The service, its songs and media in one playlist file for other presentation software', files: '.proPlaylist', icon: <PlaylistIcon size={26} />, serviceOnly: true },
@@ -150,7 +151,9 @@ export function ExportDialog({
               </section>
             )}
 
-            {current.id === 'pdf-lyrics' && (
+            {current.id === 'pdf-chords' && <p className="hint">Songs without chords come out as words only. Transpose a song with its Key button before exporting to chart it in a new key.</p>}
+
+            {(current.id === 'pdf-lyrics' || current.id === 'pdf-chords') && (
               <section className="import-option">
                 <label className="import-row">
                   <span>Columns</span>
@@ -203,7 +206,7 @@ export function ExportDialog({
               </p>
             )}
 
-            {(current.id === 'pdf-lyrics' || current.id === 'text' || current.id === 'bundle') && (
+            {(current.id === 'pdf-lyrics' || current.id === 'pdf-chords' || current.id === 'text' || current.id === 'bundle') && (
               <p className="hint">Song lyrics are usually copyrighted: share copies only as your licence allows.</p>
             )}
 

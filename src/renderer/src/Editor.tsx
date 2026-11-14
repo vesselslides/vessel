@@ -27,13 +27,15 @@ import {
   setSlideBoxText,
   setSlideNotes,
   setSlideText,
+  setSongKey,
   setTextStyle,
   splitSlide,
   type TextStyleChange
 } from '../../shared/pro/edit';
 import { backgroundForPath } from '../../shared/pro/background';
 import { IMAGE_PLACEMENTS, placementOf, type ImagePlacement } from '../../shared/pro/graphics';
-import { layoutWithText } from '../../shared/pro/presentation';
+import { layoutWithText, songKeyOf } from '../../shared/pro/presentation';
+import { chordSheetToInline, guessKey, hasChords, inlineToChordSheet, joinInline, splitInline } from '../../shared/chords';
 import { tidyLyrics } from '../../shared/import/lyrics';
 import { mediaName } from '../../shared/media';
 import type { Deck, GroupView, MediaItem, SlideView } from '../../shared/types';
@@ -41,6 +43,7 @@ import { MediaView } from './AudienceView';
 import { MEDIA_MIME } from './MediaBin';
 import { SlideCanvas } from './SlideCanvas';
 import { useFontList } from './ThemeDialog';
+import { KeyButton } from './KeyButton';
 import { dropSide, openGroupMenu, openSlideMenu, SLIDE_DRAG, type DropSide } from './slideMenus';
 
 export type Apply = (change: (p: Presentation) => Presentation) => void;
@@ -172,6 +175,8 @@ function TextBar({ deck, apply }: { deck: Deck; apply: Apply }): React.JSX.Eleme
 }
 
 interface CardProps {
+  /** The slide's text shows its chords in brackets, and edits set them. */
+  chordMode: boolean;
   deck: Deck;
   slide: SlideView;
   index: number;
@@ -182,8 +187,9 @@ interface CardProps {
   onFocused: () => void;
 }
 
-function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }: CardProps): React.JSX.Element {
-  const [text, setText] = useState(slide.text);
+function SlideCard({ chordMode, deck, slide, index, group, apply, media, focus, onFocused }: CardProps): React.JSX.Element {
+  const value = chordMode ? joinInline(slide.text, slide.chords) : slide.text;
+  const [text, setText] = useState(value);
   // A slide with several text boxes (a title and body from PowerPoint) gets a field for each.
   const boxTexts = slide.layout.boxes.map((b) => b.text);
   const multi = boxTexts.length > 1;
@@ -194,7 +200,7 @@ function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }
   const [dropHint, setDropHint] = useState<DropSide | 'media' | null>(null);
   const area = useRef<HTMLTextAreaElement>(null);
   const card = useRef<HTMLDivElement>(null);
-  useEffect(() => setText(slide.text), [slide.text]);
+  useEffect(() => setText(value), [value]);
   useEffect(() => setNotes(slide.notes ?? ''), [slide.notes]);
 
   // "Edit text…" from Show lands here: scroll into view and put the cursor at the end.
@@ -207,7 +213,7 @@ function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }
   }, [focus]); // only when this card becomes the focus target
 
   const commit = (): void => {
-    if (text !== slide.text) apply((p) => setSlideText(p, slide.cueId, text));
+    if (text !== value) apply((p) => setSlideText(p, slide.cueId, text, chordMode));
   };
   const commitBox = (i: number): void => {
     if (boxDrafts[i] !== boxTexts[i]) apply((p) => setSlideBoxText(p, slide.cueId, i, boxDrafts[i]));
@@ -223,7 +229,7 @@ function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }
   const split = (): void => {
     const cursor = area.current?.selectionStart ?? 0;
     if (cursor <= 0 || cursor >= text.length) return;
-    apply((p) => splitSlide(p, group.id, slide.cueId, text.slice(0, cursor), text.slice(cursor)));
+    apply((p) => splitSlide(p, group.id, slide.cueId, text.slice(0, cursor), text.slice(cursor), chordMode));
   };
   const menu = (): void =>
     void openSlideMenu({ deck, slide, media, apply, split: { text, cursor: area.current?.selectionStart ?? 0 } });
@@ -278,7 +284,9 @@ function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }
         }}
       >
         {slide.background && <MediaView bg={slide.background} muted thumbnail />}
-        <SlideCanvas layout={multi ? { ...slide.layout, boxes: slide.layout.boxes.map((b, i) => ({ ...b, text: boxDrafts[i] ?? b.text })) } : layoutWithText(slide.layout, text)} />
+        <SlideCanvas
+          layout={multi ? { ...slide.layout, boxes: slide.layout.boxes.map((b, i) => ({ ...b, text: boxDrafts[i] ?? b.text })) } : layoutWithText(slide.layout, chordMode ? splitInline(text).text : text)}
+        />
         <span className="edit-number" style={{ background: group.color }}>
           {index + 1}
         </span>
@@ -308,8 +316,9 @@ function SlideCard({ deck, slide, index, group, apply, media, focus, onFocused }
       ) : (
         <textarea
           ref={area}
+          className={chordMode ? 'with-chords' : ''}
           value={text}
-          placeholder="Slide text"
+          placeholder={chordMode ? 'Slide text, with chords like [G]Amazing [D]grace' : 'Slide text'}
           rows={Math.max(3, text.split('\n').length + 1)}
           onChange={(e) => setText(e.target.value)}
           onBlur={commit}
@@ -500,20 +509,33 @@ const LINES_PER_SLIDE = [
  * The whole song as one text box: "[Group]" headers, blank lines between
  * slides, a bare "[Chorus]" to sing it again. Beside it, the slides it makes.
  */
+/** How the full-song editor writes chords: on a line above the words, or in brackets inside them. */
+type ChordView = 'above' | 'inline';
+
 function LyricsEditor({ presentation, deck, apply, onClose }: { presentation: Presentation; deck: Deck; apply: Apply; onClose: () => void }): React.JSX.Element {
-  const original = useMemo(() => presentationToLyrics(presentation), [presentation]);
-  const [text, setText] = useState(original);
+  const [view, setView] = useState<ChordView>('above');
+  const shown = (inline: string, as: ChordView): string => (as === 'above' ? inlineToChordSheet(inline) : inline);
+  const original = useMemo(() => presentationToLyrics(presentation, true), [presentation]);
+  const [text, setText] = useState(() => shown(original, 'above'));
+  /** The text with chords in brackets, however it's shown. */
+  const inline = (t: string, as: ChordView = view): string => (as === 'above' ? chordSheetToInline(t).text : t);
+  const switchView = (to: ChordView): void => {
+    setText(shown(inline(text), to));
+    setView(to);
+  };
+  const songHasChords = useMemo(() => hasChords(text), [text]);
   const [linesPerSlide, setLinesPerSlide] = useState(0);
   const [note, setNote] = useState('');
-  const plan = useMemo(() => planLyrics(text, linesPerSlide), [text, linesPerSlide]);
+  const plan = useMemo(() => planLyrics(inline(text), linesPerSlide), [text, linesPerSlide, view]); // eslint-disable-line react-hooks/exhaustive-deps
   const colorOf = useMemo(() => new Map(deck.groups.map((g) => [g.name.trim().toLowerCase(), g.color])), [deck.groups]);
   const slides = plan.groups.reduce((n, g) => n + g.slides.length, 0);
   const longest = Math.max(0, ...plan.groups.flatMap((g) => g.slides.map((s) => s.split('\n').length)));
-  const changed = text !== original || linesPerSlide > 0;
+  const changed = inline(text) !== original || linesPerSlide > 0;
 
   const tidy = (): void => {
-    const result = tidyLyrics(text);
-    setText(result.text);
+    // Chords are kept, on the words they're over; everything else pasted in is tidied.
+    const result = tidyLyrics(inline(text), true);
+    setText(shown(result.text, view));
     const bits = [
       result.removedChordLines ? `${result.removedChordLines} chord line${result.removedChordLines === 1 ? '' : 's'} taken out` : '',
       result.ccli.songNumber || result.ccli.publisher ? 'copyright lines taken out (add them under Song info)' : ''
@@ -528,9 +550,17 @@ function LyricsEditor({ presentation, deck, apply, onClose }: { presentation: Pr
         same name keep their colour, styling, backgrounds and pictures. Undo with ⌘Z / Ctrl+Z.
       </p>
       <div className="lyrics-tools">
-        <button onClick={tidy} title="Take out chords and copyright lines, and turn labels like “Verse 1:” or “CHORUS” into groups">
+        <button onClick={tidy} title="Put chords onto the words they're over, take out copyright lines, and turn labels like “Verse 1:” or “CHORUS” into groups">
           Tidy pasted lyrics
         </button>
+        <span className="segmented small" role="group" aria-label="How chords are written" title="Chords never show on the audience screen">
+          <button className={view === 'above' ? 'active' : ''} onClick={() => view !== 'above' && switchView('above')}>
+            Chords above
+          </button>
+          <button className={view === 'inline' ? 'active' : ''} onClick={() => view !== 'inline' && switchView('inline')}>
+            Chords in [brackets]
+          </button>
+        </span>
         <select value={linesPerSlide} onChange={(e) => setLinesPerSlide(Number(e.target.value))} title="Split long slides into shorter ones">
           {LINES_PER_SLIDE.map((o) => (
             <option key={o.value} value={o.value}>
@@ -541,7 +571,14 @@ function LyricsEditor({ presentation, deck, apply, onClose }: { presentation: Pr
         {note && <span className="muted">{note}</span>}
       </div>
       <div className="lyrics-columns">
-        <textarea autoFocus value={text} onChange={(e) => setText(e.target.value)} spellCheck aria-label="Song lyrics" />
+        <textarea
+          autoFocus
+          className={songHasChords ? 'with-chords' : ''}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          spellCheck={!songHasChords}
+          aria-label="Song lyrics"
+        />
         <div className="lyrics-preview" aria-label="Slides this makes">
           <div className="lyrics-summary">
             {plan.groups.length} group{plan.groups.length === 1 ? '' : 's'}, {slides} slide{slides === 1 ? '' : 's'}
@@ -560,7 +597,7 @@ function LyricsEditor({ presentation, deck, apply, onClose }: { presentation: Pr
               </div>
               {g.slides.map((slide, si) => (
                 <div key={si} className="lyrics-slide">
-                  {slide}
+                  {splitInline(slide).text}
                 </div>
               ))}
               {!g.slides.length && <div className="lyrics-slide empty">No slides</div>}
@@ -574,7 +611,14 @@ function LyricsEditor({ presentation, deck, apply, onClose }: { presentation: Pr
           className="primary"
           disabled={!changed}
           onClick={() => {
-            apply((p) => applyLyrics(p, text, linesPerSlide));
+            const words = inline(text);
+            apply((p) => {
+              const applied = applyLyrics(p, words, linesPerSlide, true);
+              // Chords added to a song without a key: work one out from them.
+              if (songKeyOf(applied)) return applied;
+              const key = guessKey(planLyrics(words).groups.flatMap((g) => g.slides.flatMap((s) => splitInline(s).chords.map((c) => c.chord))));
+              return key ? setSongKey(applied, { written: key, play: key }) : applied;
+            });
             onClose();
           }}
         >
@@ -607,6 +651,9 @@ export function Editor({
 }): React.JSX.Element {
   const [newGroupName, setNewGroupName] = useState('');
   const [lyricsMode, setLyricsMode] = useState(false);
+  const songChords = useMemo(() => deck.slides.flatMap((s) => (s.chords ?? []).map((c) => c.chord)), [deck.slides]);
+  // Chords show on each slide (in brackets) when the song has some; the Chords button turns that on and off.
+  const [chordMode, setChordMode] = useState(songChords.length > 0);
 
   const dropAtEnd = (e: DragEvent, toGroupId: string, toIndex: number): void => {
     const raw = e.dataTransfer.getData(SLIDE_DRAG);
@@ -630,6 +677,15 @@ export function Editor({
         <button title="Redo (⇧⌘Z / Ctrl+Y)" onClick={history.redo} disabled={!history.canRedo}>
           Redo
         </button>
+        <button
+          className={chordMode ? 'active-toggle' : ''}
+          aria-pressed={chordMode}
+          onClick={() => setChordMode((v) => !v)}
+          title="Show each slide's chords in brackets, [G]Amazing, to add, move or change them. The audience never sees chords."
+        >
+          Chords
+        </button>
+        <KeyButton songKey={deck.key} guess={songChords.length ? guessKey(songChords) : null} onChange={(key) => apply((p) => setSongKey(p, key))} />
         <button onClick={() => setShowSongInfo(true)} title="Title, writers, copyright and CCLI song number">
           Song info (CCLI)…
         </button>
@@ -693,6 +749,7 @@ export function Editor({
                 {group.slides.map((slide, i) => (
                   <SlideCard
                     key={slide.cueId}
+                    chordMode={chordMode}
                     deck={deck}
                     slide={slide}
                     index={i}

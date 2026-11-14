@@ -4,7 +4,8 @@
 // lines are taken out of the slides.
 import { create } from '@bufbuild/protobuf';
 import { Presentation_CCLISchema, type Presentation } from '../gen/presentation_pb';
-import { addArrangement, selectArrangement } from '../pro/edit';
+import { chordSheetToInline, guessKey, isChordLine, splitInline } from '../chords';
+import { addArrangement, selectArrangement, setSongKey } from '../pro/edit';
 import { createPresentation, uuidOf } from '../pro/presentation';
 
 export interface LyricsOptions {
@@ -12,9 +13,11 @@ export interface LyricsOptions {
   linesPerSlide: number;
   /** Leave out lines that are only chords ("G  D/F#  Em  C") and [G] chords inside lines. */
   removeChords: boolean;
+  /** Keep the chords on the words they're played over (for the stage screen), out of the audience's sight. */
+  keepChords?: boolean;
 }
 
-export const DEFAULT_LYRICS_OPTIONS: LyricsOptions = { linesPerSlide: 0, removeChords: true };
+export const DEFAULT_LYRICS_OPTIONS: LyricsOptions = { linesPerSlide: 0, removeChords: true, keepChords: true };
 
 export interface Label {
   name: string;
@@ -36,6 +39,10 @@ export interface LyricsReport {
   /** Sections that come round again (they share one group in a "Song order" arrangement). */
   repeats: number;
   removedChordLines: number;
+  /** Chords kept on the words (for the stage screen). */
+  chords: number;
+  /** The key the chords look to be in, when there are any. */
+  key?: string;
   /** A CCLI number or copyright line was found and moved into the song's details. */
   ccli: boolean;
 }
@@ -80,13 +87,7 @@ export function parseLabel(line: string): Label | null {
   return null;
 }
 
-const CHORD = /^\(?[A-G](?:#|b|♯|♭)?(?:maj|min|m|M|sus|dim|aug|add|°|ø|\+)?\d*(?:(?:sus|add|maj|b|#)\d+)*(?:\/[A-G](?:#|b|♯|♭)?)?\)?$/;
-
-/** A line made only of chords (and bar lines), as in a chord chart. */
-export function isChordLine(line: string): boolean {
-  const tokens = line.trim().split(/\s+/).filter(Boolean);
-  return tokens.some((t) => CHORD.test(t)) && tokens.every((t) => CHORD.test(t) || /^[|/\-–.]+$/.test(t) || /^[x×]\d$/i.test(t));
-}
+export { isChordLine };
 
 /** "[G]Amazing [D/F#]grace" → "Amazing grace". */
 const stripInlineChords = (line: string): string => line.replace(/\[[A-G][^\]\s]{0,8}\]/g, '').replace(/\s{2,}/g, ' ');
@@ -120,6 +121,13 @@ function chordProDirective(line: string): { title?: string; label?: Label; drop:
 /** Read the sections out of a block of text. Blank lines end a verse; label lines start a section. */
 export function extractStanzas(text: string, opts: LyricsOptions = DEFAULT_LYRICS_OPTIONS): Extracted {
   const out: Extracted = { stanzas: [], ccli: {}, removedChordLines: 0 };
+  // Chords kept: each chord line goes onto the words under it, as [G] in the text.
+  const keep = !!opts.keepChords;
+  if (keep) {
+    const sheet = chordSheetToInline(text, (line) => !!parseLabel(line) || !!chordProDirective(line));
+    text = sheet.text;
+    out.removedChordLines += sheet.instrumentalLines;
+  }
   let lines: string[] = [];
   let label: Label | undefined;
   const flush = (): void => {
@@ -173,13 +181,13 @@ export function extractStanzas(text: string, opts: LyricsOptions = DEFAULT_LYRIC
       seen.add(found.name.toLowerCase());
       continue;
     }
-    if (opts.removeChords) {
+    if (opts.removeChords || keep) {
       if (isChordLine(line)) {
         out.removedChordLines++;
         continue;
       }
-      line = stripInlineChords(line);
-      if (!line.trim()) continue;
+      if (!keep) line = stripInlineChords(line);
+      if (!splitInline(line).text.trim()) continue;
     }
     if (!lines.length && pending) {
       label = pending;
@@ -244,6 +252,9 @@ export function stanzasToPresentation(name: string, extracted: Extracted, opts: 
     const added = addArrangement(presentation, 'Song order', ids);
     presentation = selectArrangement(added.presentation, added.arrangementId);
   }
+  const chords = groups.flatMap((g) => g.slides.flatMap((s) => splitInline(s).chords.map((m) => m.chord)));
+  const key = chords.length ? guessKey(chords) : null;
+  if (key) presentation = setSongKey(presentation, { written: key, play: key });
   const c = extracted.ccli;
   const ccli = c.songNumber !== undefined || c.copyrightYear !== undefined || c.publisher !== undefined || c.author !== undefined;
   if (ccli) {
@@ -264,6 +275,8 @@ export function stanzasToPresentation(name: string, extracted: Extracted, opts: 
       groups: groups.length,
       repeats,
       removedChordLines: extracted.removedChordLines,
+      chords: chords.length,
+      ...(key ? { key } : {}),
       ccli
     }
   };
@@ -287,12 +300,13 @@ export function lyricsToPresentation(fileName: string, text: string, opts: Lyric
 }
 
 /**
- * Tidy lyrics pasted into the song text box: chord lines and [G] chords out,
+ * Tidy lyrics pasted into the song text box: chord lines and [G] chords out
+ * (or, keeping chords, chord lines turned into [G] chords on the words),
  * "Verse 1:" or "CHORUS" labels as [Verse 1] and [Chorus], CCLI and copyright
  * lines out, and repeats written as a bare [Chorus] in the sung order.
  */
-export function tidyLyrics(text: string): { text: string; removedChordLines: number; ccli: Extracted['ccli'] } {
-  const extracted = extractStanzas(text, { linesPerSlide: 0, removeChords: true });
+export function tidyLyrics(text: string, keepChords = false): { text: string; removedChordLines: number; ccli: Extracted['ccli'] } {
+  const extracted = extractStanzas(text, { linesPerSlide: 0, removeChords: true, keepChords });
   const { groups, order } = arrangeStanzas(extracted.stanzas, 0);
   const written = new Set<number>();
   const blocks = order.map((i) => {

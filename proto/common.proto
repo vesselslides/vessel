@@ -72,7 +72,7 @@ message URL {
   }
 }
 
-// A numbered range, e.g. chapters 3 to 4.
+// A numbered range, e.g. chapters 3 to 4, or the characters a chord sits on.
 message IntRange {
   int32 start = 1;
   int32 end = 2;

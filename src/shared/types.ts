@@ -1,6 +1,7 @@
 import type { Bible } from './bible/formats';
 import type { CopyrightPosition, UsageEntry } from './ccli';
 import type { StageLayout } from './stage';
+import type { ChordMark, SongKey } from './chords';
 import type { GroupDefinition } from './groups';
 import type { DocumentImportReport, DocumentKind, ImportOptions } from './import';
 import type { LegacyImportReport } from './pro/legacy';
@@ -127,6 +128,8 @@ export interface SlideView {
   /** Background the slide triggers when it goes live, if any. */
   background?: Background;
   layout: SlideLayout;
+  /** Chords on the slide's words, as written (see `Deck.key` for the key they're played in). */
+  chords?: ChordMark[];
   /** Turned-off slides are skipped by Next/Previous (ProPresenter's "disabled"); clicking still shows them. */
   enabled: boolean;
   /** Moves on by itself after this many seconds (ProPresenter's slide timer), if set. */
@@ -169,6 +172,8 @@ export interface Deck {
   selectedArrangementId?: string;
   sourcePath?: string;
   arrangementName?: string;
+  /** The song's key, written and played, when it has chords or a key set. */
+  key?: SongKey;
 }
 
 export interface PlaylistEntry {
@@ -229,6 +234,10 @@ export interface StageSlide {
   label: string;
   groupName: string;
   groupColor?: string;
+  /** Chords on the words, already in the key it's played in. */
+  chords?: ChordMark[];
+  /** That key, for showing chords as numbers. */
+  key?: string;
 }
 
 /** Everything the stage display shows. */

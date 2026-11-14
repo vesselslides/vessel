@@ -61,6 +61,8 @@ export async function importDocumentFile(path: string, opts: ImportOptions): Pro
       hiddenSlides: report.hiddenSlides,
       speakerNotes: report.notes,
       removedChordLines: report.lyrics?.removedChordLines ?? 0,
+      chords: report.lyrics?.chords ?? 0,
+      ...(report.lyrics?.key ? { key: report.lyrics.key } : {}),
       ccli: report.lyrics?.ccli ?? false,
       skipped: report.skipped
     };
@@ -81,6 +83,8 @@ export async function importDocumentFile(path: string, opts: ImportOptions): Pro
     hiddenSlides: 0,
     speakerNotes: 0,
     removedChordLines: report.removedChordLines,
+    chords: report.chords,
+    ...(report.key ? { key: report.key } : {}),
     ccli: report.ccli,
     skipped: {}
   };

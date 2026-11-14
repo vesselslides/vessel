@@ -3,7 +3,7 @@ import { Action_ActionType, ActionSchema, type Action } from '../gen/presentatio
 import { ApplicationInfo_Application, ApplicationInfo_Platform, ApplicationInfoSchema } from '../gen/common_pb';
 import type { Color } from '../gen/common_pb';
 import { Cue_CompletionActionType, Cue_CompletionTargetType, CueSchema, type Cue } from '../gen/presentation_pb';
-import { Graphics_Text_Attributes_Capitalization, Graphics_Text_ScaleBehavior, Graphics_Text_VerticalAlignment } from '../gen/graphics_pb';
+import { Graphics_Text_Attributes_Capitalization, Graphics_Text_Attributes_CustomAttributeSchema, Graphics_Text_AttributesSchema, Graphics_Text_ScaleBehavior, Graphics_Text_VerticalAlignment } from '../gen/graphics_pb';
 import { GroupSchema } from '../gen/presentation_pb';
 import {
   Presentation_CueGroupSchema,
@@ -20,6 +20,7 @@ import { groupDefinitionFor, OTHER_GROUP_COLOR } from '../groups';
 import { backgroundOfCue } from './background';
 import { newUuid, uuidOf } from './ids';
 import { parseRtfStyle, plainTextToRtf, rtfToPlainText, type RtfStyle } from './rtf';
+import { isChord, keyFromPro, splitInline, type ChordMark, type SongKey } from '../chords';
 
 export const SLIDE_WIDTH = 1920;
 export const SLIDE_HEIGHT = 1080;
@@ -94,6 +95,60 @@ export function textElements(slide: Slide | undefined): Slide_Element[] {
 }
 
 const rgb = (c: [number, number, number]): string => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+
+/** The chords on a text box, where ProPresenter keeps them: a chord on each character it's played over. */
+export function chordsOfElement(el: Slide_Element): ChordMark[] {
+  const marks: ChordMark[] = [];
+  for (const a of el.element?.text?.attributes?.customAttributes ?? []) {
+    if (a.attribute.case === 'chord' && a.attribute.value.trim()) marks.push({ at: Math.max(0, a.range?.start ?? 0), chord: a.attribute.value.trim() });
+  }
+  return marks.sort((a, b) => a.at - b.at);
+}
+
+/** Put chords on a text box (replacing any it had); other kinds of attribute are kept. */
+export function writeElementChords(el: Slide_Element, chords: ChordMark[]): void {
+  const text = el.element?.text;
+  if (!text) return;
+  if (!text.attributes) {
+    if (!chords.length) return;
+    text.attributes = create(Graphics_Text_AttributesSchema);
+  }
+  const length = rtfToPlainText(text.rtfData ?? new Uint8Array()).length;
+  const others = text.attributes.customAttributes.filter((a) => a.attribute.case !== 'chord');
+  text.attributes.customAttributes = [
+    ...others,
+    ...chords.map((c) => {
+      // A chord sits on a character; one after the last word goes on the last letter.
+      const at = Math.max(0, Math.min(c.at, Math.max(0, length - 1)));
+      return create(Graphics_Text_Attributes_CustomAttributeSchema, {
+        range: { $typeName: 'vessel.format.IntRange', start: at, end: at + 1 },
+        attribute: { case: 'chord', value: c.chord }
+      });
+    })
+  ];
+}
+
+/** A slide's chords, placed in its text as `slideTextOfCue` joins it (boxes one after another, blank ones left out). */
+export function slideChordsOfCue(cue: Cue): ChordMark[] {
+  const marks: ChordMark[] = [];
+  let offset = 0;
+  for (const el of textElements(slideOfCue(cue))) {
+    const text = rtfToPlainText(el.element!.text!.rtfData!);
+    if (!text.trim().length) continue;
+    for (const c of chordsOfElement(el)) marks.push({ at: offset + Math.min(c.at, text.length), chord: c.chord });
+    offset += text.length + 1;
+  }
+  return marks;
+}
+
+/** The song's key as written and as played, if it has one. */
+export function songKeyOf(p: Presentation): SongKey | undefined {
+  const m = p.music;
+  const written = m?.originalMusicKey || (m?.original ? keyFromPro(m.original.musicKey, m.original.musicScale === 1) : '') || p.musicKey;
+  if (!written) return undefined;
+  const play = m?.userMusicKey || (m?.user ? keyFromPro(m.user.musicKey, m.user.musicScale === 1) : '') || written;
+  return { written, play };
+}
 
 /** Read how a cue's slide looks: size, background colour and every visible text box. */
 export function layoutOfCue(cue: Cue): SlideLayout {
@@ -185,6 +240,7 @@ function slideView(cue: Cue, group: Presentation_CueGroup | undefined, position:
     layout: layoutOfCue(cue),
     enabled: cue.isEnabled,
     ...(notesOfCue(cue) ? { notes: notesOfCue(cue) } : {}),
+    ...(slideChordsOfCue(cue).length ? { chords: slideChordsOfCue(cue) } : {}),
     ...(advanceOfCue(cue) ? { advance: advanceOfCue(cue) } : {})
   };
 }
@@ -239,7 +295,8 @@ export function presentationToDeck(p: Presentation, id: string, sourcePath?: str
     arrangements: p.arrangements.map((a) => ({ id: uuidOf(a.uuid), name: a.name, groupIds: a.groupIdentifiers.map(uuidOf) })),
     selectedArrangementId: arrangement ? uuidOf(arrangement.uuid) : undefined,
     sourcePath,
-    arrangementName: arrangement?.name
+    arrangementName: arrangement?.name,
+    ...(songKeyOf(p) ? { key: songKeyOf(p) } : {})
   };
 }
 
@@ -252,12 +309,18 @@ export interface Section {
  * Parse lyrics typed by an operator. Blank lines separate slides; a line in
  * square brackets ("[Chorus]") starts a new group.
  */
+/** "[Chorus]" on its own line names a group; "[G]" is a chord, not a group. */
+export function groupHeader(line: string): RegExpExecArray | null {
+  const m = /^\s*\[([^\]]+)\]\s*$/.exec(line);
+  return m && !isChord(m[1].trim()) ? m : null;
+}
+
 export function parseLyrics(text: string): Section[] {
   const sections: Section[] = [];
   let current: Section | undefined;
   for (const block of text.replace(/\r\n/g, '\n').split(/\n\s*\n/)) {
     const lines = block.split('\n');
-    const header = /^\s*\[(.+)\]\s*$/.exec(lines[0] ?? '');
+    const header = groupHeader(lines[0] ?? '');
     if (header) {
       current = { group: header[1].trim(), slides: [] };
       sections.push(current);
@@ -357,7 +420,14 @@ export function newCueGroup(name: string, cues: Cue[] = []): Presentation_CueGro
 export function createPresentation(name: string, sections: Section[]): Presentation {
   const cues: Cue[] = [];
   const cueGroups = sections.map((section) => {
-    const groupCues = section.slides.map((text) => newSlideCue(text));
+    // Words may carry chords in brackets ("[G]Amazing"): the words go on the slide, the chords under them.
+    const groupCues = section.slides.map((slide) => {
+      const { text, chords } = splitInline(slide);
+      const cue = newSlideCue(text);
+      const [box] = textElements(slideOfCue(cue));
+      if (box && chords.length) writeElementChords(box, chords);
+      return cue;
+    });
     cues.push(...groupCues);
     return newCueGroup(section.group, groupCues);
   });

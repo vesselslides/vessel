@@ -309,6 +309,37 @@ in-app tour (the **?** button at the top right) shows where things are, and
   picker, or drag media from the bin onto it. Undo/redo with ⌘Z / ⇧⌘Z
   (Ctrl+Z / Ctrl+Y), save with ⌘S / Ctrl+S.
 
+## Chords
+
+Chords are for the band: they show on the stage screen and on chord charts, and
+never on the audience screen, stream or NDI®.
+
+- **Bring them in:** paste a chord sheet into *New song* or *Edit lyrics as
+  text*, with chords on a line above the words or in brackets (`[G]Amazing`),
+  or import a `.txt` or ChordPro file. Section labels like `Verse 1:` become
+  groups, lines like `Intro: G C D` are left out, and the key is worked out
+  from the chords. Import ▸ *Chords* (also in Preferences ▸ Import) can leave
+  chords out, or show them as words, instead.
+- **Edit them:** in Edit, the **Chords** button shows each slide's chords in
+  brackets where they're played; type, move or delete them like words. *Edit
+  lyrics as text* shows the whole song with chords **above** the words or **in
+  brackets**. Change the words with chords hidden and they stay on their words.
+- **Transpose:** the **Key** button (Edit, Show, and the Live panel's Stage
+  section for the song on screen) shows the key it's played in. Step a half
+  step with ♭ and ♯, pick any key, or go *Back* to the key it's written in.
+  The chords stay written as they were, so nothing is lost.
+- **On the stage screen:** chords sit above the words, with the key in the top
+  bar. Live ▸ Stage ▸ *Chords* turns them off; *Adjust…* chooses letters
+  (G C D) or Nashville numbers (1 4 5), a capo (shows the shapes a guitarist
+  plays), and the chords' size and colour.
+- **Chord chart:** File ▸ Export ▸ *Chord chart* makes a PDF of a song or the
+  whole service with chords above the words, in the key each song is played in.
+- **Presenter remote:** for a song with chords, the notes panel has *Notes* and
+  *Chords* tabs; *Chords* shows the slide's words with chords above them and
+  the key, for a worship leader on a phone or iPad. A− and A+ change the size.
+- Chords and the key are kept in the song's `.pro` file where ProPresenter
+  keeps them.
+
 ## Streaming, NDI® and Planning Center
 
 - **Stream output** (Screens ▸ Stream Output): the words on a key colour, in a

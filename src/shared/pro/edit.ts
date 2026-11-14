@@ -4,7 +4,9 @@ import { clone, create } from '@bufbuild/protobuf';
 import { Cue_CompletionActionType, Cue_CompletionTargetType, CueSchema, type Cue } from '../gen/presentation_pb';
 import { Presentation_ArrangementSchema, PresentationSchema, type Presentation, type Presentation_CueGroup } from '../gen/presentation_pb';
 import { Slide_ElementSchema, type Slide_Element } from '../gen/presentation_pb';
-import { newCueGroup, newSlideCue, newUuid, presentationToDeck, writeCueNotes, slideCue, slideOfCue, slideTextOfCue, SLIDE_HEIGHT, SLIDE_WIDTH, textElement, textElements, uuidOf, hexToColor } from './presentation';
+import { chordsOfElement, groupHeader, newCueGroup, newSlideCue, newUuid, presentationToDeck, writeCueNotes, writeElementChords, slideCue, slideChordsOfCue, slideOfCue, slideTextOfCue, SLIDE_HEIGHT, SLIDE_WIDTH, textElement, textElements, uuidOf, hexToColor } from './presentation';
+import { joinInline, proKey, remapChords, splitInline, type SongKey } from '../chords';
+import { MusicKeyScale_MusicScale, Presentation_MusicSchema } from '../gen/presentation_pb';
 import type { Background, SlideAdvance } from '../types';
 import { backgroundAction, isBackgroundAction } from './background';
 import { parseRtfStyle, plainTextToRtf, replaceRtfText, rtfToPlainText, type RtfStyle } from './rtf';
@@ -59,6 +61,7 @@ function slideLike(p: Draft, text: string, groupId?: string): Cue {
   const element = clone(Slide_ElementSchema, template.element);
   element.element!.uuid = newUuid();
   element.element!.text!.rtfData = replaceRtfText(template.element.element!.text!.rtfData, text);
+  writeElementChords(element, []);
   return slideCue([element], template.size);
 }
 
@@ -92,7 +95,9 @@ export function applyTheme(p: Presentation, theme: Theme, cueIds?: string[]): Pr
         const g = el.element!;
         const text = g.text!;
         text.rtfData = plainTextToRtf(rtfToPlainText(text.rtfData!), themeRtfStyle(theme, height));
+        const kept = text.attributes?.customAttributes ?? [];
         text.attributes = themeAttributes(theme, height);
+        text.attributes.customAttributes = kept; // chords stay with the words
         text.shadow = themeShadow(theme);
         text.verticalAlignment = themeVerticalAlignment(theme);
         g.fill = themeFill(theme);
@@ -223,16 +228,46 @@ export function renamePresentation(p: Presentation, name: string): Presentation 
  * Replace a slide's text. The first text box keeps its styling; any extra
  * text boxes on the slide are left alone.
  */
-export function setSlideText(p: Presentation, cueId: string, text: string): Presentation {
-  return edit(p, (d) => writeCueText(d, findCue(d, cueId), text));
+/**
+ * Set a slide's words. With `withChords`, `text` has its chords in brackets
+ * ("[G]Amazing") and they replace the slide's chords; without, the chords it
+ * has stay on the words they were on.
+ */
+export function setSlideText(p: Presentation, cueId: string, text: string, withChords = false): Presentation {
+  return edit(p, (d) => writeCueText(d, findCue(d, cueId), text, withChords));
 }
 
-function writeCueText(d: Draft, cue: Cue, text: string): void {
+function writeCueText(d: Draft, cue: Cue, text: string, withChords = false): void {
   const slide = slideOfCue(cue);
   if (!slide) throw new Error('This cue has no slide to edit');
-  const [first] = textElements(slide);
-  if (first) first.element!.text!.rtfData = replaceRtfText(first.element!.text!.rtfData, text);
-  else slide.elements.push(textElement(replaceRtfText(styleSource(d), text)));
+  const inline = withChords ? splitInline(text) : null;
+  const words = inline ? inline.text : text;
+  let [first] = textElements(slide);
+  const before = first ? rtfToPlainText(first.element!.text!.rtfData!) : '';
+  const chords = inline ? inline.chords : first ? remapChords(before, words, chordsOfElement(first)) : [];
+  if (first) first.element!.text!.rtfData = replaceRtfText(first.element!.text!.rtfData, words);
+  else {
+    first = textElement(replaceRtfText(styleSource(d), words));
+    slide.elements.push(first);
+  }
+  writeElementChords(first, chords);
+}
+
+/** Set the song's key as written and as played (null takes it off). */
+export function setSongKey(p: Presentation, key: SongKey | null): Presentation {
+  return edit(p, (d) => {
+    if (!key) {
+      d.music = undefined;
+      d.musicKey = '';
+      return;
+    }
+    const scale = (k: string) => {
+      const pro = proKey(k);
+      return pro ? { $typeName: 'vessel.format.MusicKeyScale' as const, musicKey: pro.musicKey, musicScale: pro.minor ? MusicKeyScale_MusicScale.MINOR : MusicKeyScale_MusicScale.MAJOR } : undefined;
+    };
+    d.music = create(Presentation_MusicSchema, { originalMusicKey: key.written, userMusicKey: key.play, original: scale(key.written), user: scale(key.play) });
+    d.musicKey = key.play;
+  });
 }
 
 /**
@@ -242,7 +277,10 @@ function writeCueText(d: Draft, cue: Cue, text: string): void {
 export function setSlideBoxText(p: Presentation, cueId: string, box: number, text: string): Presentation {
   return edit(p, (d) => {
     const el = textElements(slideOfCue(findCue(d, cueId))).filter((e) => !e.element!.hidden)[box];
-    if (el) el.element!.text!.rtfData = replaceRtfText(el.element!.text!.rtfData, text);
+    if (!el) return;
+    const chords = remapChords(rtfToPlainText(el.element!.text!.rtfData!), text, chordsOfElement(el));
+    el.element!.text!.rtfData = replaceRtfText(el.element!.text!.rtfData, text);
+    writeElementChords(el, chords);
   });
 }
 
@@ -258,12 +296,12 @@ export function groupOfCue(p: Presentation, cueId: string): string | null {
 }
 
 /** Split a slide in two: it keeps `before`, and a copy right after it gets `after`. */
-export function splitSlide(p: Presentation, groupId: string, cueId: string, before: string, after: string): Presentation {
+export function splitSlide(p: Presentation, groupId: string, cueId: string, before: string, after: string, withChords = false): Presentation {
   const withCopy = duplicateSlide(p, groupId, cueId);
   const group = withCopy.cueGroups.find((g) => uuidOf(g.group?.uuid) === groupId)!;
   const at = group.cueIdentifiers.findIndex((c) => uuidOf(c) === cueId);
   const copyId = uuidOf(group.cueIdentifiers[at + 1]);
-  return setSlideText(setSlideText(withCopy, cueId, before.replace(/\s+$/, '')), copyId, after.replace(/^\s+/, ''));
+  return setSlideText(setSlideText(withCopy, cueId, before.replace(/\s+$/, ''), withChords), copyId, after.replace(/^\s+/, ''), withChords);
 }
 
 /** Insert a new blank slide just before another one in its group. */
@@ -275,11 +313,13 @@ export function insertSlideBefore(p: Presentation, groupId: string, beforeCueId:
 }
 
 /** The whole song as editable text: "[Group]" headers, blank lines between slides. */
-export function presentationToLyrics(p: Presentation): string {
+/** The whole song as text: [Group] headers, blank lines between slides; with `withChords`, chords in brackets on the words. */
+export function presentationToLyrics(p: Presentation, withChords = false): string {
   const cues = new Map(p.cues.map((c) => [uuidOf(c.uuid), c]));
+  const slideText = (c: Cue): string => (withChords ? joinInline(slideTextOfCue(c), slideChordsOfCue(c)) : slideTextOfCue(c));
   return p.cueGroups
     .map((g) => {
-      const slides = g.cueIdentifiers.map((id) => cues.get(uuidOf(id))).filter((c): c is Cue => !!c).map(slideTextOfCue);
+      const slides = g.cueIdentifiers.map((id) => cues.get(uuidOf(id))).filter((c): c is Cue => !!c).map(slideText);
       const header = g.group?.name ? `[${g.group.name}]` : '';
       return [header, slides.join('\n\n')].filter(Boolean).join('\n');
     })
@@ -314,9 +354,9 @@ export function planLyrics(text: string, linesPerSlide = 0): LyricsPlan {
   const same = (a: string, b: string): boolean => a.trim().toLowerCase() === b.trim().toLowerCase();
   for (const raw of text.replace(/\r\n?/g, '\n').split(/\n\s*\n/)) {
     const lines = raw.split('\n');
-    if (/^\s*\[(.+)\]\s*$/.test(lines[0] ?? '')) {
+    if (groupHeader(lines[0] ?? '')) {
       // Start of a group: the slides that follow belong to it.
-      const name = /^\s*\[(.+)\]\s*$/.exec(lines[0])![1].trim();
+      const name = groupHeader(lines[0])![1].trim();
       plan.groups.push({ name, slides: [] });
       plan.order.push(plan.groups.length - 1);
       lines.shift();
@@ -356,7 +396,7 @@ export const SONG_ORDER = 'Song order';
  * groups or slides no longer in the text are removed (also from arrangements).
  * When a section repeats, the sung order goes into the "Song order" arrangement.
  */
-export function applyLyrics(p: Presentation, text: string, linesPerSlide = 0): Presentation {
+export function applyLyrics(p: Presentation, text: string, linesPerSlide = 0, withChords = false): Presentation {
   const plan = planLyrics(text, linesPerSlide);
   const sections = plan.groups.map((g) => ({ group: g.name, slides: g.slides }));
   return edit(p, (d) => {
@@ -380,11 +420,13 @@ export function applyLyrics(p: Presentation, text: string, linesPerSlide = 0): P
             if (slide) {
               slide.uuid = newUuid();
               for (const el of slide.elements) if (el.element) el.element.uuid = newUuid();
+              // A new slide starts without the chords of the one it was copied from.
+              for (const el of textElements(slide)) writeElementChords(el, []);
             }
-          } else cue = slideLike(d, slideText);
+          } else cue = slideLike(d, splitInline(slideText).text);
           cuesById.set(uuidOf(cue.uuid), cue);
         }
-        writeCueText(d, cue, slideText);
+        writeCueText(d, cue, slideText, withChords);
         return cue;
       });
       group.cueIdentifiers = slideCues.map((c) => c.uuid!);

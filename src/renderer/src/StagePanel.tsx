@@ -1,20 +1,27 @@
 import { useEffect, useState } from 'react';
 import { formatClock, formatDuration, isRunning, parseDuration, parseTimeOfDay, pauseTimer, resetTimer, startTimer, timerToTime, timerWithMode } from '../../shared/timer';
-import { DEFAULT_STAGE_LAYOUT, presetOf, STAGE_PRESETS, type StageLayout } from '../../shared/stage';
+import { DEFAULT_STAGE_LAYOUT, chordDisplayOf, presetOf, STAGE_PRESETS, type StageLayout } from '../../shared/stage';
+import type { SongKey } from '../../shared/chords';
 import type { StageState } from '../../shared/types';
 import { StageView } from './StageView';
 import { Fold } from './Fold';
+import { KeyButton } from './KeyButton';
 
 /** Operator controls for the stage display: preview, timer and stage message. */
 export function StagePanel({
   stage,
   onChange,
-  onLayout
+  onLayout,
+  liveSong,
+  onLiveKey
 }: {
   stage: StageState;
   onChange: (patch: Partial<StageState>) => void;
   /** A new stage layout, to show and remember. */
   onLayout: (layout: StageLayout) => void;
+  /** The song on screen, when it has chords: its key, to transpose on the spot. */
+  liveSong?: { key?: SongKey; guess: string | null } | null;
+  onLiveKey?: (key: SongKey) => void;
 }): React.JSX.Element {
   const t = stage.timer;
   const layout = stage.layout ?? DEFAULT_STAGE_LAYOUT;
@@ -59,7 +66,8 @@ export function StagePanel({
             title={preset?.description ?? 'Your own choice of parts'}
             onChange={(e) => {
               const chosen = STAGE_PRESETS.find((p) => p.id === e.target.value);
-              if (chosen) onLayout(chosen.layout);
+              // A new layout keeps how chords are shown.
+              if (chosen) onLayout({ ...chosen.layout, ...chordDisplayOf(layout) });
             }}
           >
             {STAGE_PRESETS.map((p) => (
@@ -73,6 +81,15 @@ export function StagePanel({
             Adjust…
           </button>
         </div>
+        {liveSong && onLiveKey && (
+          <div className="stage-row stage-chords-row">
+            <label title="Chords above the words on the stage screen (never on the audience screen)">
+              <input type="checkbox" checked={layout.chords} onChange={(e) => change({ chords: e.target.checked })} /> Chords
+            </label>
+            <span className="spacer" />
+            <KeyButton songKey={liveSong.key} guess={liveSong.guess} onChange={onLiveKey} align="end" />
+          </div>
+        )}
         {adjusting && (
           <div className="stage-adjust">
             <div className="stage-parts">
@@ -99,6 +116,37 @@ export function StagePanel({
                   <option value="center">Centred</option>
                   <option value="left">Left</option>
                 </select>
+              </div>
+            )}
+            {(layout.current || layout.next) && (
+              <div className="stage-chord-options">
+                <label>
+                  <input type="checkbox" checked={layout.chords} onChange={(e) => change({ chords: e.target.checked })} /> Chords above the words
+                </label>
+                {layout.chords && (
+                  <div className="stage-row">
+                    <select value={layout.chordStyle} onChange={(e) => change({ chordStyle: e.target.value as StageLayout['chordStyle'] })} title="Chord names, or Nashville numbers for the key">
+                      <option value="letters">Letters: G C D</option>
+                      <option value="numbers">Numbers: 1 4 5</option>
+                    </select>
+                    {layout.chordStyle === 'letters' && (
+                      <select value={layout.capo} onChange={(e) => change({ capo: Number(e.target.value) })} title="Show the chord shapes a guitarist plays with a capo">
+                        <option value={0}>No capo</option>
+                        {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                          <option key={n} value={n}>
+                            Capo {n}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <select value={layout.chordSize} onChange={(e) => change({ chordSize: Number(e.target.value) })} title="Chord size, compared with the words">
+                      <option value={0.6}>Small</option>
+                      <option value={0.8}>Medium</option>
+                      <option value={1}>Large</option>
+                    </select>
+                    <input type="color" value={layout.chordColor} title="Chord colour" onChange={(e) => change({ chordColor: e.target.value })} />
+                  </div>
+                )}
               </div>
             )}
           </div>

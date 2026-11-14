@@ -1,6 +1,6 @@
 // The presenter view: for the person speaking, on their phone or tablet. Their
-// slide on screen and the next one, the notes for it, a clock, and Black, Back
-// and Next. Plain HTML/JS like the operator's remote; all text is inserted
+// slide on screen and the next one, the notes for it (or, for a song with
+// chords, the words with chords above them), a clock, and Black, Back and Next. Plain HTML/JS like the operator's remote; all text is inserted
 // with textContent.
 import type { RemoteAssets } from './remoteServer';
 
@@ -40,10 +40,15 @@ const html = `<!doctype html>
   </section>
   <section class="notes">
     <div class="notes-head">
-      <span id="notes-label">Notes</span>
-      <span class="size"><button id="smaller" aria-label="Smaller notes">A–</button><button id="bigger" aria-label="Bigger notes">A+</button></span>
+      <span class="notes-title">
+        <span id="notes-label">Notes</span>
+        <span id="view-tabs" class="tabs" role="group" aria-label="Show" hidden><button id="tab-notes">Notes</button><button id="tab-chords">Chords</button></span>
+        <span id="song-key"></span>
+      </span>
+      <span class="size"><button id="smaller" aria-label="Smaller text">A–</button><button id="bigger" aria-label="Bigger text">A+</button></span>
     </div>
     <div id="notes-text"></div>
+    <div id="chords-text" hidden></div>
   </section>
   <nav id="strip" class="strip" aria-label="Every slide"></nav>
   <div class="controls">
@@ -112,6 +117,15 @@ header { grid-area: header; display: flex; align-items: center; gap: 8px; }
 .size button { font-size: 13px; letter-spacing: 0; padding: 3px 10px; border-radius: 8px; }
 #notes-text { flex: 1; overflow-y: auto; font-size: var(--notes); line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-overflow-scrolling: touch; }
 #notes-text.none { color: var(--muted); font-size: 15px; font-style: italic; }
+.notes-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tabs { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+.tabs button { border: none; border-radius: 0; padding: 3px 10px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: transparent; color: var(--muted); }
+.tabs button.on { background: var(--accent); color: var(--on-accent); }
+#song-key { letter-spacing: .04em; text-transform: none; font-weight: 700; color: var(--accent); white-space: nowrap; }
+/* The words with chords above them, lined up in a fixed-width font. */
+#chords-text { flex: 1; overflow: auto; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: calc(var(--notes) * .85); line-height: 1.25; -webkit-overflow-scrolling: touch; }
+#chords-text .chord-row { color: var(--accent); font-weight: 700; white-space: pre; }
+#chords-text .words-row { white-space: pre; margin-bottom: .35em; }
 
 .strip { grid-area: strip; display: none; gap: 8px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none; }
 .strip .slide { flex: none; width: 128px; opacity: .75; }
@@ -236,6 +250,7 @@ function resize(by) {
   notesSize = Math.max(13, Math.min(44, Math.round(now + by)));
   try { localStorage.setItem('vessel.notesSize', String(notesSize)); } catch {}
   applySize();
+  fitChords();
 }
 $('smaller').onclick = () => resize(-2);
 $('bigger').onclick = () => resize(2);
@@ -294,6 +309,7 @@ function render() {
     next.className = 'slide next empty'; fill(next, -1, null);
     $('now-tag').textContent = 'ON SCREEN'; $('next-tag').textContent = 'NEXT';
     $('position').textContent = ''; $('notes-label').textContent = 'Notes';
+    showView(null, 'Notes');
     setNotes('');
     $('strip').replaceChildren();
     $('all-grid').replaceChildren();
@@ -322,6 +338,8 @@ function render() {
   const shown = live ? p.liveIndex : n;
   $('notes-label').textContent = live ? 'Notes' : 'Notes · first slide';
   setNotes(shown >= 0 ? p.slides[shown].notes : '');
+  setChords(shown >= 0 ? p.slides[shown] : null);
+  showView(p, live ? '' : 'first slide');
 
   const strip = $('strip'), grid = $('all-grid');
   strip.replaceChildren(...p.slides.map((s, i) => slideButton(i, s, p.liveIndex)));
@@ -332,6 +350,54 @@ function render() {
   $('advance').disabled = n < 0;
   tick();
 }
+
+// A song with chords: Notes or Chords, remembered on this device (Chords until the presenter picks).
+let view = localStorage.getItem('vessel.presenterView') || 'chords';
+function showView(p, note) {
+  const chords = !!(p && p.slides.some((s) => s.chordLines));
+  const which = chords ? view : 'notes';
+  $('view-tabs').hidden = !chords;
+  $('notes-label').hidden = chords;
+  $('tab-notes').classList.toggle('on', which === 'notes');
+  $('tab-chords').classList.toggle('on', which === 'chords');
+  $('notes-text').hidden = which !== 'notes';
+  $('chords-text').hidden = which !== 'chords';
+  $('song-key').textContent = chords ? [p.key ? 'Key ' + p.key : '', note].filter(Boolean).join(' · ') : '';
+  fitChords();
+}
+for (const [id, v] of [['tab-notes', 'notes'], ['tab-chords', 'chords']])
+  $(id).onclick = () => {
+    view = v;
+    try { localStorage.setItem('vessel.presenterView', v); } catch {}
+    if (state) render();
+  };
+
+let shownChords = null;
+function setChords(slide) {
+  const key = slide ? JSON.stringify(slide.chordLines || slide.text) : '';
+  if (key === shownChords) return;
+  shownChords = key;
+  const box = $('chords-text');
+  if (!slide) { box.replaceChildren(); return; }
+  box.replaceChildren(...(slide.chordLines || slide.text.split('\\n').map((words) => ({ chords: '', words }))).flatMap((l) => [
+    ...(l.chords ? [el('div', 'chord-row', l.chords)] : []),
+    el('div', 'words-row', l.words || ' ')
+  ]));
+  box.scrollTop = 0;
+  fitChords();
+}
+
+// Chord lines can't wrap (the chords would slip off their words), so a long line makes the text smaller to fit.
+function fitChords() {
+  const box = $('chords-text');
+  box.style.fontSize = '';
+  if (box.hidden || !box.firstChild) return;
+  const longest = Math.max(1, ...[...box.children].map((r) => r.textContent.length));
+  const wanted = parseFloat(getComputedStyle(box).fontSize);
+  const fits = (box.clientWidth - 4) / (longest * 0.62);
+  if (fits < wanted) box.style.fontSize = Math.max(10, fits) + 'px';
+}
+addEventListener('resize', fitChords);
 
 let shownNotes = null;
 function setNotes(text) {

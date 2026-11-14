@@ -3,7 +3,7 @@ import { cleanGroup, DEFAULT_GROUPS, type GroupDefinition } from '../../shared/g
 import { mediaUrl } from '../../shared/media';
 import { audioOutputs } from './sound';
 import type { CopyrightPosition } from '../../shared/ccli';
-import { DEFAULT_IMPORT_OPTIONS, type ImportOptions } from '../../shared/import';
+import { CHORD_CHOICES, chordChoice, DEFAULT_IMPORT_OPTIONS, withChordChoice, type ChordChoice, type ImportOptions } from '../../shared/import';
 import { SLIDE_SIZES } from '../../shared/pro/edit';
 import { presetOf, STAGE_PRESETS, type StageLayout } from '../../shared/stage';
 import type { DisplayInfo, MediaItem, MediaScale, Settings } from '../../shared/types';
@@ -556,9 +556,15 @@ export function PreferencesDialog({
                   <option value={4}>4</option>
                 </select>
               </label>
-              <label className="pref-check">
-                <input type="checkbox" checked={imports.removeChords} onChange={(e) => changeImports({ removeChords: e.target.checked })} />
-                Leave out chord lines and [G] chords
+              <label className="pref-field">
+                Chords in lyrics
+                <select value={chordChoice(imports)} onChange={(e) => changeImports(withChordChoice(imports, e.target.value as ChordChoice))}>
+                  {CHORD_CHOICES.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
               </label>
             </>
           )}

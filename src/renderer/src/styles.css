@@ -4790,3 +4790,189 @@ html:has(body.print) {
   border-style: solid;
   color: var(--accent);
 }
+
+/* The song's key and transposing (Edit, Show and the Live panel) */
+.key-button {
+  position: relative;
+  display: inline-block;
+}
+
+.key-button > button {
+  white-space: nowrap;
+}
+
+.key-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  width: 280px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.key-button.align-end .key-panel {
+  left: auto;
+  right: 0;
+}
+
+.key-step {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 8px;
+}
+
+.key-half {
+  height: 44px;
+  font-size: 22px;
+  border-radius: 999px;
+}
+
+.key-now {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.key-now-name {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--accent);
+}
+
+.key-now-note {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.key-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.key-grid button {
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.key-grid button.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+/* The key it's written in: a small dot under the name */
+.key-grid button.written {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.key-foot {
+  min-height: 20px;
+  font-size: 12px;
+}
+
+.key-panel .hint {
+  margin: 0;
+  font-size: 11px;
+}
+
+/* The full-song editor with chords above the words: a monospaced font keeps them lined up */
+.lyrics-columns textarea.with-chords {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+
+/* Chords above the words on the stage screen */
+.chord-text {
+  line-height: 1.25;
+}
+
+.chord-line {
+  white-space: pre;
+}
+
+.chord-piece {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: bottom;
+}
+
+.chord-piece .chord {
+  font-size: var(--chord-size, 0.8em);
+  line-height: 1.1;
+  font-weight: 700;
+  color: var(--chord-color, #f5b83d);
+  white-space: pre;
+}
+
+/* A chord wider than its word keeps a little gap before the next */
+.chord-piece .chord:not(:empty) {
+  padding-right: 0.3em;
+}
+
+.stage-view.align-left .chord-text {
+  text-align: left;
+}
+
+.stage-key {
+  color: #9aa0ab;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Live panel ▸ Stage: chords on or off, and the live song's key */
+.stage-chords-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stage-chord-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stage-chord-options input[type='color'] {
+  width: 32px;
+  height: 28px;
+  padding: 2px;
+}
+
+.stage-row input[type='checkbox'] {
+  width: auto;
+  padding: 0;
+}
+
+.stage-row input[type='color'] {
+  width: 32px;
+  height: 28px;
+  padding: 2px;
+}
+
+/* File ▸ Export ▸ Chord chart: chords on their own line above the words, lined up in a fixed-width font */
+.print-chords {
+  margin: 0 0 6px;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 10pt;
+  line-height: 1.3;
+  white-space: pre;
+}
+
+.print-chord-line {
+  font-weight: 700;
+}
+
+.print-key {
+  font-weight: 400;
+  font-size: 0.7em;
+}

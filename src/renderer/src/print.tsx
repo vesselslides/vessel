@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { orderIsWorthShowing, orderLine, type ExportJob, type ExportSong } from '../../shared/exports';
+import { isChordLine, prettyChord } from '../../shared/chords';
 import { mediaUrl } from '../../shared/media';
 import type { Background, SlideView } from '../../shared/types';
 import { SlideCanvas } from './SlideCanvas';
@@ -128,10 +129,28 @@ function SlidesDocument({ job }: { job: ExportJob }): React.JSX.Element {
   );
 }
 
+/** A chord sheet: chord lines (above the words) in bold. */
+function ChordSheet({ text }: { text: string }): React.JSX.Element {
+  return (
+    <pre className="print-chords">
+      {text.split('\n').map((line, i) => (
+        <span key={i} className={isChordLine(line) ? 'print-chord-line' : undefined}>
+          {line}
+          {'\n'}
+        </span>
+      ))}
+    </pre>
+  );
+}
+
 function Lyrics({ song, job }: { song: ExportSong; job: ExportJob }): React.JSX.Element {
+  const chart = job.format === 'pdf-chords';
   return (
     <section className={`print-lyrics-song ${job.options.songPerPage ? 'new-page' : ''}`}>
-      <h1>{song.name}</h1>
+      <h1>
+        {song.name}
+        {chart && song.key && <span className="print-key"> · Key {prettyChord(song.key)}</span>}
+      </h1>
       {job.options.order && orderIsWorthShowing(song) && <p className="print-order">{orderLine(song.order)}</p>}
       <div className={`print-sections columns-${job.options.columns}`}>
         {song.sections.map((s, i) => (
@@ -140,9 +159,7 @@ function Lyrics({ song, job }: { song: ExportSong; job: ExportJob }): React.JSX.
               <span className="print-swatch" style={{ background: s.color }} />
               {s.name}
             </h3>
-            {s.slides.map((t, j) => (
-              <p key={j}>{t}</p>
-            ))}
+            {chart && s.chordSlides ? s.chordSlides.map((t, j) => <ChordSheet key={j} text={t} />) : s.slides.map((t, j) => <p key={j}>{t}</p>)}
           </div>
         ))}
       </div>

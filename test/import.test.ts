@@ -55,15 +55,16 @@ describe('lyrics from text', () => {
     expect(deckOf(lyrics('Chorus x2\nC one\n\nVerse\nV one').presentation).slides.map((s) => s.groupName)).toEqual(['Chorus', 'Chorus', 'Verse']);
   });
 
-  it('leaves out chords and keeps CCLI and copyright as song details', () => {
+  it('takes chords off the words (keeping them for the band) and keeps CCLI and copyright as song details', () => {
     const { presentation, report } = lyrics('G     D\nLine [Em]one\n\nCCLI Song # 1234567\n© 2020 Example Music\nWords and Music by Someone');
     expect(order(presentation)).toEqual([': Line one']);
-    expect(report).toMatchObject({ removedChordLines: 1, ccli: true });
+    expect(report).toMatchObject({ removedChordLines: 0, chords: 3, ccli: true });
+    expect(lyrics('G     D\nLine [Em]one', { ...DEFAULT_LYRICS_OPTIONS, keepChords: false }).report).toMatchObject({ removedChordLines: 1, chords: 0 });
     expect(presentation.ccli).toMatchObject({ songNumber: 1234567, copyrightYear: 2020, publisher: 'Example Music', author: 'Someone' });
   });
 
-  it('keeps chords when asked', () => {
-    expect(order(lyrics('G  D\nLine one', { ...DEFAULT_LYRICS_OPTIONS, removeChords: false }).presentation)).toEqual([': G  D\nLine one']);
+  it('shows chords as words when asked to neither keep nor remove them', () => {
+    expect(order(lyrics('G  D\nLine one', { ...DEFAULT_LYRICS_OPTIONS, removeChords: false, keepChords: false }).presentation)).toEqual([': G  D\nLine one']);
   });
 
   it('splits long verses by lines per slide', () => {

@@ -307,7 +307,7 @@ export const URL_PlatformSchema: GenEnum<URL_Platform> = /*@__PURE__*/
   enumDesc(file_common, 4, 0);
 
 /**
- * A numbered range, e.g. chapters 3 to 4.
+ * A numbered range, e.g. chapters 3 to 4, or the characters a chord sits on.
  *
  * @generated from message vessel.format.IntRange
  */

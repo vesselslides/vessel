@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Presentation } from '../../shared/gen/presentation_pb';
-import { applyLyrics, applyTheme } from '../../shared/pro/edit';
+import { applyLyrics, applyTheme, setSongKey } from '../../shared/pro/edit';
+import { chordSheetLines, chordsInKey, guessKey, hasChords, prettyChord, splitInline } from '../../shared/chords';
+import { tidyLyrics } from '../../shared/import/lyrics';
 import { parsePlaylistFile, playlistViews } from '../../shared/pro/playlist';
 import { decodeService, encodeService, newServiceId, type Service, type ServiceItem } from '../../shared/pro/service';
 import {
@@ -39,6 +41,7 @@ import { Editor, type Apply } from './Editor';
 import { jumpForKey, nextEnabled, slideForNumber } from '../../shared/hotkeys';
 import { backgroundForSlide, rememberCleared } from '../../shared/live';
 import { LIBRARY_MIME, Sidebar } from './Sidebar';
+import { KeyButton } from './KeyButton';
 import { dropSide, dropSlideOn, openGroupMenu, openSlideMenu, SLIDE_DRAG, type DropSide } from './slideMenus';
 import { RemoteDialog } from './RemoteDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
@@ -105,14 +108,28 @@ interface OpenService {
   service: Service;
 }
 
-const stageSlide = (s: SlideView | undefined): StageSlide | null =>
-  s ? { text: s.text, label: s.label, groupName: s.groupName, groupColor: s.groupColor } : null;
+/** The key a song is played in: its own, or one worked out from its chords. */
+const playKey = (deck: Deck | undefined): string | undefined => deck?.key?.play ?? guessKey(deck?.slides.flatMap((s) => (s.chords ?? []).map((c) => c.chord)) ?? []) ?? undefined;
+
+/** A slide as the stage shows it, with its chords in the key it's played in. */
+const stageSlide = (s: SlideView | undefined, deck?: Deck): StageSlide | null =>
+  s
+    ? {
+        text: s.text,
+        label: s.label,
+        groupName: s.groupName,
+        groupColor: s.groupColor,
+        ...(s.chords?.length ? { chords: chordsInKey(s.chords, deck?.key), key: playKey(deck) } : {})
+      }
+    : null;
 
 const fileName = (path: string): string => path.split(/[\\/]/).pop()?.replace(/\.pro$/i, '') ?? path;
 
-function NewSongDialog({ onCreate, onCancel }: { onCreate: (name: string, lyrics: string) => void; onCancel: () => void }): React.JSX.Element {
+function NewSongDialog({ onCreate, onCancel }: { onCreate: (name: string, lyrics: string, keepChords: boolean) => void; onCancel: () => void }): React.JSX.Element {
   const [name, setName] = useState('');
   const [lyrics, setLyrics] = useState('');
+  const [keepChords, setKeepChords] = useState(true);
+  const chordsPasted = useMemo(() => hasChords(lyrics), [lyrics]);
   return (
     <div className="modal-backdrop" onMouseDown={onCancel}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
@@ -123,10 +140,19 @@ function NewSongDialog({ onCreate, onCancel }: { onCreate: (name: string, lyrics
           value={lyrics}
           onChange={(e) => setLyrics(e.target.value)}
         />
-        <p className="hint">Blank lines separate slides. A line like [Chorus] starts a group. Leave the words empty to start with a blank slide and type in Edit.</p>
+        <p className="hint">
+          Blank lines separate slides. A line like [Chorus] starts a group. Paste a chord sheet as it is: chords above the words or in brackets ([G]Amazing). Leave the
+          words empty to start with a blank slide and type in Edit.
+        </p>
+        {chordsPasted && (
+          <label className="pref-check">
+            <input type="checkbox" checked={keepChords} onChange={(e) => setKeepChords(e.target.checked)} />
+            Keep the chords for the band (the audience sees only the words)
+          </label>
+        )}
         <div className="modal-actions">
           <button onClick={onCancel}>Cancel</button>
-          <button className="primary" disabled={!name.trim()} onClick={() => onCreate(name.trim(), lyrics)}>
+          <button className="primary" disabled={!name.trim()} onClick={() => onCreate(name.trim(), lyrics, chordsPasted && keepChords)}>
             {lyrics.trim() ? 'Create' : 'Create empty'}
           </button>
         </div>
@@ -618,6 +644,7 @@ function Operator(): React.JSX.Element {
     if (report.pictures) notes.push(plural(report.pictures, 'picture'));
     if (report.speakerNotes) notes.push(`speaker notes on ${plural(report.speakerNotes, 'slide')}, for the presenter remote`);
     if (report.hiddenSlides) notes.push(`${plural(report.hiddenSlides, 'hidden slide')} left out`);
+    if (report.chords) notes.push(`${plural(report.chords, 'chord')}${report.key ? ` in ${prettyChord(report.key)}` : ''} kept for the band (the audience sees only the words)`);
     if (report.removedChordLines) notes.push(`${plural(report.removedChordLines, 'chord line')} left out`);
     if (report.ccli) notes.push('CCLI/copyright details moved into the song info');
     const skipped = Object.entries(report.skipped).map(([what, n]) => `${n} ${what}`);
@@ -1213,12 +1240,17 @@ function Operator(): React.JSX.Element {
     }
   };
 
-  const createSong = async (name: string, lyrics: string): Promise<void> => {
+  const createSong = async (name: string, lyrics: string, keepChords = false): Promise<void> => {
     setShowNewSong(false);
+    // A pasted chord sheet: chords go onto the words they're over (kept for the band), or are taken out.
+    // Pasted chord sheets usually label sections "Verse 1:" too; tidying makes those groups.
+    const words = hasChords(lyrics) ? tidyLyrics(lyrics, keepChords).text : lyrics;
     // No words yet: one empty slide, opened in Edit to type into.
-    const sections = parseLyrics(lyrics);
+    const sections = parseLyrics(words);
     const blank = sections.length === 0;
-    const presentation = applyTheme(sized(createPresentation(name, blank ? [{ group: 'Slides', slides: [''] }] : sections)), findTheme(themes, themes.defaultId));
+    let presentation = applyTheme(sized(createPresentation(name, blank ? [{ group: 'Slides', slides: [''] }] : sections)), findTheme(themes, themes.defaultId));
+    const key = guessKey(sections.flatMap((s) => s.slides.flatMap((t) => splitInline(t).chords.map((c) => c.chord))));
+    if (key) presentation = setSongKey(presentation, { written: key, play: key });
     const path = await window.vessel.saveFile(serializePresentation(presentation), name);
     const loaded = addDeck(presentation, path ?? undefined, !path);
     if (path) setStatus(`Saved “${name}” to the library.`);
@@ -1435,11 +1467,11 @@ function Operator(): React.JSX.Element {
   const nextForStage = useCallback(
     (deck: Deck, index: number, row: number | null): StageSlide | null => {
       const following = nextEnabled(deck, index, 1);
-      if (following >= 0) return stageSlide(deck.slides[following]);
+      if (following >= 0) return stageSlide(deck.slides[following], deck);
       const nextRow = neighbourRow(row, 1);
       const item = nextRow !== null ? service?.service.items[nextRow] : undefined;
       const nextDeck = item?.kind === 'presentation' ? decksRef.current.find((d) => d.path === item.path)?.deck : undefined;
-      const first = stageSlide(nextDeck?.slides[nextDeck ? nextEnabled(nextDeck, -1, 1) : -1]);
+      const first = stageSlide(nextDeck?.slides[nextDeck ? nextEnabled(nextDeck, -1, 1) : -1], nextDeck);
       return first && nextDeck ? { ...first, groupName: `${nextDeck.name}${first.groupName ? ` · ${first.groupName}` : ''}` } : null;
     },
     [neighbourRow, service]
@@ -1488,7 +1520,7 @@ function Operator(): React.JSX.Element {
         clearedMedia.current = next.cleared;
         return { text: slide.text, layout: slide.layout, cleared: false, blackout: false, background: next.background, copyright, logo: null };
       });
-      pushStage({ current: stageSlide(slide), next: nextForStage(deck, index, row) });
+      pushStage({ current: stageSlide(slide, deck), next: nextForStage(deck, index, row) });
     },
     [pushLive, pushStage, nextForStage]
   );
@@ -1599,6 +1631,8 @@ function Operator(): React.JSX.Element {
             : { state: 'live', label: 'Live' };
   /** The audience sees something, black included (practice doesn't count): the Update button waits till it's all cleared. */
   const showingSomething = !live.practice && (live.blackout || !!live.logo || !(live.cleared && !live.background && !live.message && !live.lowerThird));
+  /** The presentation the live slide comes from (its key can be changed from the Live panel's Stage section). */
+  const liveDeck = liveSlide ? decks.find((d) => d.deck.id === liveSlide.deckId) : undefined;
   const liveVideo = live.background?.kind === 'video' ? live.background : null;
   const liveVideoItem = liveVideo ? media.find((m) => m.path === liveVideo.path) : undefined;
 
@@ -1704,7 +1738,10 @@ function Operator(): React.JSX.Element {
     const copyright = copyrightFor(loaded.presentation, liveSlide.index, deck.slides.length);
     if (slide.text !== liveRef.current.text || copyright !== liveRef.current.copyright || JSON.stringify(slide.layout) !== JSON.stringify(liveRef.current.layout)) {
       pushLive({ text: slide.text, layout: slide.layout, copyright });
-      pushStage({ current: stageSlide(slide), next: nextForStage(deck, liveSlide.index, liveRow) });
+      pushStage({ current: stageSlide(slide, deck), next: nextForStage(deck, liveSlide.index, liveRow) });
+    } else if (JSON.stringify(stageSlide(slide, deck)) !== JSON.stringify(stageRef.current.current)) {
+      // Only the chords or the key changed (transposing): the stage follows, the audience is untouched.
+      pushStage({ current: stageSlide(slide, deck), next: nextForStage(deck, liveSlide.index, liveRow) });
     }
   }, [decks, liveSlide, liveRow, pushLive, pushStage, nextForStage, settings]);
 
@@ -1974,9 +2011,17 @@ function Operator(): React.JSX.Element {
         ? {
             id: presenterDeck.id,
             name: presenterDeck.name,
-            slides: presenterDeck.slides.map((s) => ({ text: s.text, notes: s.notes ?? '', group: s.groupName, color: s.groupColor, enabled: s.enabled })),
+            slides: presenterDeck.slides.map((s) => ({
+              text: s.text,
+              notes: s.notes ?? '',
+              group: s.groupName,
+              color: s.groupColor,
+              enabled: s.enabled,
+              ...(s.chords?.length ? { chordLines: chordSheetLines(s.text, chordsInKey(s.chords, presenterDeck.key)) } : {})
+            })),
             liveIndex: liveSlide?.deckId === presenterDeck.id ? liveSlide.index : null,
-            speakingSince: speaking.current?.deckId === presenterDeck.id ? speaking.current.since : null
+            speakingSince: speaking.current?.deckId === presenterDeck.id ? speaking.current.since : null,
+            ...(playKey(presenterDeck) && presenterDeck.slides.some((s) => s.chords?.length) ? { key: prettyChord(playKey(presenterDeck)!) } : {})
           }
         : null,
       blackout: live.blackout
@@ -2580,6 +2625,13 @@ function Operator(): React.JSX.Element {
               <button className={deckTimer(selected.deck) ? 'active-toggle' : ''} onClick={() => void timerMenu()} title="Make the slides move on by themselves (an announcement loop)">
                 ⟳ {deckTimer(selected.deck) ?? 'Timer'}
               </button>
+              {(selected.deck.key || selected.deck.slides.some((s) => s.chords?.length)) && (
+                <KeyButton
+                  songKey={selected.deck.key}
+                  guess={guessKey(selected.deck.slides.flatMap((s) => (s.chords ?? []).map((c) => c.chord)))}
+                  onChange={(key) => apply((p) => setSongKey(p, key))}
+                />
+              )}
             </div>
             {groups.map((group, gi) => (
               <div key={gi} className="group">
@@ -2814,7 +2866,16 @@ function Operator(): React.JSX.Element {
           onHide={() => pushLive({ lowerThird: null })}
           onForget={(id) => void window.vessel.updateSettings({ lowerThirds: normalizeLowerThirds(settings?.lowerThirds).filter((l) => l.id !== id) }).then(setSettings)}
         />
-        <StagePanel stage={stage} onChange={pushStage} onLayout={changeStageLayout} />
+        <StagePanel
+          stage={stage}
+          onChange={pushStage}
+          onLayout={changeStageLayout}
+          liveSong={liveDeck && (liveDeck.deck.key || liveDeck.deck.slides.some((s) => s.chords?.length)) ? { key: liveDeck.deck.key, guess: playKey(liveDeck.deck) ?? null } : null}
+          onLiveKey={(key) =>
+            liveDeck &&
+            updateDeck(liveDeck.deck.id, (d) => ({ ...withPresentation(d, setSongKey(d.presentation, key)), past: [...d.past, d.presentation].slice(-HISTORY_LIMIT), future: [] }))
+          }
+        />
         {stageDisplay === null && <p className="hint">Stage display is off. Choose one with the Screens button, top right.</p>}
       </aside>
 
@@ -3074,7 +3135,7 @@ function Operator(): React.JSX.Element {
         />
       )}
       {showRemote && <RemoteDialog status={remote} onStatus={setRemote} onClose={() => setShowRemote(false)} />}
-      {showNewSong && <NewSongDialog onCreate={(n, l) => void createSong(n, l)} onCancel={() => setShowNewSong(false)} />}
+      {showNewSong && <NewSongDialog onCreate={(n, l, k) => void createSong(n, l, k)} onCancel={() => setShowNewSong(false)} />}
       {showThemes && (
         <ThemeDialog
           library={themes}

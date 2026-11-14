@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { DEFAULT_IMPORT_OPTIONS, type DocumentKind, type ImportOptions } from '../../shared/import';
+import { CHORD_CHOICES, chordChoice, DEFAULT_IMPORT_OPTIONS, withChordChoice, type ChordChoice, type DocumentKind, type ImportOptions } from '../../shared/import';
 import type { MediaFolder } from '../../shared/types';
 import { BibleIcon, DocumentIcon, MediaIcon, OpenIcon, PlanIcon, PlaylistIcon, SlidesIcon, TextIcon, VesselIcon } from './Icons';
 
@@ -217,9 +217,15 @@ function LyricsOptions({ opts, change }: { opts: ImportOptions; change: (patch: 
           <option value={4}>4</option>
         </select>
       </label>
-      <label>
-        <input type="checkbox" checked={opts.removeChords} onChange={(e) => change({ removeChords: e.target.checked })} />
-        <span>Leave out chord lines (“G  D/F#  Em”) and [G] chords</span>
+      <label className="import-row">
+        <span>Chords</span>
+        <select value={chordChoice(opts)} onChange={(e) => change(withChordChoice(opts, e.target.value as ChordChoice))} title="Chord lines (“G  D/F#  Em”) and [G] chords">
+          {CHORD_CHOICES.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
       </label>
     </section>
   );
