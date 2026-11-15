@@ -30,6 +30,8 @@ export interface PresenterSlide {
   enabled: boolean;
   /** The words as a chord sheet, in the key it's played in, when the slide has chords. */
   chordLines?: Array<{ chords: string; words: string }>;
+  /** Slideshows: clicks the slide takes before the next slide. */
+  steps?: number;
 }
 
 /** What the presenter view shows: the presentation on screen (or about to be), with its notes. */
@@ -43,6 +45,9 @@ export interface PresenterState {
     speakingSince: number | null;
     /** The key it's played in, when it has chords ("A", "B♭m"). */
     key?: string;
+    /** Slideshows: clicks made on the live slide, and where each slide's pictures start (one per click). */
+    build?: number;
+    frames?: number[];
   } | null;
   blackout: boolean;
   /** Pictures of the slides once drawn, at /api/slides/<key>/<index>.jpg. */

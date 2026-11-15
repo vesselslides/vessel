@@ -1,14 +1,86 @@
-import { Fragment, useLayoutEffect, useRef, type CSSProperties } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { cssFont } from '../../shared/fonts';
 import { mediaUrl } from '../../shared/media';
-import type { GraphicLayout, SlideLayout, TextBoxLayout } from '../../shared/types';
+import type { BuildLayout, ElementBuilds, GraphicLayout, SlideLayout, TextBoxLayout } from '../../shared/types';
+
+// ---- Slideshow builds: what's on screen after so many clicks, and the effects between
+
+/** How a slideshow slide is drawn: at which click, and whether to play the effects that got it there. */
+interface Builds {
+  /** Clicks made; undefined draws everything that ever comes on (thumbnails, Edit). */
+  step?: number;
+  /** The clicks just made: effects play for builds after `from`, up to `to`. */
+  move?: { from: number; to: number };
+  /** Show what's still to come faintly, for the operator. */
+  ghost?: boolean;
+}
+
+/** Whether something with these builds is on screen after `step` clicks. */
+export const shownAt = (b: ElementBuilds, step: number): boolean => (!b.in || step >= b.in.step) && !(b.out && step >= b.out.step);
+
+const effectAnimation = (b: BuildLayout, out: boolean): string => {
+  const sided = b.effect === 'fly' || b.effect === 'float' || b.effect === 'wipe';
+  const name = `vb-${b.effect}${sided ? `-${b.side ?? 'bottom'}` : ''}`;
+  const duration = b.effect === 'appear' ? 0.001 : b.duration;
+  return `${name} ${duration}s ${out ? 'ease-in' : 'ease-out'} ${b.delay}s both${out ? ' reverse' : ''}`;
+};
+
+/** Style for an element (or a line of text) with builds: hidden, faint, animating in or out, or nothing special. */
+function buildStyle(b: ElementBuilds | undefined, at: Builds): { style?: CSSProperties; className?: string } {
+  if (!b || at.step === undefined) return {};
+  const visible = shownAt(b, at.step);
+  const m = at.move;
+  if (m && m.to > m.from) {
+    const within = (x: BuildLayout | undefined): x is BuildLayout => !!x && x.step > m.from && x.step <= m.to;
+    if (within(b.out) && shownAt(b, m.from)) return { style: { animation: effectAnimation(b.out, true) } };
+    if (visible && within(b.in)) return { style: { animation: effectAnimation(b.in, false) } };
+  }
+  if (visible) return {};
+  return at.ghost ? { className: 'build-ghost' } : { style: { visibility: 'hidden' } };
+}
+
+/**
+ * The click a slide is at, and the clicks just made. A slide that's just come
+ * on plays its "as the slide appears" effects; going back draws without them.
+ */
+function useBuildMove(step: number | undefined, animate: boolean): Builds['move'] {
+  const [move, setMove] = useState<Builds['move']>(() => (animate && step !== undefined ? { from: step === 0 ? -1 : step, to: step } : undefined));
+  const last = useRef(step);
+  if (last.current !== step) {
+    const from = last.current;
+    last.current = step;
+    const next = animate && step !== undefined && from !== undefined ? { from, to: step } : undefined;
+    // Set while rendering: the new click's effects start in this very frame.
+    setMove(next);
+    return next;
+  }
+  return move;
+}
 
 const JUSTIFY: Record<TextBoxLayout['valign'], CSSProperties['justifyContent']> = { top: 'flex-start', middle: 'center', bottom: 'flex-end' };
 
 /** Lengths in slide pixels become fractions of the slide frame's width. */
 const slidePx = (px: number, layout: SlideLayout): string => `${((px / layout.width) * 100).toFixed(4)}cqw`;
 
-function TextBox({ box, layout }: { box: TextBoxLayout; layout: SlideLayout }): React.JSX.Element {
+/** Text whose lines come and go on their own: one block per line, so each can be hidden or animated. */
+function BuiltLines({ box, at }: { box: TextBoxLayout; at: Builds }): React.JSX.Element {
+  const lines = box.text.split('\n');
+  return (
+    <>
+      {lines.map((line, i) => {
+        const b = box.lineBuilds?.find((l) => i >= l.first && i < l.first + l.count);
+        const { style, className } = buildStyle(b, at);
+        return (
+          <div key={i} className={`built-line ${className ?? ''}`} style={style}>
+            {line || '\u200b'}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function TextBox({ box, layout, at }: { box: TextBoxLayout; layout: SlideLayout; at: Builds }): React.JSX.Element {
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
 
@@ -40,26 +112,31 @@ function TextBox({ box, layout }: { box: TextBoxLayout; layout: SlideLayout }): 
     fontSize: `calc(${slidePx(box.sizePt, layout)} * var(--fit, 1))`,
     color: box.color,
     textAlign: box.align,
+    // Spacing from PowerPoint or Keynote; shrink-to-fit scales it with the text.
+    lineHeight: box.lineExact ? `calc(${slidePx(box.lineExact, layout)} * var(--fit, 1))` : box.lineMultiple ? 1.15 * box.lineMultiple : undefined,
+    letterSpacing: box.letterSpacing ? `calc(${slidePx(box.letterSpacing, layout)} * var(--fit, 1))` : undefined,
     textTransform: box.uppercase ? 'uppercase' : 'none',
     textShadow: box.shadow ? '0 0.05em 0.15em rgba(0, 0, 0, 0.75)' : 'none',
     WebkitTextStroke: box.outline ? `${slidePx(box.outline.width, layout)} ${box.outline.color}` : undefined,
     paintOrder: box.outline ? 'stroke fill' : undefined
   };
+  const built = buildStyle(box.build, at);
   return (
     <div
       ref={outer}
-      className="text-box"
+      className={`text-box${layout.slideshow ? ' text-box-free' : ''} ${built.className ?? ''}`}
       style={{
         left: `${(box.x / layout.width) * 100}%`,
         top: `${(box.y / layout.height) * 100}%`,
         width: `${(box.width / layout.width) * 100}%`,
         height: `${(box.height / layout.height) * 100}%`,
         justifyContent: JUSTIFY[box.valign],
-        background: box.fill
+        background: box.fill,
+        ...built.style
       }}
     >
       <div ref={inner} className="text-box-text" style={style}>
-        {box.text}
+        {box.lineBuilds?.length && at.step !== undefined ? <BuiltLines box={box} at={at} /> : box.text}
       </div>
     </div>
   );
@@ -68,22 +145,25 @@ function TextBox({ box, layout }: { box: TextBoxLayout; layout: SlideLayout }): 
 const FIT: Record<string, CSSProperties['objectFit']> = { fit: 'contain', fill: 'cover', stretch: 'fill' };
 
 /** A picture or shape placed on the slide. */
-function Graphic({ g, layout }: { g: GraphicLayout; layout: SlideLayout }): React.JSX.Element {
+function Graphic({ g, layout, at }: { g: GraphicLayout; layout: SlideLayout; at: Builds }): React.JSX.Element {
+  const built = buildStyle(g.build, at);
   const frame: CSSProperties = {
     left: `${(g.x / layout.width) * 100}%`,
     top: `${(g.y / layout.height) * 100}%`,
     width: `${(g.width / layout.width) * 100}%`,
     height: `${(g.height / layout.height) * 100}%`,
     opacity: g.opacity,
-    transform: g.rotation ? `rotate(${g.rotation}deg)` : undefined
+    transform: g.rotation ? `rotate(${g.rotation}deg)` : undefined,
+    ...built.style
   };
+  const className = `slide-graphic ${built.className ?? ''}`;
   if (g.kind === 'image') {
-    return <img className="slide-graphic" src={mediaUrl(g.path)} style={{ ...frame, objectFit: FIT[g.scale] }} alt="" draggable={false} />;
+    return <img className={className} src={mediaUrl(g.path)} style={{ ...frame, objectFit: FIT[g.scale] }} alt="" draggable={false} />;
   }
   const radius = g.shape === 'ellipse' ? '50%' : g.shape === 'rounded' ? slidePx(Math.min(g.width, g.height) * 0.5 * Math.min(1, g.roundness || 0.2), layout) : undefined;
   return (
     <div
-      className="slide-graphic"
+      className={className}
       style={{
         ...frame,
         background: g.fill ?? undefined,
@@ -98,15 +178,25 @@ function Graphic({ g, layout }: { g: GraphicLayout; layout: SlideLayout }): Reac
  * Draws a slide's text boxes, pictures and shapes where they sit on the slide,
  * in their stacking order, letterboxed to the slide's aspect ratio inside
  * whatever contains it.
+ *
+ * Slideshow slides are drawn at a click: `step` (or the layout's own `step`),
+ * playing each click's effects when `animate` is on (the audience screens).
+ * Without either, everything that ever comes on is drawn.
  */
-export function SlideCanvas({ layout }: { layout: SlideLayout }): React.JSX.Element {
+export function SlideCanvas({ layout, step, animate = false, ghost = false }: { layout: SlideLayout; step?: number; animate?: boolean; ghost?: boolean }): React.JSX.Element {
+  const at = layout.slideshow ? (step ?? layout.step) : undefined;
+  const move = useBuildMove(at, animate);
+  const builds: Builds = { step: at, move, ghost };
   return (
     <div className="slide-fit">
       <div
         className="slide-frame"
         style={{ aspectRatio: `${layout.width} / ${layout.height}`, width: `min(100cqw, calc(100cqh * ${layout.width / layout.height}))`, background: layout.background }}
       >
-        {[...layout.boxes.map((box, i) => ({ z: box.z, key: `t${i}`, node: <TextBox box={box} layout={layout} /> })), ...(layout.graphics ?? []).map((g, i) => ({ z: g.z, key: `g${i}`, node: <Graphic g={g} layout={layout} /> }))]
+        {[
+          ...layout.boxes.map((box, i) => ({ z: box.z, key: `t${i}`, node: <TextBox box={box} layout={layout} at={builds} /> })),
+          ...(layout.graphics ?? []).map((g, i) => ({ z: g.z, key: `g${i}`, node: <Graphic g={g} layout={layout} at={builds} /> }))
+        ]
           .sort((a, b) => a.z - b.z)
           .map((item) => (
             <Fragment key={item.key}>{item.node}</Fragment>

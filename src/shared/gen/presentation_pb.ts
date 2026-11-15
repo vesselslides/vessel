@@ -21,7 +21,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file presentation.proto.
  */
 export const file_presentation: GenFile = /*@__PURE__*/
-  fileDesc("ChJwcmVzZW50YXRpb24ucHJvdG8SDXZlc3NlbC5mb3JtYXQi0gIKBVNsaWRlEi4KCGVsZW1lbnRzGAEgAygLMhwudmVzc2VsLmZvcm1hdC5TbGlkZS5FbGVtZW50Eh4KFmRyYXdzX2JhY2tncm91bmRfY29sb3IYBCABKAgSLgoQYmFja2dyb3VuZF9jb2xvchgFIAEoCzIULnZlc3NlbC5mb3JtYXQuQ29sb3ISKgoEc2l6ZRgGIAEoCzIcLnZlc3NlbC5mb3JtYXQuR3JhcGhpY3MuU2l6ZRIhCgR1dWlkGAcgASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEGnoKB0VsZW1lbnQSMAoHZWxlbWVudBgBIAEoCzIfLnZlc3NlbC5mb3JtYXQuR3JhcGhpY3MuRWxlbWVudBIMCgRpbmZvGAQgASgNIi8KBEluZm8SDQoJSU5GT19OT05FEAASGAoUSU5GT19JU19URVhUX0VMRU1FTlQQAiKPAQoRUHJlc2VudGF0aW9uU2xpZGUSKAoKYmFzZV9zbGlkZRgBIAEoCzIULnZlc3NlbC5mb3JtYXQuU2xpZGUSNQoFbm90ZXMYAiABKAsyJi52ZXNzZWwuZm9ybWF0LlByZXNlbnRhdGlvblNsaWRlLk5vdGVzGhkKBU5vdGVzEhAKCHJ0Zl9kYXRhGAEgASgMItAECgZBY3Rpb24SIQoEdXVpZBgBIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBIMCgRuYW1lGAIgASgJEhEKCWlzRW5hYmxlZBgGIAEoCBIuCgR0eXBlGAkgASgOMiAudmVzc2VsLmZvcm1hdC5BY3Rpb24uQWN0aW9uVHlwZRIwCgVtZWRpYRgUIAEoCzIfLnZlc3NlbC5mb3JtYXQuQWN0aW9uLk1lZGlhVHlwZUgAEjAKBXNsaWRlGBcgASgLMh8udmVzc2VsLmZvcm1hdC5BY3Rpb24uU2xpZGVUeXBlSAAaZwoJTWVkaWFUeXBlEiUKB2VsZW1lbnQYBSABKAsyFC52ZXNzZWwuZm9ybWF0Lk1lZGlhEjMKCmxheWVyX3R5cGUYCiABKA4yHy52ZXNzZWwuZm9ybWF0LkFjdGlvbi5MYXllclR5cGUaTgoJU2xpZGVUeXBlEjgKDHByZXNlbnRhdGlvbhgCIAEoCzIgLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uU2xpZGVIAEIHCgVTbGlkZSJgCgpBY3Rpb25UeXBlEhcKE0FDVElPTl9UWVBFX1VOS05PV04QABIVChFBQ1RJT05fVFlQRV9NRURJQRACEiIKHkFDVElPTl9UWVBFX1BSRVNFTlRBVElPTl9TTElERRALIkEKCUxheWVyVHlwZRIZChVMQVlFUl9UWVBFX0JBQ0tHUk9VTkQQABIZChVMQVlFUl9UWVBFX0ZPUkVHUk9VTkQQAUIQCg5BY3Rpb25UeXBlRGF0YSIWCgZIb3RLZXkSDAoEY29kZRgBIAEoBSKEAQoFR3JvdXASIQoEdXVpZBgBIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBIMCgRuYW1lGAIgASgJEiMKBWNvbG9yGAMgASgLMhQudmVzc2VsLmZvcm1hdC5Db2xvchIlCgZob3RLZXkYBCABKAsyFS52ZXNzZWwuZm9ybWF0LkhvdEtleSK9BQoDQ3VlEiEKBHV1aWQYASABKAsyEy52ZXNzZWwuZm9ybWF0LlVVSUQSDAoEbmFtZRgCIAEoCRJHChZjb21wbGV0aW9uX3RhcmdldF90eXBlGAMgASgOMicudmVzc2VsLmZvcm1hdC5DdWUuQ29tcGxldGlvblRhcmdldFR5cGUSMwoWY29tcGxldGlvbl90YXJnZXRfdXVpZBgEIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBJHChZjb21wbGV0aW9uX2FjdGlvbl90eXBlGAUgASgOMicudmVzc2VsLmZvcm1hdC5DdWUuQ29tcGxldGlvbkFjdGlvblR5cGUSJgoHYWN0aW9ucxgKIAMoCzIVLnZlc3NlbC5mb3JtYXQuQWN0aW9uEhEKCWlzRW5hYmxlZBgMIAEoCBIXCg9jb21wbGV0aW9uX3RpbWUYDSABKAEivQEKFENvbXBsZXRpb25UYXJnZXRUeXBlEh8KG0NPTVBMRVRJT05fVEFSR0VUX1RZUEVfTk9ORRAAEh8KG0NPTVBMRVRJT05fVEFSR0VUX1RZUEVfTkVYVBABEiEKHUNPTVBMRVRJT05fVEFSR0VUX1RZUEVfUkFORE9NEAISHgoaQ09NUExFVElPTl9UQVJHRVRfVFlQRV9DVUUQAxIgChxDT01QTEVUSU9OX1RBUkdFVF9UWVBFX0ZJUlNUEAQiqQEKFENvbXBsZXRpb25BY3Rpb25UeXBlEiAKHENPTVBMRVRJT05fQUNUSU9OX1RZUEVfRklSU1QQABIfChtDT01QTEVUSU9OX0FDVElPTl9UWVBFX0xBU1QQARInCiNDT01QTEVUSU9OX0FDVElPTl9UWVBFX0FGVEVSX0FDVElPThACEiUKIUNPTVBMRVRJT05fQUNUSU9OX1RZUEVfQUZURVJfVElNRRADIowKCgxQcmVzZW50YXRpb24SOAoQYXBwbGljYXRpb25faW5mbxgBIAEoCzIeLnZlc3NlbC5mb3JtYXQuQXBwbGljYXRpb25JbmZvEiEKBHV1aWQYAiABKAsyEy52ZXNzZWwuZm9ybWF0LlVVSUQSDAoEbmFtZRgDIAEoCRINCgVub3RlcxgHIAEoCRIxChRzZWxlY3RlZF9hcnJhbmdlbWVudBgKIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBI9CgxhcnJhbmdlbWVudHMYCyADKAsyJy52ZXNzZWwuZm9ybWF0LlByZXNlbnRhdGlvbi5BcnJhbmdlbWVudBI4CgpjdWVfZ3JvdXBzGAwgAygLMiQudmVzc2VsLmZvcm1hdC5QcmVzZW50YXRpb24uQ3VlR3JvdXASIAoEY3VlcxgNIAMoCzISLnZlc3NlbC5mb3JtYXQuQ3VlEi4KBGNjbGkYDiABKAsyIC52ZXNzZWwuZm9ybWF0LlByZXNlbnRhdGlvbi5DQ0xJEkMKD2JpYmxlX3JlZmVyZW5jZRgPIAEoCzIqLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uLkJpYmxlUmVmZXJlbmNlEhEKCW11c2ljX2tleRgWIAEoCRIwCgVtdXNpYxgXIAEoCzIhLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uLk11c2ljGrMBCgRDQ0xJEg4KBmF1dGhvchgBIAEoCRIWCg5hcnRpc3RfY3JlZGl0cxgCIAEoCRISCgpzb25nX3RpdGxlGAMgASgJEhEKCXB1Ymxpc2hlchgEIAEoCRIWCg5jb3B5cmlnaHRfeWVhchgFIAEoDRITCgtzb25nX251bWJlchgGIAEoDRIPCgdkaXNwbGF5GAcgASgIEg0KBWFsYnVtGAggASgJEg8KB2FydHdvcmsYCSABKAwa2gEKDkJpYmxlUmVmZXJlbmNlEhIKCmJvb2tfaW5kZXgYASABKA0SEQoJYm9va19uYW1lGAIgASgJEi4KDWNoYXB0ZXJfcmFuZ2UYAyABKAsyFy52ZXNzZWwuZm9ybWF0LkludFJhbmdlEiwKC3ZlcnNlX3JhbmdlGAQgASgLMhcudmVzc2VsLmZvcm1hdC5JbnRSYW5nZRIYChB0cmFuc2xhdGlvbl9uYW1lGAUgASgJEikKIXRyYW5zbGF0aW9uX2ludGVybmFsX2FiYnJldmlhdGlvbhgHIAEoCRpuCgtBcnJhbmdlbWVudBIhCgR1dWlkGAEgASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEEgwKBG5hbWUYAiABKAkSLgoRZ3JvdXBfaWRlbnRpZmllcnMYAyADKAsyEy52ZXNzZWwuZm9ybWF0LlVVSUQaXQoIQ3VlR3JvdXASIwoFZ3JvdXAYASABKAsyFC52ZXNzZWwuZm9ybWF0Lkdyb3VwEiwKD2N1ZV9pZGVudGlmaWVycxgCIAMoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBqXAQoFTXVzaWMSGgoSb3JpZ2luYWxfbXVzaWNfa2V5GAEgASgJEhYKDnVzZXJfbXVzaWNfa2V5GAIgASgJEi4KCG9yaWdpbmFsGAMgASgLMhwudmVzc2VsLmZvcm1hdC5NdXNpY0tleVNjYWxlEioKBHVzZXIYBCABKAsyHC52ZXNzZWwuZm9ybWF0Lk11c2ljS2V5U2NhbGUiggUKDU11c2ljS2V5U2NhbGUSOAoJbXVzaWNfa2V5GAEgASgOMiUudmVzc2VsLmZvcm1hdC5NdXNpY0tleVNjYWxlLk11c2ljS2V5EjwKC211c2ljX3NjYWxlGAIgASgOMicudmVzc2VsLmZvcm1hdC5NdXNpY0tleVNjYWxlLk11c2ljU2NhbGUivAMKCE11c2ljS2V5EhQKEE1VU0lDX0tFWV9BX0ZMQVQQABIPCgtNVVNJQ19LRVlfQRABEhUKEU1VU0lDX0tFWV9BX1NIQVJQEAISFAoQTVVTSUNfS0VZX0JfRkxBVBADEg8KC01VU0lDX0tFWV9CEAQSFQoRTVVTSUNfS0VZX0JfU0hBUlAQBRIUChBNVVNJQ19LRVlfQ19GTEFUEAYSDwoLTVVTSUNfS0VZX0MQBxIVChFNVVNJQ19LRVlfQ19TSEFSUBAIEhQKEE1VU0lDX0tFWV9EX0ZMQVQQCRIPCgtNVVNJQ19LRVlfRBAKEhUKEU1VU0lDX0tFWV9EX1NIQVJQEAsSFAoQTVVTSUNfS0VZX0VfRkxBVBAMEg8KC01VU0lDX0tFWV9FEA0SFQoRTVVTSUNfS0VZX0VfU0hBUlAQDhIUChBNVVNJQ19LRVlfRl9GTEFUEA8SDwoLTVVTSUNfS0VZX0YQEBIVChFNVVNJQ19LRVlfRl9TSEFSUBAREhQKEE1VU0lDX0tFWV9HX0ZMQVQQEhIPCgtNVVNJQ19LRVlfRxATEhUKEU1VU0lDX0tFWV9HX1NIQVJQEBQiOgoKTXVzaWNTY2FsZRIVChFNVVNJQ19TQ0FMRV9NQUpPUhAAEhUKEU1VU0lDX1NDQUxFX01JTk9SEAFiBnByb3RvMw", [file_common, file_graphics]);
+  fileDesc("ChJwcmVzZW50YXRpb24ucHJvdG8SDXZlc3NlbC5mb3JtYXQikAYKBVNsaWRlEi4KCGVsZW1lbnRzGAEgAygLMhwudmVzc2VsLmZvcm1hdC5TbGlkZS5FbGVtZW50Eh4KFmRyYXdzX2JhY2tncm91bmRfY29sb3IYBCABKAgSLgoQYmFja2dyb3VuZF9jb2xvchgFIAEoCzIULnZlc3NlbC5mb3JtYXQuQ29sb3ISKgoEc2l6ZRgGIAEoCzIcLnZlc3NlbC5mb3JtYXQuR3JhcGhpY3MuU2l6ZRIhCgR1dWlkGAcgASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEGrcECgdFbGVtZW50EjAKB2VsZW1lbnQYASABKAsyHy52ZXNzZWwuZm9ybWF0LkdyYXBoaWNzLkVsZW1lbnQSDAoEaW5mbxgEIAEoDRI7Cg92ZXNzZWxfYnVpbGRfaW4YZCABKAsyIi52ZXNzZWwuZm9ybWF0LlNsaWRlLkVsZW1lbnQuQnVpbGQSPAoQdmVzc2VsX2J1aWxkX291dBhlIAEoCzIiLnZlc3NlbC5mb3JtYXQuU2xpZGUuRWxlbWVudC5CdWlsZBJCChJ2ZXNzZWxfbGluZV9idWlsZHMYZiADKAsyJi52ZXNzZWwuZm9ybWF0LlNsaWRlLkVsZW1lbnQuTGluZUJ1aWxkGlkKBUJ1aWxkEgwKBHN0ZXAYASABKA0SDgoGZWZmZWN0GAIgASgJEhEKCWRpcmVjdGlvbhgDIAEoCRINCgVkZWxheRgEIAEoARIQCghkdXJhdGlvbhgFIAEoARqgAQoJTGluZUJ1aWxkEhIKCmZpcnN0X2xpbmUYASABKA0SEgoKbGluZV9jb3VudBgCIAEoDRI0CghidWlsZF9pbhgDIAEoCzIiLnZlc3NlbC5mb3JtYXQuU2xpZGUuRWxlbWVudC5CdWlsZBI1CglidWlsZF9vdXQYBCABKAsyIi52ZXNzZWwuZm9ybWF0LlNsaWRlLkVsZW1lbnQuQnVpbGQiLwoESW5mbxINCglJTkZPX05PTkUQABIYChRJTkZPX0lTX1RFWFRfRUxFTUVOVBACIo8BChFQcmVzZW50YXRpb25TbGlkZRIoCgpiYXNlX3NsaWRlGAEgASgLMhQudmVzc2VsLmZvcm1hdC5TbGlkZRI1CgVub3RlcxgCIAEoCzImLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uU2xpZGUuTm90ZXMaGQoFTm90ZXMSEAoIcnRmX2RhdGEYASABKAwi0AQKBkFjdGlvbhIhCgR1dWlkGAEgASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEEgwKBG5hbWUYAiABKAkSEQoJaXNFbmFibGVkGAYgASgIEi4KBHR5cGUYCSABKA4yIC52ZXNzZWwuZm9ybWF0LkFjdGlvbi5BY3Rpb25UeXBlEjAKBW1lZGlhGBQgASgLMh8udmVzc2VsLmZvcm1hdC5BY3Rpb24uTWVkaWFUeXBlSAASMAoFc2xpZGUYFyABKAsyHy52ZXNzZWwuZm9ybWF0LkFjdGlvbi5TbGlkZVR5cGVIABpnCglNZWRpYVR5cGUSJQoHZWxlbWVudBgFIAEoCzIULnZlc3NlbC5mb3JtYXQuTWVkaWESMwoKbGF5ZXJfdHlwZRgKIAEoDjIfLnZlc3NlbC5mb3JtYXQuQWN0aW9uLkxheWVyVHlwZRpOCglTbGlkZVR5cGUSOAoMcHJlc2VudGF0aW9uGAIgASgLMiAudmVzc2VsLmZvcm1hdC5QcmVzZW50YXRpb25TbGlkZUgAQgcKBVNsaWRlImAKCkFjdGlvblR5cGUSFwoTQUNUSU9OX1RZUEVfVU5LTk9XThAAEhUKEUFDVElPTl9UWVBFX01FRElBEAISIgoeQUNUSU9OX1RZUEVfUFJFU0VOVEFUSU9OX1NMSURFEAsiQQoJTGF5ZXJUeXBlEhkKFUxBWUVSX1RZUEVfQkFDS0dST1VORBAAEhkKFUxBWUVSX1RZUEVfRk9SRUdST1VORBABQhAKDkFjdGlvblR5cGVEYXRhIhYKBkhvdEtleRIMCgRjb2RlGAEgASgFIoQBCgVHcm91cBIhCgR1dWlkGAEgASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEEgwKBG5hbWUYAiABKAkSIwoFY29sb3IYAyABKAsyFC52ZXNzZWwuZm9ybWF0LkNvbG9yEiUKBmhvdEtleRgEIAEoCzIVLnZlc3NlbC5mb3JtYXQuSG90S2V5Ir0FCgNDdWUSIQoEdXVpZBgBIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBIMCgRuYW1lGAIgASgJEkcKFmNvbXBsZXRpb25fdGFyZ2V0X3R5cGUYAyABKA4yJy52ZXNzZWwuZm9ybWF0LkN1ZS5Db21wbGV0aW9uVGFyZ2V0VHlwZRIzChZjb21wbGV0aW9uX3RhcmdldF91dWlkGAQgASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEEkcKFmNvbXBsZXRpb25fYWN0aW9uX3R5cGUYBSABKA4yJy52ZXNzZWwuZm9ybWF0LkN1ZS5Db21wbGV0aW9uQWN0aW9uVHlwZRImCgdhY3Rpb25zGAogAygLMhUudmVzc2VsLmZvcm1hdC5BY3Rpb24SEQoJaXNFbmFibGVkGAwgASgIEhcKD2NvbXBsZXRpb25fdGltZRgNIAEoASK9AQoUQ29tcGxldGlvblRhcmdldFR5cGUSHwobQ09NUExFVElPTl9UQVJHRVRfVFlQRV9OT05FEAASHwobQ09NUExFVElPTl9UQVJHRVRfVFlQRV9ORVhUEAESIQodQ09NUExFVElPTl9UQVJHRVRfVFlQRV9SQU5ET00QAhIeChpDT01QTEVUSU9OX1RBUkdFVF9UWVBFX0NVRRADEiAKHENPTVBMRVRJT05fVEFSR0VUX1RZUEVfRklSU1QQBCKpAQoUQ29tcGxldGlvbkFjdGlvblR5cGUSIAocQ09NUExFVElPTl9BQ1RJT05fVFlQRV9GSVJTVBAAEh8KG0NPTVBMRVRJT05fQUNUSU9OX1RZUEVfTEFTVBABEicKI0NPTVBMRVRJT05fQUNUSU9OX1RZUEVfQUZURVJfQUNUSU9OEAISJQohQ09NUExFVElPTl9BQ1RJT05fVFlQRV9BRlRFUl9USU1FEAMigQsKDFByZXNlbnRhdGlvbhI4ChBhcHBsaWNhdGlvbl9pbmZvGAEgASgLMh4udmVzc2VsLmZvcm1hdC5BcHBsaWNhdGlvbkluZm8SIQoEdXVpZBgCIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBIMCgRuYW1lGAMgASgJEg0KBW5vdGVzGAcgASgJEjEKFHNlbGVjdGVkX2FycmFuZ2VtZW50GAogASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEEj0KDGFycmFuZ2VtZW50cxgLIAMoCzInLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uLkFycmFuZ2VtZW50EjgKCmN1ZV9ncm91cHMYDCADKAsyJC52ZXNzZWwuZm9ybWF0LlByZXNlbnRhdGlvbi5DdWVHcm91cBIgCgRjdWVzGA0gAygLMhIudmVzc2VsLmZvcm1hdC5DdWUSLgoEY2NsaRgOIAEoCzIgLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uLkNDTEkSQwoPYmlibGVfcmVmZXJlbmNlGA8gASgLMioudmVzc2VsLmZvcm1hdC5QcmVzZW50YXRpb24uQmlibGVSZWZlcmVuY2USEQoJbXVzaWNfa2V5GBYgASgJEjAKBW11c2ljGBcgASgLMiEudmVzc2VsLmZvcm1hdC5QcmVzZW50YXRpb24uTXVzaWMSPwoQdmVzc2VsX3NsaWRlc2hvdxhkIAEoCzIlLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uLlNsaWRlc2hvdxqzAQoEQ0NMSRIOCgZhdXRob3IYASABKAkSFgoOYXJ0aXN0X2NyZWRpdHMYAiABKAkSEgoKc29uZ190aXRsZRgDIAEoCRIRCglwdWJsaXNoZXIYBCABKAkSFgoOY29weXJpZ2h0X3llYXIYBSABKA0SEwoLc29uZ19udW1iZXIYBiABKA0SDwoHZGlzcGxheRgHIAEoCBINCgVhbGJ1bRgIIAEoCRIPCgdhcnR3b3JrGAkgASgMGtoBCg5CaWJsZVJlZmVyZW5jZRISCgpib29rX2luZGV4GAEgASgNEhEKCWJvb2tfbmFtZRgCIAEoCRIuCg1jaGFwdGVyX3JhbmdlGAMgASgLMhcudmVzc2VsLmZvcm1hdC5JbnRSYW5nZRIsCgt2ZXJzZV9yYW5nZRgEIAEoCzIXLnZlc3NlbC5mb3JtYXQuSW50UmFuZ2USGAoQdHJhbnNsYXRpb25fbmFtZRgFIAEoCRIpCiF0cmFuc2xhdGlvbl9pbnRlcm5hbF9hYmJyZXZpYXRpb24YByABKAkabgoLQXJyYW5nZW1lbnQSIQoEdXVpZBgBIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBIMCgRuYW1lGAIgASgJEi4KEWdyb3VwX2lkZW50aWZpZXJzGAMgAygLMhMudmVzc2VsLmZvcm1hdC5VVUlEGl0KCEN1ZUdyb3VwEiMKBWdyb3VwGAEgASgLMhQudmVzc2VsLmZvcm1hdC5Hcm91cBIsCg9jdWVfaWRlbnRpZmllcnMYAiADKAsyEy52ZXNzZWwuZm9ybWF0LlVVSUQalwEKBU11c2ljEhoKEm9yaWdpbmFsX211c2ljX2tleRgBIAEoCRIWCg51c2VyX211c2ljX2tleRgCIAEoCRIuCghvcmlnaW5hbBgDIAEoCzIcLnZlc3NlbC5mb3JtYXQuTXVzaWNLZXlTY2FsZRIqCgR1c2VyGAQgASgLMhwudmVzc2VsLmZvcm1hdC5NdXNpY0tleVNjYWxlGjIKCVNsaWRlc2hvdxIOCgZzb3VyY2UYASABKAkSFQoNc3RpbGxfZWZmZWN0cxgCIAEoDSKCBQoNTXVzaWNLZXlTY2FsZRI4CgltdXNpY19rZXkYASABKA4yJS52ZXNzZWwuZm9ybWF0Lk11c2ljS2V5U2NhbGUuTXVzaWNLZXkSPAoLbXVzaWNfc2NhbGUYAiABKA4yJy52ZXNzZWwuZm9ybWF0Lk11c2ljS2V5U2NhbGUuTXVzaWNTY2FsZSK8AwoITXVzaWNLZXkSFAoQTVVTSUNfS0VZX0FfRkxBVBAAEg8KC01VU0lDX0tFWV9BEAESFQoRTVVTSUNfS0VZX0FfU0hBUlAQAhIUChBNVVNJQ19LRVlfQl9GTEFUEAMSDwoLTVVTSUNfS0VZX0IQBBIVChFNVVNJQ19LRVlfQl9TSEFSUBAFEhQKEE1VU0lDX0tFWV9DX0ZMQVQQBhIPCgtNVVNJQ19LRVlfQxAHEhUKEU1VU0lDX0tFWV9DX1NIQVJQEAgSFAoQTVVTSUNfS0VZX0RfRkxBVBAJEg8KC01VU0lDX0tFWV9EEAoSFQoRTVVTSUNfS0VZX0RfU0hBUlAQCxIUChBNVVNJQ19LRVlfRV9GTEFUEAwSDwoLTVVTSUNfS0VZX0UQDRIVChFNVVNJQ19LRVlfRV9TSEFSUBAOEhQKEE1VU0lDX0tFWV9GX0ZMQVQQDxIPCgtNVVNJQ19LRVlfRhAQEhUKEU1VU0lDX0tFWV9GX1NIQVJQEBESFAoQTVVTSUNfS0VZX0dfRkxBVBASEg8KC01VU0lDX0tFWV9HEBMSFQoRTVVTSUNfS0VZX0dfU0hBUlAQFCI6CgpNdXNpY1NjYWxlEhUKEU1VU0lDX1NDQUxFX01BSk9SEAASFQoRTVVTSUNfU0NBTEVfTUlOT1IQAWIGcHJvdG8z", [file_common, file_graphics]);
 
 /**
  * One slide: the elements on it, in drawing order (back to front), and its size.
@@ -75,6 +75,21 @@ export type Slide_Element = Message<"vessel.format.Slide.Element"> & {
    * @generated from field: uint32 info = 4;
    */
   info: number;
+
+  /**
+   * @generated from field: vessel.format.Slide.Element.Build vessel_build_in = 100;
+   */
+  vesselBuildIn?: Slide_Element_Build | undefined;
+
+  /**
+   * @generated from field: vessel.format.Slide.Element.Build vessel_build_out = 101;
+   */
+  vesselBuildOut?: Slide_Element_Build | undefined;
+
+  /**
+   * @generated from field: repeated vessel.format.Slide.Element.LineBuild vessel_line_builds = 102;
+   */
+  vesselLineBuilds: Slide_Element_LineBuild[];
 };
 
 /**
@@ -83,6 +98,88 @@ export type Slide_Element = Message<"vessel.format.Slide.Element"> & {
  */
 export const Slide_ElementSchema: GenMessage<Slide_Element> = /*@__PURE__*/
   messageDesc(file_presentation, 0, 0);
+
+/**
+ * When the element comes and goes in a slideshow (PowerPoint's click
+ * animations). Vessel's own; other apps ignore it.
+ *
+ * @generated from message vessel.format.Slide.Element.Build
+ */
+export type Slide_Element_Build = Message<"vessel.format.Slide.Element.Build"> & {
+  /**
+   * The click it happens on: 0 as the slide appears, 1 the first click, and so on.
+   *
+   * @generated from field: uint32 step = 1;
+   */
+  step: number;
+
+  /**
+   * "appear", "fade", "fly", "float", "wipe" or "zoom".
+   *
+   * @generated from field: string effect = 2;
+   */
+  effect: string;
+
+  /**
+   * The side it comes in from or goes out to: "left", "right", "top" or "bottom".
+   *
+   * @generated from field: string direction = 3;
+   */
+  direction: string;
+
+  /**
+   * Seconds after the click, and how long the effect takes.
+   *
+   * @generated from field: double delay = 4;
+   */
+  delay: number;
+
+  /**
+   * @generated from field: double duration = 5;
+   */
+  duration: number;
+};
+
+/**
+ * Describes the message vessel.format.Slide.Element.Build.
+ * Use `create(Slide_Element_BuildSchema)` to create a new message.
+ */
+export const Slide_Element_BuildSchema: GenMessage<Slide_Element_Build> = /*@__PURE__*/
+  messageDesc(file_presentation, 0, 0, 0);
+
+/**
+ * Lines of a text box that come and go on their own (PowerPoint's "by paragraph").
+ *
+ * @generated from message vessel.format.Slide.Element.LineBuild
+ */
+export type Slide_Element_LineBuild = Message<"vessel.format.Slide.Element.LineBuild"> & {
+  /**
+   * @generated from field: uint32 first_line = 1;
+   */
+  firstLine: number;
+
+  /**
+   * @generated from field: uint32 line_count = 2;
+   */
+  lineCount: number;
+
+  /**
+   * @generated from field: vessel.format.Slide.Element.Build build_in = 3;
+   */
+  buildIn?: Slide_Element_Build | undefined;
+
+  /**
+   * @generated from field: vessel.format.Slide.Element.Build build_out = 4;
+   */
+  buildOut?: Slide_Element_Build | undefined;
+};
+
+/**
+ * Describes the message vessel.format.Slide.Element.LineBuild.
+ * Use `create(Slide_Element_LineBuildSchema)` to create a new message.
+ */
+export const Slide_Element_LineBuildSchema: GenMessage<Slide_Element_LineBuild> = /*@__PURE__*/
+  messageDesc(file_presentation, 0, 0, 1);
 
 /**
  * Flags; 2 marks a text box.
@@ -534,6 +631,11 @@ export type Presentation = Message<"vessel.format.Presentation"> & {
    * @generated from field: vessel.format.Presentation.Music music = 23;
    */
   music?: Presentation_Music | undefined;
+
+  /**
+   * @generated from field: vessel.format.Presentation.Slideshow vessel_slideshow = 100;
+   */
+  vesselSlideshow?: Presentation_Slideshow | undefined;
 };
 
 /**
@@ -732,6 +834,35 @@ export type Presentation_Music = Message<"vessel.format.Presentation.Music"> & {
  */
 export const Presentation_MusicSchema: GenMessage<Presentation_Music> = /*@__PURE__*/
   messageDesc(file_presentation, 6, 4);
+
+/**
+ * Set on a slideshow imported from PowerPoint, Keynote or Google Slides: it's
+ * shown as it was made, click by click. Vessel's own; other apps ignore it.
+ *
+ * @generated from message vessel.format.Presentation.Slideshow
+ */
+export type Presentation_Slideshow = Message<"vessel.format.Presentation.Slideshow"> & {
+  /**
+   * Where it came from: "PowerPoint", "Keynote" or "Google Slides".
+   *
+   * @generated from field: string source = 1;
+   */
+  source: string;
+
+  /**
+   * Effects shown in their final place, without their motion (spins, motion paths…).
+   *
+   * @generated from field: uint32 still_effects = 2;
+   */
+  stillEffects: number;
+};
+
+/**
+ * Describes the message vessel.format.Presentation.Slideshow.
+ * Use `create(Presentation_SlideshowSchema)` to create a new message.
+ */
+export const Presentation_SlideshowSchema: GenMessage<Presentation_Slideshow> = /*@__PURE__*/
+  messageDesc(file_presentation, 6, 5);
 
 /**
  * A key: its note, and major or minor.

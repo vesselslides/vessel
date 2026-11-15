@@ -132,6 +132,12 @@ export interface RtfStyle {
   align: 'left' | 'center' | 'right';
   bold?: boolean;
   italic?: boolean;
+  /** Line spacing as a multiple of single spacing (1.5 = one and a half lines). */
+  lineMultiple?: number;
+  /** Exact line spacing, in the same points as sizePt (overrides lineMultiple). */
+  lineExactPt?: number;
+  /** Extra space between letters, in points; negative is tighter. */
+  letterSpacingPt?: number;
 }
 
 export const DEFAULT_RTF_STYLE: RtfStyle = { font: 'Helvetica', sizePt: 72, color: [255, 255, 255], align: 'center' };
@@ -161,6 +167,13 @@ export function parseRtfStyle(input: Uint8Array | string): RtfStyle {
 
   const size = /\\fs(\d+)/.exec(body)?.[1];
   const align = /\\q([lcr])\b/.exec(body)?.[1];
+  // Line spacing: \slN\slmult1 is N/240 lines; \sl-N\slmult0 is exactly N twips (1/20 pt).
+  const sl = /\\sl(-?\d+)\\slmult([01])/.exec(body);
+  const slN = sl ? Number(sl[1]) : 0;
+  const lineMultiple = sl && sl[2] === '1' && slN > 0 && slN !== 240 ? Math.round((slN / 240) * 1000) / 1000 : undefined;
+  const lineExactPt = sl && sl[2] === '0' && slN < 0 ? -slN / 20 : undefined;
+  const expnd = /\\expndtw(-?\d+)/.exec(lead)?.[1];
+  const letterSpacingPt = expnd && Number(expnd) !== 0 ? Number(expnd) / 20 : undefined;
   const bold = /\\b(?![a-z0-9])/.test(lead);
   const italic = /\\i(?![a-z0-9])/.test(lead);
   return {
@@ -169,7 +182,9 @@ export function parseRtfStyle(input: Uint8Array | string): RtfStyle {
     color: color ?? DEFAULT_RTF_STYLE.color,
     align: align === 'l' ? 'left' : align === 'r' ? 'right' : align === 'c' ? 'center' : DEFAULT_RTF_STYLE.align,
     ...(bold ? { bold } : {}),
-    ...(italic ? { italic } : {})
+    ...(italic ? { italic } : {}),
+    ...(lineExactPt ? { lineExactPt } : lineMultiple ? { lineMultiple } : {}),
+    ...(letterSpacingPt ? { letterSpacingPt } : {})
   };
 }
 
@@ -181,12 +196,18 @@ export function replaceRtfText(existing: Uint8Array | undefined, text: string): 
 export function plainTextToRtf(text: string, style: RtfStyle = DEFAULT_RTF_STYLE): Uint8Array {
   const [r, g, b] = style.color;
   const align = { left: '\\ql', center: '\\qc', right: '\\qr' }[style.align];
+  const line = style.lineExactPt
+    ? `\\sl-${Math.round(style.lineExactPt * 20)}\\slmult0`
+    : style.lineMultiple && style.lineMultiple !== 1
+      ? `\\sl${Math.round(style.lineMultiple * 240)}\\slmult1`
+      : '';
+  const letters = style.letterSpacingPt ? `\\expnd${Math.round(style.letterSpacingPt * 4)}\\expndtw${Math.round(style.letterSpacingPt * 20)}` : '';
   const rtf =
     '{\\rtf1\\ansi\\ansicpg1252\\cocoartf2761\n' +
     `{\\fonttbl\\f0\\fnil\\fcharset0 ${style.font};}\n` +
     `{\\colortbl;\\red${r}\\green${g}\\blue${b};}\n` +
     '{\\*\\expandedcolortbl;;}\n' +
-    `\\pard\\pardirnatural${align}\\partightenfactor0\n\n` +
-    `\\f0${style.bold ? '\\b' : ''}${style.italic ? '\\i' : ''}\\fs${Math.round(style.sizePt * 2)} \\cf1 ${escapeRtf(text)}}`;
+    `\\pard\\pardirnatural${align}${line}\\partightenfactor0\n\n` +
+    `\\f0${style.bold ? '\\b' : ''}${style.italic ? '\\i' : ''}\\fs${Math.round(style.sizePt * 2)}${letters} \\cf1 ${escapeRtf(text)}}`;
   return new TextEncoder().encode(rtf);
 }

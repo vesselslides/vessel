@@ -86,17 +86,23 @@ in-app tour (the **?** button at the top right) shows where things are, and
 - **Open playlists.** This covers ProPresenter's `Playlists/Library` file and
   zipped `.proPlaylist` exports. Clicking a presentation item loads it from
   disk.
-- **Import PowerPoint, Word and text** (*Import…*, ⌘I / Ctrl+I, or just
-  *Open…*): each file becomes a song in the library; the original is never
+- **Import PowerPoint, Keynote, Word and text** (*Import…*, ⌘I / Ctrl+I, or just
+  *Open…*): each file becomes a presentation in the library; the original is never
   changed.
-  - **PowerPoint (.pptx)**, which Google Slides and Keynote can export: *Keep
-    their look* brings each slide's background, the master's artwork, pictures
-    and text boxes across where they sit, with font, size, colour and
-    alignment (pictures go to `Documents/Vessel/Imported Media`). PowerPoint
+  - **PowerPoint (.pptx, .ppt), Keynote (.key) and Google Slides** (*File ▸
+    Download ▸ Microsoft PowerPoint* first) come in one of three ways:
+    *Slideshow, as it was made* (the default; see **Slideshows** below),
+    *Vessel slides, to edit here* (each slide's background, the master's
+    artwork, pictures and text boxes where they sit, with font, size, colour and
+    alignment, without animations), or *Only the words, as a song* (shown
+    with your default theme; a title repeated on every slide becomes the
+    song's name). Pictures go to `Documents/Vessel/Imported Media`; PowerPoint
     sections become groups; hidden slides are left out; speaker notes become
-    each slide's notes for the presenter remote. *Words only* makes a
-    plain song from the text instead, shown with your default theme; a title
-    repeated on every slide becomes the song's name.
+    each slide's notes. Keynote files and older `.ppt` files are opened with
+    Keynote (Mac) or PowerPoint on the same computer and saved as `.pptx`
+    first, so they need one of those installed; the first time, macOS asks
+    whether Vessel may use Keynote. Keynote files can't be imported on Windows:
+    export them from Keynote as PowerPoint on a Mac.
   - **Word (.docx), OpenDocument (.odt), RTF, text and ChordPro:** blank lines
     (or one paragraph per verse) separate verses; lines like `Verse 1`,
     `Chorus:`, `[Bridge]` start groups; a section sung again (`Chorus`, `Repeat
@@ -107,8 +113,7 @@ in-app tour (the **?** button at the top right) shows where things are, and
   - Not yet: tables, charts, SmartArt, videos and EMF/WMF pictures in
     PowerPoint (the import says what was left out), bullets, and mixed
     formatting inside one text box (the first run's style is used). Older
-    `.ppt`/`.doc`, Keynote and Pages files need saving as `.pptx`/`.docx` first;
-    the import says how.
+    `.doc` and Pages files need saving as `.docx` first; the import says how.
 - **Bible** (the book icon in the toolbar, *Tools ▸ Bible…*, ⌘B / Ctrl+B): one
   click downloads a free, public-domain Bible (World English Bible, King James
   Version, American Standard Version) from ebible.org; after that it works
@@ -308,6 +313,44 @@ in-app tour (the **?** button at the top right) shows where things are, and
   headers (groups keep their colour, styling, backgrounds and pictures). Set a slide's background from its
   picker, or drag media from the bin onto it. Undo/redo with ⌘Z / ⇧⌘Z
   (Ctrl+Z / Ctrl+Y), save with ⌘S / Ctrl+S.
+
+## Slideshows
+
+A PowerPoint, Keynote or Google Slides presentation imported as a *Slideshow*
+is shown as it was made, click by click, like PowerPoint's slide show.
+
+- **Looks.** Each slide keeps its background, pictures (SVG artwork from
+  Canva and newer PowerPoint too, and how see-through it is), text boxes,
+  fonts, line spacing and letter spacing. Text may reach past its box, as it
+  does in PowerPoint. Fonts the slides use need to be installed on this
+  computer.
+- **Clicks.** → , Space, the remote's Next and a clicker move one click at a
+  time: points come in, pictures appear and go, then the next slide. ← takes
+  clicks off; going back to an earlier slide shows it with every click made.
+  Clicking a slide starts it from the beginning.
+- **Effects played:** appear, fade, fly in, float in, wipe and zoom, coming in
+  and going out, with "with previous", "after previous" and delays, and text
+  that comes in a paragraph at a time. Effects that start by themselves as
+  the slide appears play too, and "move on after 5 seconds" becomes the
+  slide's timer. A click that would show nothing (an empty line) is left
+  out, so Next always does something. Other effects (spins and other emphasis effects, motion
+  paths, effects started by clicking a shape) show in place without moving;
+  the **Slideshow** badge beside the name says how many.
+- **Show tab.** Slides with clicks say how many ("4 clicks"); the live slide
+  says where you are ("click 1/4") and shows what's still to come faintly,
+  with a dashed outline, for you only.
+- **Stage screen.** For a slideshow it shows the slide as the audience sees
+  it, what the next click brings ("Next click") or the next slide, and the
+  speaker notes in big type, with the clock and timer. The layout's text
+  size sets the notes' size.
+- **Presenter remote.** A picture of each click: the slide now, the next
+  click, "Slide 2 of 12 · click 1 of 4", the notes, and Next and Back one
+  click at a time.
+- **Stream.** A slideshow shows whole on the stream, pictures and all.
+- **Edit.** A slideshow keeps its slides as made: Edit shows each slide with
+  its speaker notes to write or change, and a *Shown* switch to skip a slide.
+  To change the slides themselves, change them in PowerPoint or Keynote and
+  import the file again.
 
 ## Chords
 

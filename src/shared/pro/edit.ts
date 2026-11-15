@@ -153,6 +153,11 @@ export function setTextStyle(p: Presentation, change: TextStyleChange, cueIds?: 
         };
         if (change.bold ?? was.bold) style.bold = true;
         if (change.italic ?? was.italic) style.italic = true;
+        // Spacing set in PowerPoint or Keynote stays, growing and shrinking with the text.
+        const grow = was.sizePt > 0 ? style.sizePt / was.sizePt : 1;
+        if (was.lineMultiple) style.lineMultiple = was.lineMultiple;
+        if (was.lineExactPt) style.lineExactPt = Math.round(was.lineExactPt * grow * 10) / 10;
+        if (was.letterSpacingPt) style.letterSpacingPt = Math.round(was.letterSpacingPt * grow * 10) / 10;
         text.rtfData = plainTextToRtf(rtfToPlainText(text.rtfData!), style);
         // ProPresenter also keeps the first run's look here; keep the two in step.
         const attrs = text.attributes;
@@ -633,7 +638,7 @@ export function setSlideAdvance(p: Presentation, cueId: string, advance: SlideAd
   });
 }
 
-function writeAdvance(cue: Cue, advance: SlideAdvance | null): void {
+export function writeAdvance(cue: Cue, advance: SlideAdvance | null): void {
   if (!advance) {
     cue.completionTargetType = Cue_CompletionTargetType.NONE;
     cue.completionActionType = Cue_CompletionActionType.FIRST;

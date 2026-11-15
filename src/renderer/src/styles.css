@@ -1117,6 +1117,68 @@ body.output #root {
   letter-spacing: 0.08em;
 }
 
+/* The stage screen for a slideshow: now and next as pictures, the notes below. */
+.stage-view.stage-slideshow {
+  grid-template-rows: auto minmax(0, 1.25fr) minmax(0, 1fr);
+}
+
+.stage-slideshow-slides {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 2cqw;
+  min-height: 0;
+}
+
+.stage-slideshow-now,
+.stage-slideshow-next {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.8cqh;
+  min-height: 0;
+}
+
+.stage-picture {
+  position: relative;
+  container-type: size;
+  min-height: 0;
+}
+
+.stage-picture.words {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.stage-picture.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4b4f58;
+  font-size: 4cqh;
+  border: 0.3cqh dashed #2a2d34;
+  border-radius: 1cqh;
+}
+
+.stage-slideshow-next .stage-picture:not(.empty) .slide-frame {
+  outline: 0.3cqh solid #3a3f48;
+}
+
+.stage-notes {
+  border-top: 0.4cqh solid #2a2d34;
+  padding-top: 1.2cqh;
+  font-size: calc(4.6cqh * var(--notes-size, 1));
+  line-height: 1.35;
+  font-weight: 500;
+  white-space: pre-wrap;
+  overflow: hidden;
+  color: #f1f2f4;
+}
+
+.stage-notes.empty {
+  color: #4b4f58;
+}
+
 .stage-current,
 .stage-next-text {
   container-type: size;
@@ -1326,10 +1388,91 @@ body.output #root {
   overflow: hidden;
 }
 
+/* Slideshows draw text as PowerPoint and Keynote do: letters may reach past
+   the box, as tall capitals do under tight line spacing. */
+.text-box.text-box-free {
+  overflow: visible;
+}
+
 .text-box-text {
   white-space: pre-wrap;
   overflow-wrap: break-word;
   line-height: 1.15;
+}
+
+/* Slideshows: lines that come in on their own clicks, things still to come
+   (faint, for the operator only), and the click effects. Fly and float move
+   with translate and zoom with scale, so a rotated element keeps its turn. */
+.built-line {
+  display: block;
+}
+
+.build-ghost {
+  opacity: 0.22;
+  outline: 0.4cqw dashed rgba(245, 184, 61, 0.9);
+  outline-offset: -0.2cqw;
+}
+
+@keyframes vb-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes vb-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes vb-zoom {
+  from { opacity: 0; scale: 0.2; }
+  to { opacity: 1; scale: 1; }
+}
+@keyframes vb-fly-bottom {
+  from { translate: 0 100cqh; }
+  to { translate: 0 0; }
+}
+@keyframes vb-fly-top {
+  from { translate: 0 -100cqh; }
+  to { translate: 0 0; }
+}
+@keyframes vb-fly-left {
+  from { translate: -100cqw 0; }
+  to { translate: 0 0; }
+}
+@keyframes vb-fly-right {
+  from { translate: 100cqw 0; }
+  to { translate: 0 0; }
+}
+@keyframes vb-float-bottom {
+  from { opacity: 0; translate: 0 8cqh; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes vb-float-top {
+  from { opacity: 0; translate: 0 -8cqh; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes vb-float-left {
+  from { opacity: 0; translate: -8cqw 0; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes vb-float-right {
+  from { opacity: 0; translate: 8cqw 0; }
+  to { opacity: 1; translate: 0 0; }
+}
+/* A wipe uncovers from the side it comes from. */
+@keyframes vb-wipe-bottom {
+  from { clip-path: inset(100% 0 0 0); }
+  to { clip-path: inset(0); }
+}
+@keyframes vb-wipe-top {
+  from { clip-path: inset(0 0 100% 0); }
+  to { clip-path: inset(0); }
+}
+@keyframes vb-wipe-left {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0); }
+}
+@keyframes vb-wipe-right {
+  from { clip-path: inset(0 0 0 100%); }
+  to { clip-path: inset(0); }
 }
 
 /* Themes window */
@@ -2317,6 +2460,29 @@ button.active-toggle {
 
 .deck-title[draggable='true'] {
   cursor: grab;
+}
+
+.clicks-badge {
+  margin-left: auto;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+.clicks-badge + .tile-tag,
+.clicks-badge ~ .timer-badge {
+  margin-left: 6px;
+}
+
+.slideshow-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--panel-2, rgba(255, 255, 255, 0.08));
+  color: var(--muted, #aaa);
+  white-space: nowrap;
+  cursor: help;
 }
 
 .timer-badge {
@@ -4975,4 +5141,70 @@ html:has(body.print) {
 .print-key {
   font-weight: 400;
   font-size: 0.7em;
+}
+
+/* Edit, for a slideshow: each slide's picture beside its speaker notes. */
+.slideshow-editor-hint {
+  margin: 0 0 14px;
+  max-width: 70ch;
+}
+
+.slideshow-slides {
+  display: grid;
+  gap: 12px;
+}
+
+.slideshow-slide {
+  display: grid;
+  grid-template-columns: minmax(160px, 260px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.slideshow-slide.disabled .slide-canvas {
+  opacity: 0.4;
+}
+
+.slideshow-slide-picture .slide-canvas {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius);
+  background: #000;
+}
+
+.slideshow-slide-caption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.slideshow-slide-shown {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.slideshow-slide-shown input {
+  width: auto;
+}
+
+.slideshow-slide textarea.slide-notes {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+@media (max-width: 760px) {
+  .slideshow-slide {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

@@ -4,10 +4,11 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { docxToText, odtToText, rtfDocumentToText, textFileToText, type DocumentText } from '../shared/import/documents';
-import { extensionOf, sourceOf, UNSUPPORTED_DOCUMENTS, type DocumentImportReport, type ImportOptions } from '../shared/import';
+import { CONVERTED_SLIDES, extensionOf, sourceOf, UNSUPPORTED_DOCUMENTS, type DocumentImportReport, type ImportOptions } from '../shared/import';
 import { lyricsToPresentation } from '../shared/import/lyrics';
 import { convertPptx } from '../shared/import/pptx';
 import { serializePresentation } from '../shared/pro/presentation';
+import { convertToPptx } from './convertSlides';
 import type { OpenedFile } from '../shared/types';
 
 const safe = (name: string): string => name.replace(/[\\/:*?"<>|]/g, '_').replace(/^\.+/, '_') || 'Imported';
@@ -32,13 +33,15 @@ export async function importDocumentFile(path: string, opts: ImportOptions): Pro
   const source = sourceOf(path);
   if (!source) throw new Error('Vessel can’t import this kind of file.');
   const name = basename(path, extname(path));
-  const bytes = new Uint8Array(await readFile(path));
 
-  if (source === 'PowerPoint') {
+  if (source === 'PowerPoint' || source === 'Keynote') {
+    // Keynote and older PowerPoint files are saved as .pptx by an app on this computer first.
+    const bytes = CONVERTED_SLIDES.includes(ext) ? await convertToPptx(path) : new Uint8Array(await readFile(path));
     let folder: string | null = null;
     const saved = new Map<string, string>();
     const { presentation, report } = convertPptx(bytes, name, {
-      look: opts.pptxLook,
+      look: opts.pptxAs,
+      source,
       lyrics: opts,
       saveMedia: (zipPath, data) => {
         const known = saved.get(zipPath);
@@ -53,7 +56,7 @@ export async function importDocumentFile(path: string, opts: ImportOptions): Pro
     });
     const documentReport: DocumentImportReport = {
       source,
-      look: opts.pptxLook,
+      look: opts.pptxAs,
       slides: report.slides,
       groups: report.groups,
       repeats: report.lyrics?.repeats ?? 0,
@@ -64,11 +67,13 @@ export async function importDocumentFile(path: string, opts: ImportOptions): Pro
       chords: report.lyrics?.chords ?? 0,
       ...(report.lyrics?.key ? { key: report.lyrics.key } : {}),
       ccli: report.lyrics?.ccli ?? false,
-      skipped: report.skipped
+      skipped: report.skipped,
+      ...(opts.pptxAs === 'slideshow' ? { clicks: report.clicks ?? 0, stillEffects: report.stillEffects ?? 0 } : {})
     };
     return { path, bytes: serializePresentation(presentation), documentReport };
   }
 
+  const bytes = new Uint8Array(await readFile(path));
   const doc = (READERS[ext] ?? textFileToText)(bytes);
   if (!doc.text.trim()) throw new Error('There are no words in this file.');
   const { presentation, report } = lyricsToPresentation(name, doc.text, opts, doc.title);

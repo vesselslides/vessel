@@ -63,6 +63,24 @@ export interface MediaFolder {
   name: string;
 }
 
+/** How something comes or goes on a click in a slideshow (PowerPoint's animations). */
+export interface BuildLayout {
+  /** The click: 0 as the slide appears, 1 the first click… */
+  step: number;
+  effect: 'appear' | 'fade' | 'fly' | 'float' | 'wipe' | 'zoom';
+  /** The side it comes in from or goes out to. */
+  side?: 'left' | 'right' | 'top' | 'bottom';
+  /** Seconds after the click, and how long it takes. */
+  delay: number;
+  duration: number;
+}
+
+/** When an element (or some of a text box's lines) is on screen in a slideshow. */
+export interface ElementBuilds {
+  in?: BuildLayout;
+  out?: BuildLayout;
+}
+
 /** One text box on a slide, in slide coordinates, with its first-run styling. */
 export interface TextBoxLayout {
   /** Drawing order among everything on the slide (lower is further back). */
@@ -88,6 +106,14 @@ export interface TextBoxLayout {
   outline: { width: number; color: string } | null;
   /** Shrink the text to fit the box (ProPresenter's "scale font down"). */
   shrink: boolean;
+  /** Line spacing: a multiple of single spacing, or exact (in slide pixels, like sizePt). */
+  lineMultiple?: number;
+  lineExact?: number;
+  /** Extra space between letters in slide pixels; negative is tighter. */
+  letterSpacing?: number;
+  /** Slideshows: when the box comes and goes, and lines that come and go on their own. */
+  build?: ElementBuilds;
+  lineBuilds?: Array<ElementBuilds & { first: number; count: number }>;
 }
 
 /** A picture or shape drawn on the slide itself (not the background layer). */
@@ -102,6 +128,8 @@ export type GraphicLayout = {
   /** Degrees clockwise. */
   rotation: number;
   opacity: number;
+  /** Slideshows: when it comes and goes. */
+  build?: ElementBuilds;
 } & (
   | { kind: 'image'; path: string; scale: MediaScale }
   | { kind: 'shape'; shape: 'rectangle' | 'ellipse' | 'rounded'; fill: string | null; stroke: { width: number; color: string } | null; roundness: number }
@@ -114,6 +142,12 @@ export interface SlideLayout {
   background?: string;
   boxes: TextBoxLayout[];
   graphics: GraphicLayout[];
+  /** Part of a slideshow (shown as made, click by click). */
+  slideshow?: boolean;
+  /** Slideshows: the clicks this slide takes; elements with builds come and go on them. */
+  steps?: number;
+  /** Draw it as it is after this many clicks, without animating (thumbnails, pictures, the stage screen). */
+  step?: number;
 }
 
 export interface SlideView {
@@ -174,6 +208,8 @@ export interface Deck {
   arrangementName?: string;
   /** The song's key, written and played, when it has chords or a key set. */
   key?: SongKey;
+  /** A slideshow from PowerPoint, Keynote or Google Slides: shown as made, click by click. */
+  slideshow?: { source: string; stillEffects: number };
 }
 
 export interface PlaylistEntry {
@@ -226,6 +262,8 @@ export interface LiveState {
   practice?: boolean;
   /** Play, pause and position of the background video, when one is live. */
   videoClock?: VideoClock | null;
+  /** Slideshows: clicks made on the slide on screen (0 as it first appears). */
+  build?: number;
 }
 
 /** A slide as the stage display shows it. */
@@ -238,6 +276,9 @@ export interface StageSlide {
   chords?: ChordMark[];
   /** That key, for showing chords as numbers. */
   key?: string;
+  /** Slideshows: the slide as it looks after this click, where it is ("Slide 3 · click 1 of 2"), and its notes. */
+  picture?: { layout: SlideLayout; place: string; index: number; build: number };
+  notes?: string;
 }
 
 /** Everything the stage display shows. */

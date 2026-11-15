@@ -3,6 +3,7 @@ import { capoShape, chordNumber, prettyChord } from '../../shared/chords';
 import { formatClock, formatTimer, isRunning, timerValue } from '../../shared/timer';
 import { DEFAULT_STAGE_LAYOUT, type StageLayout } from '../../shared/stage';
 import type { StageSlide, StageState } from '../../shared/types';
+import { SlideCanvas } from './SlideCanvas';
 import { SlideText } from './SlideText';
 
 /** A chord as the stage shows it: a capo's shapes or a Nashville number. */
@@ -55,6 +56,51 @@ function StageText({ slide, layout }: { slide: StageSlide; layout: StageLayout }
   return layout.chords && slide.chords?.length ? <ChordText slide={slide} layout={layout} scale={layout.textSize} /> : <SlideText text={slide.text} scale={layout.textSize} />;
 }
 
+/** A slide as a picture on the stage screen (slideshows), or its words when it has no picture. */
+function StagePicture({ slide, layout }: { slide: StageSlide; layout: StageLayout }): React.JSX.Element {
+  return slide.picture ? (
+    <div className="stage-picture">
+      <SlideCanvas layout={slide.picture.layout} />
+    </div>
+  ) : (
+    <div className="stage-picture words">
+      <StageText slide={slide} layout={layout} />
+    </div>
+  );
+}
+
+/**
+ * A slideshow on stage: the slide as the audience sees it, what the next click
+ * brings, and the speaker notes in big type for the person speaking.
+ */
+function SlideshowStage({ state, layout, timer, now }: { state: StageState; layout: StageLayout; timer: React.JSX.Element; now: number }): React.JSX.Element {
+  const current = state.current!;
+  const notes = current.notes?.trim() ?? '';
+  return (
+    <div className="stage-view stage-slideshow">
+      <div className="stage-top">
+        <div className="stage-clock">{layout.clock ? formatClock(now) : ''}</div>
+        <div className="stage-current-label">{current.picture?.place}</div>
+        {layout.timer ? timer : <div />}
+      </div>
+      <div className="stage-slideshow-slides">
+        <div className="stage-slideshow-now">
+          <div className="stage-next-label">Now</div>
+          <StagePicture slide={current} layout={layout} />
+        </div>
+        <div className="stage-slideshow-next">
+          <div className="stage-next-label">{state.next?.picture && state.next.picture.build > 0 ? 'Next click' : 'Next'}</div>
+          {state.next ? <StagePicture slide={state.next} layout={layout} /> : <div className="stage-picture empty">End of slideshow</div>}
+        </div>
+      </div>
+      <div className={`stage-notes ${notes ? '' : 'empty'}`} style={{ '--notes-size': layout.textSize } as CSSProperties}>
+        {notes || 'No notes on this slide'}
+      </div>
+      {state.message.trim() && <div className="stage-message">{state.message}</div>}
+    </div>
+  );
+}
+
 /** Re-render on an interval so clocks and timers move. */
 export function useNow(intervalMs = 250): number {
   const [now, setNow] = useState(() => Date.now());
@@ -92,6 +138,9 @@ export function StageView({ state }: { state: StageState }): React.JSX.Element {
       {tone === 'paused' && <span className="stage-timer-note">paused</span>}
     </div>
   );
+
+  // A slideshow brings its own layout: pictures of the slides and the speaker notes.
+  if (state.current?.picture && !bigClock) return <SlideshowStage state={state} layout={layout} timer={timer} now={now} />;
 
   if (bigClock) {
     return (

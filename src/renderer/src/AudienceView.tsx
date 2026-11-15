@@ -26,7 +26,8 @@ export function useCrossfade<T>(value: T, same: (a: T, b: T) => boolean, ms: num
   useEffect(() => {
     setLayers((prev) => {
       const current = prev[prev.length - 1];
-      if (current && same(current.value, value)) return prev;
+      // The same thing again: no fade, but the newest details (a slideshow's click) go to the layer on screen.
+      if (current && same(current.value, value)) return current.value === value ? prev : [...prev.slice(0, -1), { ...current, value }];
       const key = ++counter.current;
       return [...prev.map((l) => ({ ...l, leaving: true })), { key, value, leaving: false }];
     });
@@ -48,6 +49,8 @@ interface Words {
   layout: SlideLayout | null;
   /** The song's copyright line, which comes and goes with the slide. */
   copyright?: string;
+  /** Slideshows: clicks made on this slide (not part of what makes a new slide). */
+  build?: number;
 }
 const sameWords = (a: Words, b: Words): boolean => a.text === b.text && a.copyright === b.copyright && JSON.stringify(a.layout) === JSON.stringify(b.layout);
 
@@ -183,8 +186,8 @@ export function AudienceView({ live, muted }: { live: LiveState; muted: boolean 
   const ms = live.transitionMs;
   const backgrounds = useCrossfade(live.background, sameBackground, ms);
   const words = useMemo<Words>(
-    () => (live.cleared ? { text: '', layout: null } : { text: live.text, layout: live.layout, copyright: live.copyright }),
-    [live.cleared, live.text, live.layout, live.copyright]
+    () => (live.cleared ? { text: '', layout: null } : { text: live.text, layout: live.layout, copyright: live.copyright, build: live.build }),
+    [live.cleared, live.text, live.layout, live.copyright, live.build]
   );
   const texts = useCrossfade(words, sameWords, ms);
   const vars = { '--fade': `${ms}ms` } as CSSProperties;
@@ -214,7 +217,7 @@ export function AudienceView({ live, muted }: { live: LiveState; muted: boolean 
       ))}
       {texts.map((l) => (
         <div key={`t${l.key}`} className={`stage-layer text-layer ${l.leaving ? 'leaving' : 'entering'}`}>
-          {l.value.layout ? <SlideCanvas layout={l.value.layout} /> : <SlideText text={l.value.text} />}
+          {l.value.layout ? <SlideCanvas layout={l.value.layout} step={l.value.build} animate /> : <SlideText text={l.value.text} />}
           {l.value.copyright && <div className="ccli-line">{l.value.copyright}</div>}
         </div>
       ))}

@@ -4,6 +4,7 @@
 // text directly and draws the rest in a hidden print page.
 import type { Background, Deck, SlideView } from './types';
 import { chordsInKey, guessKey, inlineToChordSheet, joinInline } from './chords';
+import { slidesPerClick } from './slideshow';
 
 export type ExportFormat = 'pdf-slides' | 'pdf-lyrics' | 'pdf-chords' | 'images' | 'text';
 
@@ -134,7 +135,8 @@ export function presenterSlidesJob(deck: Deck, size: { width: number; height: nu
   return {
     format: 'images',
     title: deck.name || 'Untitled',
-    entries: [{ kind: 'song', name: deck.name || 'Untitled', copyright: '', slides: withCarriedBackgrounds(deck.slides), sections: [], order: [] }],
+    // A slideshow is drawn once per click, so the presenter sees what each click brings.
+    entries: [{ kind: 'song', name: deck.name || 'Untitled', copyright: '', slides: withCarriedBackgrounds(deck.slideshow ? slidesPerClick(deck) : deck.slides), sections: [], order: [] }],
     options: { ...DEFAULT_EXPORT_OPTIONS, captions: false, backgrounds: true, imageFormat: 'jpeg', imageWidth: 640 },
     width: first?.width ?? size.width,
     height: first?.height ?? size.height

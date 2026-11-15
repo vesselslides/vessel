@@ -1,5 +1,7 @@
 // PowerPoint (.pptx) to a presentation. Google Slides and Keynote export this
-// format too. Two ways in:
+// format too. Three ways in:
+//  - 'slideshow' keeps each slide as it was made, click animations too: it's
+//    shown click by click, like PowerPoint's slide show;
 //  - 'slides' keeps each slide's look: background, pictures, shapes and text
 //    boxes where they sit, with their font, size, colour and alignment;
 //  - 'lyrics' takes only the words and makes a song of them, to be shown with
@@ -8,7 +10,7 @@ import type { Color } from '../gen/common_pb';
 import type { Cue } from '../gen/presentation_pb';
 import { Graphics_Text_VerticalAlignment } from '../gen/graphics_pb';
 import type { Presentation } from '../gen/presentation_pb';
-import type { Slide_Element } from '../gen/presentation_pb';
+import type { Slide_Element, Slide_Element_Build } from '../gen/presentation_pb';
 import { mediaKindOf } from '../media';
 import { imageElement, shapeElement, type Box } from '../pro/graphics';
 import type { XNode } from '../pro/legacy';
@@ -16,9 +18,13 @@ import { createPresentation, newCueGroup, slideCue, textElement, writeCueNotes }
 import { plainTextToRtf, type RtfStyle } from '../pro/rtf';
 import { xmlOf, zipFiles } from './documents';
 import { extractStanzas, stanzasToPresentation, type LyricsOptions, type LyricsReport } from './lyrics';
+import { writeAdvance } from '../pro/edit';
+import { slideAdvance, slideTiming, type BuildStep, type ShapeBuilds, type SlideTiming } from './pptxTiming';
 
 export interface PptxOptions {
-  look: 'slides' | 'lyrics';
+  look: 'slideshow' | 'slides' | 'lyrics';
+  /** Where a slideshow came from, when it was converted ("Keynote"); PowerPoint otherwise. */
+  source?: string;
   lyrics: LyricsOptions;
   /** Store a picture from the file (by its path in the zip) and return where it was saved, or null. */
   saveMedia?: (zipPath: string, data: Uint8Array) => string | null;
@@ -33,6 +39,9 @@ export interface PptxReport {
   notes: number;
   /** Things not brought across, by kind (tables, charts, videos…). */
   skipped: Record<string, number>;
+  /** Slideshow: clicks across all slides, and effects shown without their motion. */
+  clicks?: number;
+  stillEffects?: number;
   lyrics?: LyricsReport;
 }
 
@@ -201,7 +210,7 @@ function colorIn(node: XNode | undefined, part: Part, placeholderColor?: Rgb): R
   return undefined;
 }
 
-type Fill = { kind: 'none' } | { kind: 'color'; color: Rgb } | { kind: 'image'; zipPath: string };
+type Fill = { kind: 'none' } | { kind: 'color'; color: Rgb } | { kind: 'image'; zipPath: string; opacity: number };
 
 /** The fill set directly in a shape, picture or background property node, or undefined if it inherits. */
 function fillIn(props: XNode | undefined, part: Part, file: PptxFile): Fill | undefined {
@@ -221,8 +230,16 @@ function fillIn(props: XNode | undefined, part: Part, file: PptxFile): Fill | un
   // Shapes and backgrounds use a:blipFill; pictures carry p:blipFill directly.
   const blip = kid(kid(props, 'a:blipFill') ?? kid(props, 'p:blipFill'), 'a:blip');
   if (blip) {
-    const target = file.rels(part.path).byId.get(blip.attrs['r:embed'] ?? '');
-    return target ? { kind: 'image', zipPath: target } : undefined;
+    // Canva and newer PowerPoint keep vector artwork as an SVG, sometimes with no
+    // picture beside it; the picture is used when there is one.
+    const svg = kids(kid(blip, 'a:extLst'), 'a:ext')
+      .map((e) => kid(e, 'asvg:svgBlip'))
+      .find(Boolean);
+    const rels = file.rels(part.path).byId;
+    const target = rels.get(blip.attrs['r:embed'] ?? '') ?? rels.get(svg?.attrs['r:embed'] ?? '');
+    const alpha = kid(blip, 'a:alphaModFix')?.attrs.amt;
+    const opacity = alpha === undefined ? 1 : Math.max(0, Math.min(1, num(alpha, 100000) / 100000));
+    return target ? { kind: 'image', zipPath: target, opacity } : undefined;
   }
   return undefined;
 }
@@ -299,6 +316,8 @@ interface Context {
   opts: PptxOptions;
   report: PptxReport;
   skip: (what: string) => void;
+  /** The slide's click animations (slideshows only). */
+  timing?: SlideTiming;
 }
 
 /** A source of text properties and the part its colours resolve in. */
@@ -316,6 +335,49 @@ interface TextBox {
   anchor: 't' | 'ctr' | 'b';
   box: Box;
   placeholder?: string;
+  /** Where each paragraph (by its number in the shape) ended up: its first line and how many lines. */
+  paragraphs: Array<{ first: number; count: number } | null>;
+}
+
+const buildMessage = (b: BuildStep): Slide_Element_Build => ({
+  $typeName: 'vessel.format.Slide.Element.Build',
+  step: b.step,
+  effect: b.effect,
+  direction: b.side ?? '',
+  delay: b.delay,
+  duration: b.duration
+});
+
+/** Give an element the click animations of its shape (or of the group it's in). */
+function applyBuilds(el: Slide_Element, builds: ShapeBuilds | undefined, text?: TextBox): void {
+  if (!builds) return;
+  if (builds.in) el.vesselBuildIn = buildMessage(builds.in);
+  if (builds.out) el.vesselBuildOut = buildMessage(builds.out);
+  if (!text) return;
+  for (const [p, b] of [...builds.paragraphs.entries()].sort((x, y) => x[0] - y[0])) {
+    const at = text.paragraphs[p];
+    if (!at) continue;
+    el.vesselLineBuilds.push({
+      $typeName: 'vessel.format.Slide.Element.LineBuild',
+      firstLine: at.first,
+      lineCount: at.count,
+      ...(b.in ? { buildIn: buildMessage(b.in) } : {}),
+      ...(b.out ? { buildOut: buildMessage(b.out) } : {})
+    });
+  }
+}
+
+/**
+ * Number the clicks that show or hide something 1, 2, 3…, dropping clicks that
+ * only reveal what Vessel leaves out (an empty line, a video), so Next never
+ * seems to do nothing. Returns how many clicks the slide takes.
+ */
+function compactClicks(elements: Slide_Element[]): number {
+  const builds = elements.flatMap((e) => [e.vesselBuildIn, e.vesselBuildOut, ...e.vesselLineBuilds.flatMap((l) => [l.buildIn, l.buildOut])]).filter((b) => b !== undefined);
+  const used = [...new Set(builds.map((b) => b.step).filter((n) => n > 0))].sort((a, b) => a - b);
+  const renumber = new Map(used.map((step, i) => [step, i + 1]));
+  for (const b of builds) b.step = renumber.get(b.step) ?? b.step;
+  return used.length;
 }
 
 function convertShapes(
@@ -324,16 +386,32 @@ function convertShapes(
   ctx: Context,
   transform: Transform,
   out: { elements: Slide_Element[]; texts: TextBox[] },
-  onlyDecoration: boolean
+  onlyDecoration: boolean,
+  /** Animations of the group this shape is in, which it shares. */
+  groupBuilds?: ShapeBuilds
 ): void {
   const { file, scale } = ctx;
   const box = (f: Frame): Box => ({ x: f.x * scale, y: f.y * scale, width: f.cx * scale, height: f.cy * scale });
 
   for (const shape of shapes) {
+    // Only the slide's own shapes are animated, never the layout's or master's.
+    const animated = (n: XNode, nv: string): ShapeBuilds | undefined => {
+      const id = path(n, nv, 'p:cNvPr')?.attrs.id;
+      return (onlyDecoration || !id ? undefined : ctx.timing?.shapes.get(id)) ?? groupBuilds;
+    };
     if (shape.tag === 'p:grpSp') {
-      convertShapes(shapesOf(shape).filter((c) => c.tag !== 'p:nvGrpSpPr' && c.tag !== 'p:grpSpPr'), part, ctx, groupTransform(kid(shape, 'p:grpSpPr'), transform), out, onlyDecoration);
+      convertShapes(
+        shapesOf(shape).filter((c) => c.tag !== 'p:nvGrpSpPr' && c.tag !== 'p:grpSpPr'),
+        part,
+        ctx,
+        groupTransform(kid(shape, 'p:grpSpPr'), transform),
+        out,
+        onlyDecoration,
+        animated(shape, 'p:nvGrpSpPr')
+      );
       continue;
     }
+    const builds = animated(shape, shape.tag === 'p:pic' ? 'p:nvPicPr' : 'p:nvSpPr');
     const ph = placeholderOf(shape);
     // Placeholders on layouts and masters are empty frames ("Click to add title"); only slides fill them in.
     if (onlyDecoration && ph) continue;
@@ -370,8 +448,11 @@ function convertShapes(
         continue;
       }
       const fill = fillIn(shape, part, file);
-      const element = fill?.kind === 'image' ? pictureElement(fill.zipPath, b, 'stretch', name, ctx) : null;
-      if (element) out.elements.push(rotate(element));
+      const element = fill?.kind === 'image' ? pictureElement(fill.zipPath, b, 'stretch', name, ctx, fill.opacity) : null;
+      if (element) {
+        applyBuilds(element, builds);
+        out.elements.push(rotate(element));
+      }
       continue;
     }
 
@@ -383,10 +464,17 @@ function convertShapes(
       if (color) fill = { kind: 'color', color };
     }
     const prst = path(spPr, 'a:prstGeom')?.attrs.prst ?? 'rect';
-    if (fill?.kind === 'color' && fill.color.a > 0) out.elements.push(rotate(shapeElement(b, toColor(fill.color), prst === 'ellipse' ? 'ellipse' : 'rectangle', name || 'Shape')));
-    else if (fill?.kind === 'image') {
-      const element = pictureElement(fill.zipPath, b, 'fill', name, ctx);
-      if (element) out.elements.push(rotate(element));
+    // The shape itself comes and goes with the whole shape's animation; text by paragraph leaves it on screen.
+    if (fill?.kind === 'color' && fill.color.a > 0) {
+      const element = shapeElement(b, toColor(fill.color), prst === 'ellipse' ? 'ellipse' : 'rectangle', name || 'Shape');
+      applyBuilds(element, builds);
+      out.elements.push(rotate(element));
+    } else if (fill?.kind === 'image') {
+      const element = pictureElement(fill.zipPath, b, 'fill', name, ctx, fill.opacity);
+      if (element) {
+        applyBuilds(element, builds);
+        out.elements.push(rotate(element));
+      }
     }
 
     const text = textBoxOf(shape, part, ctx, ph, layoutShape, masterShape, b);
@@ -401,11 +489,12 @@ function convertShapes(
       element.element.text.verticalAlignment =
         text.anchor === 'ctr' ? Graphics_Text_VerticalAlignment.MIDDLE : text.anchor === 'b' ? Graphics_Text_VerticalAlignment.BOTTOM : Graphics_Text_VerticalAlignment.TOP;
     }
+    applyBuilds(element, builds, text);
     out.elements.push(rotate(element));
   }
 }
 
-function pictureElement(zipPath: string, b: Box, scale: 'stretch' | 'fill', name: string, ctx: Context): Slide_Element | null {
+function pictureElement(zipPath: string, b: Box, scale: 'stretch' | 'fill', name: string, ctx: Context, opacity = 1): Slide_Element | null {
   // Lyrics only: pictures aren't wanted, so nothing is saved.
   if (ctx.opts.look === 'lyrics') return null;
   const ext = zipPath.split('.').pop()?.toLowerCase() ?? '';
@@ -417,7 +506,9 @@ function pictureElement(zipPath: string, b: Box, scale: 'stretch' | 'fill', name
   const saved = data && ctx.opts.saveMedia ? ctx.opts.saveMedia(zipPath, data) : null;
   if (!saved) return null;
   ctx.report.pictures++;
-  return imageElement(saved, b, scale, name || undefined);
+  const element = imageElement(saved, b, scale, name || undefined);
+  if (element.element && opacity < 1) element.element.opacity = opacity;
+  return element;
 }
 
 function textBoxOf(shape: XNode, part: Part, ctx: Context, ph: Placeholder | undefined, layoutShape: XNode | undefined, masterShape: XNode | undefined, b: Box): TextBox | null {
@@ -453,10 +544,21 @@ function textBoxOf(shape: XNode, part: Part, ctx: Context, ph: Placeholder | und
     }
     lines.push(line);
   }
-  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
-  while (lines.length && !lines[0].trim()) lines.shift();
-  const text = lines.join('\n').replace(/\u000b/g, '\n');
+  let end = lines.length;
+  while (end && !lines[end - 1].trim()) end--;
+  let start = 0;
+  while (start < end && !lines[start].trim()) start++;
+  const kept = lines.slice(start, end).map((l) => l.replace(/\u000b/g, '\n'));
+  const text = kept.join('\n');
   if (!text.trim() || !first) return null;
+  // Where each paragraph's lines are, for text that comes in a paragraph at a time.
+  const paragraphs: TextBox['paragraphs'] = lines.map(() => null);
+  let line = 0;
+  kept.forEach((p, i) => {
+    const count = p.split('\n').length;
+    paragraphs[start + i] = { first: line, count };
+    line += count;
+  });
 
   // Style of the first run, falling back through the list styles.
   const own = (attr: string): string | undefined => first!.rPr?.attrs[attr];
@@ -482,6 +584,17 @@ function textBoxOf(shape: XNode, part: Part, ctx: Context, ph: Placeholder | und
   const theme = ctx.slide.theme;
   const font = !latin || latin === '+mn-lt' ? theme.minorFont : latin === '+mj-lt' ? theme.majorFont : latin;
   const algn = first.pPr?.attrs.algn ?? styleParagraph(styles, first.level, 'algn');
+  // Line spacing: a percentage of single (spcPct, 100000 = single) or exact points (spcPts, in 1/100 pt),
+  // less any reduction "shrink text on overflow" applied. Letter spacing (spc) is in 1/100 pt.
+  const lnSpc = kid(first.pPr, 'a:lnSpc') ?? styles.map((s) => kid(levelProps(s.node, first.level), 'a:lnSpc')).find(Boolean);
+  const pct = kid(lnSpc, 'a:spcPct')?.attrs.val;
+  const pts = kid(lnSpc, 'a:spcPts')?.attrs.val;
+  const reduce = 1 - num(autofit?.attrs.lnSpcReduction, 0) / 100000;
+  const toPx = (hundredths: number): number => Math.round((hundredths / 100) * fontScale * EMU_PER_PT * ctx.scale * 10) / 10;
+  const lineMultiple = pct !== undefined && num(pct, 0) > 0 ? Math.round((num(pct, 100000) / 100000) * reduce * 1000) / 1000 : undefined;
+  const lineExactPt = pts !== undefined && num(pts, 0) > 0 ? toPx(num(pts, 0)) : undefined;
+  const spc = num(own('spc') ?? inherited('spc'), 0);
+  const letterSpacingPt = spc ? toPx(spc) : undefined;
   const truthy = (v: string | undefined): boolean => v === '1' || v === 'true';
 
   const bodyPr = [kid(body, 'a:bodyPr'), path(layoutShape, 'p:txBody', 'a:bodyPr'), path(masterShape, 'p:txBody', 'a:bodyPr')];
@@ -499,13 +612,16 @@ function textBoxOf(shape: XNode, part: Part, ctx: Context, ph: Placeholder | und
     anchor: anchor === 'ctr' || anchor === 'b' ? anchor : 't',
     box: inner,
     placeholder: ph?.type,
+    paragraphs,
     style: {
       font,
       sizePt: Math.round(sz * fontScale * EMU_PER_PT * ctx.scale * 10) / 10,
       color: [Math.round(color.r * 255), Math.round(color.g * 255), Math.round(color.b * 255)],
       align: algn === 'ctr' || algn === 'dist' ? 'center' : algn === 'r' ? 'right' : 'left',
       ...(truthy(own('b') ?? inherited('b')) ? { bold: true } : {}),
-      ...(truthy(own('i') ?? inherited('i')) ? { italic: true } : {})
+      ...(truthy(own('i') ?? inherited('i')) ? { italic: true } : {}),
+      ...(lineExactPt ? { lineExactPt } : lineMultiple && lineMultiple !== 1 ? { lineMultiple } : {}),
+      ...(letterSpacingPt ? { letterSpacingPt } : {})
     }
   };
 }
@@ -616,7 +732,8 @@ export function convertPptx(bytes: Uint8Array, name: string, opts: PptxOptions):
     const slide: Part = { path: slidePath, root: slideRoot, theme: (layout ?? master)?.theme ?? file.theme(undefined), clrMap: { ...(layout ?? master)?.clrMap, ...path(slideRoot, 'p:clrMapOvr', 'a:overrideClrMapping')?.attrs } };
     if (!Object.keys(slide.clrMap).length) Object.assign(slide.clrMap, { bg1: 'lt1', tx1: 'dk1', bg2: 'lt2', tx2: 'dk2' });
 
-    const ctx: Context = { file, slide, layout, master, defaultTextStyle: kid(pres, 'p:defaultTextStyle'), scale, opts, report, skip };
+    const timing = opts.look === 'slideshow' ? slideTiming(slideRoot) : undefined;
+    const ctx: Context = { file, slide, layout, master, defaultTextStyle: kid(pres, 'p:defaultTextStyle'), scale, opts, report, skip, timing };
     const out = { elements: [] as Slide_Element[], texts: [] as TextBox[] };
     // Hidden slides are skipped in a PowerPoint show, so they're left out here too.
     if (slideRoot.attrs.show === '0' || slideRoot.attrs.show === 'false') {
@@ -624,12 +741,12 @@ export function convertPptx(bytes: Uint8Array, name: string, opts: PptxOptions):
       continue;
     }
 
-    if (opts.look === 'slides') {
+    if (opts.look !== 'lyrics') {
       const bg = backgroundOf(slide, file) ?? (layout && backgroundOf(layout, file)) ?? (master && backgroundOf(master, file)) ?? { kind: 'color', color: { r: 1, g: 1, b: 1, a: 1 } };
       const full: Box = { x: 0, y: 0, width: slideSize.width, height: slideSize.height };
       if (bg.kind === 'color') out.elements.push(shapeElement(full, toColor(bg.color), 'rectangle', 'Background'));
       else if (bg.kind === 'image') {
-        const element = pictureElement(bg.zipPath, full, 'fill', 'Background', ctx);
+        const element = pictureElement(bg.zipPath, full, 'fill', 'Background', ctx, bg.opacity);
         if (element) out.elements.push(element);
       }
       // The master's and layout's own artwork (logos, bars), unless the slide or layout hides it.
@@ -640,6 +757,14 @@ export function convertPptx(bytes: Uint8Array, name: string, opts: PptxOptions):
     convertShapes(shapesOf(path(slideRoot, 'p:cSld', 'p:spTree')), slide, ctx, identity, out, false);
 
     const cue = slideCue(out.elements, slideSize);
+    if (timing) {
+      const clicks = compactClicks(out.elements);
+      report.clicks = (report.clicks ?? 0) + clicks;
+      report.stillEffects = (report.stillEffects ?? 0) + timing.still;
+      // "After 5 seconds" moves on by itself, once the slide has no clicks left to wait for.
+      const after = slideAdvance(slideRoot);
+      if (after !== null && !clicks) writeAdvance(cue, { seconds: after, to: 'next' });
+    }
     const notes = speakerNotes(file, slidePath);
     if (notes) {
       writeCueNotes(cue, notes);
@@ -666,6 +791,8 @@ export function convertPptx(bytes: Uint8Array, name: string, opts: PptxOptions):
   }
   report.slides = slides.length;
   report.groups = groups.length;
+  if (opts.look === 'slideshow')
+    presentation.vesselSlideshow = { $typeName: 'vessel.format.Presentation.Slideshow', source: opts.source ?? 'PowerPoint', stillEffects: report.stillEffects ?? 0 };
   return { presentation, report };
 }
 

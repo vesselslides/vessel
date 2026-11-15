@@ -39,6 +39,7 @@ import {
 } from '../../shared/types';
 import { Editor, type Apply } from './Editor';
 import { jumpForKey, nextEnabled, slideForNumber } from '../../shared/hotkeys';
+import { layoutAt, nextClick, placeLabel, previousClick, slideshowFrames, stepsOf } from '../../shared/slideshow';
 import { backgroundForSlide, rememberCleared } from '../../shared/live';
 import { LIBRARY_MIME, Sidebar } from './Sidebar';
 import { KeyButton } from './KeyButton';
@@ -112,14 +113,21 @@ interface OpenService {
 const playKey = (deck: Deck | undefined): string | undefined => deck?.key?.play ?? guessKey(deck?.slides.flatMap((s) => (s.chords ?? []).map((c) => c.chord)) ?? []) ?? undefined;
 
 /** A slide as the stage shows it, with its chords in the key it's played in. */
-const stageSlide = (s: SlideView | undefined, deck?: Deck): StageSlide | null =>
+/** A slide for the stage screen; a slideshow's comes as a picture at its click, with the speaker notes. */
+const stageSlide = (s: SlideView | undefined, deck?: Deck, build = 0): StageSlide | null =>
   s
     ? {
         text: s.text,
         label: s.label,
         groupName: s.groupName,
         groupColor: s.groupColor,
-        ...(s.chords?.length ? { chords: chordsInKey(s.chords, deck?.key), key: playKey(deck) } : {})
+        ...(s.chords?.length ? { chords: chordsInKey(s.chords, deck?.key), key: playKey(deck) } : {}),
+        ...(deck?.slideshow
+          ? {
+              picture: { layout: layoutAt(s.layout, build), place: placeLabel(deck, { index: deck.slides.indexOf(s), build }), index: deck.slides.indexOf(s), build },
+              ...(s.notes ? { notes: s.notes } : {})
+            }
+          : {})
       }
     : null;
 
@@ -250,6 +258,7 @@ function SlideTile({
   slide,
   index,
   live,
+  build,
   next,
   onClick,
   onMenu,
@@ -259,6 +268,8 @@ function SlideTile({
   slide: SlideView;
   index: number;
   live: boolean;
+  /** Slideshows: clicks made on the live slide (what's still to come shows faintly). */
+  build?: number;
   /** The slide Next (→ or Space) will show. */
   next: boolean;
   onClick: () => void;
@@ -305,13 +316,18 @@ function SlideTile({
     >
       <div className="slide-canvas">
         {slide.background && <MediaView bg={slide.background} muted thumbnail />}
-        <SlideCanvas layout={slide.layout} />
+        <SlideCanvas layout={slide.layout} step={live ? build : undefined} ghost />
         {slide.background && <span className="bg-badge">{slide.background.kind === 'video' ? '▶' : '▣'}</span>}
         {!slide.enabled && <span className="off-badge">Off</span>}
       </div>
       <div className="slide-caption" style={{ background: slide.groupColor }}>
         <span>{index + 1}</span>
         <span className="slide-group">{slide.groupName || slide.label}</span>
+        {stepsOf(slide) > 0 && (
+          <span className="clicks-badge" title={`${stepsOf(slide)} click${stepsOf(slide) === 1 ? '' : 's'} before the next slide`}>
+            {live ? `click ${build ?? 0}/${stepsOf(slide)}` : `${stepsOf(slide)} click${stepsOf(slide) === 1 ? '' : 's'}`}
+          </span>
+        )}
         {live && <span className="tile-tag live">Live</span>}
         {next && <span className="tile-tag next">Next</span>}
         {slide.advance && (
@@ -341,7 +357,8 @@ function Operator(): React.JSX.Element {
   /** Service row the selected presentation came from, and the row on screen. */
   const [currentRow, setCurrentRow] = useState<number | null>(null);
   const [liveRow, setLiveRow] = useState<number | null>(null);
-  const [liveSlide, setLiveSlide] = useState<{ deckId: string; index: number } | null>(null);
+  /** The slide on screen; `build` counts the clicks made on a slideshow slide. */
+  const [liveSlide, setLiveSlide] = useState<{ deckId: string; index: number; build: number } | null>(null);
   const [live, setLive] = useState<LiveState>(INITIAL_LIVE);
   // The newest live state we sent. React state only catches up when main echoes
   // it back, so quick successive actions must build on this, not on `live`.
@@ -639,7 +656,11 @@ function Operator(): React.JSX.Element {
     const saved = await window.vessel.saveFile(serializePresentation(song), song.name || name);
     addDeck(song, saved ?? undefined, !saved);
     const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n === 1 ? one : many}`;
-    const notes = [plural(report.slides, 'slide'), plural(report.groups, 'group')];
+    const notes = report.look === 'slideshow' ? [`a slideshow of ${plural(report.slides, 'slide')}`] : [plural(report.slides, 'slide'), plural(report.groups, 'group')];
+    if (report.look === 'slideshow') {
+      notes.push(report.clicks ? `${plural(report.clicks, 'click')} of animation (→ and Space go click by click)` : 'no click animations');
+      if (report.stillEffects) notes.push(`${plural(report.stillEffects, 'effect')} (emphasis, motion paths or uncommon ones) shown in place without moving`);
+    }
     if (report.repeats) notes.push(`a “Song order” arrangement for ${plural(report.repeats, 'repeat')}`);
     if (report.pictures) notes.push(plural(report.pictures, 'picture'));
     if (report.speakerNotes) notes.push(`speaker notes on ${plural(report.speakerNotes, 'slide')}, for the presenter remote`);
@@ -1465,7 +1486,10 @@ function Operator(): React.JSX.Element {
 
   /** What the stage shows as "Next": the next slide, or the first slide of the next song. */
   const nextForStage = useCallback(
-    (deck: Deck, index: number, row: number | null): StageSlide | null => {
+    (deck: Deck, index: number, row: number | null, build = 0): StageSlide | null => {
+      // A slideshow's next is its next click, or the next slide as it starts.
+      const click = deck.slideshow ? nextClick(deck, { index, build }) : null;
+      if (click) return stageSlide(deck.slides[click.index], deck, click.build);
       const following = nextEnabled(deck, index, 1);
       if (following >= 0) return stageSlide(deck.slides[following], deck);
       const nextRow = neighbourRow(row, 1);
@@ -1505,22 +1529,23 @@ function Operator(): React.JSX.Element {
   };
 
   const goLiveDeck = useCallback(
-    (deck: Deck, index: number, row: number | null) => {
+    /** `build`: clicks already made on a slideshow slide (Back lands on the previous slide with all of them). */
+    (deck: Deck, index: number, row: number | null, build = 0) => {
       const slide = deck.slides[index];
       if (!slide) return;
       const loaded = decksRef.current.find((d) => d.deck.id === deck.id);
       const copyright = copyrightFor(loaded?.presentation, index, deck.slides.length);
       logShown(loaded);
-      setLiveSlide({ deckId: deck.id, index });
+      setLiveSlide({ deckId: deck.id, index, build });
       setLiveRow(row);
       // A slide without its own background keeps whatever is showing; one with
       // its own shows it, unless the operator just cleared that same media.
       pushLive((prev) => {
         const next = backgroundForSlide(slide.background, prev.background, clearedMedia.current);
         clearedMedia.current = next.cleared;
-        return { text: slide.text, layout: slide.layout, cleared: false, blackout: false, background: next.background, copyright, logo: null };
+        return { text: slide.text, layout: slide.layout, build, cleared: false, blackout: false, background: next.background, copyright, logo: null };
       });
-      pushStage({ current: stageSlide(slide, deck), next: nextForStage(deck, index, row) });
+      pushStage({ current: stageSlide(slide, deck, build), next: nextForStage(deck, index, row, build) });
     },
     [pushLive, pushStage, nextForStage]
   );
@@ -1564,6 +1589,11 @@ function Operator(): React.JSX.Element {
       const deck = decksRef.current.find((d) => d.deck.id === deckId)?.deck;
       if (!deck) return;
       const current = liveSlide?.deckId === deck.id ? liveSlide.index : -1;
+      // A slideshow goes click by click before it moves to another slide.
+      if (deck.slideshow && current >= 0) {
+        const to = dir === 1 ? nextClick(deck, { index: current, build: liveSlide!.build }) : previousClick(deck, { index: current, build: liveSlide!.build });
+        if (to) return goLiveDeck(deck, to.index, rowOfDeck(deck), to.build);
+      }
       // Turned-off slides are passed over.
       const target = current === -1 ? nextEnabled(deck, -1, 1) : nextEnabled(deck, current, dir);
       if (target >= 0) return goLiveDeck(deck, target, rowOfDeck(deck));
@@ -1574,7 +1604,8 @@ function Operator(): React.JSX.Element {
       const index = next ? nextEnabled(next.deck, dir === 1 ? -1 : next.deck.slides.length, dir) : -1;
       if (!next || index < 0) return;
       setCurrentRow(row);
-      goLiveDeck(next.deck, index, row);
+      // Back into a slideshow lands on its last slide with every click made.
+      goLiveDeck(next.deck, index, row, dir === -1 ? stepsOf(next.deck.slides[index]) : 0);
     },
     [liveSlide, selectedId, liveRow, currentRow, goLiveDeck, rowOfDeck, neighbourRow, service, openPath]
   );
@@ -1736,12 +1767,13 @@ function Operator(): React.JSX.Element {
     const slide = deck?.slides[liveSlide.index];
     if (!deck || !slide) return;
     const copyright = copyrightFor(loaded.presentation, liveSlide.index, deck.slides.length);
+    const build = liveSlide.build;
     if (slide.text !== liveRef.current.text || copyright !== liveRef.current.copyright || JSON.stringify(slide.layout) !== JSON.stringify(liveRef.current.layout)) {
       pushLive({ text: slide.text, layout: slide.layout, copyright });
-      pushStage({ current: stageSlide(slide, deck), next: nextForStage(deck, liveSlide.index, liveRow) });
-    } else if (JSON.stringify(stageSlide(slide, deck)) !== JSON.stringify(stageRef.current.current)) {
-      // Only the chords or the key changed (transposing): the stage follows, the audience is untouched.
-      pushStage({ current: stageSlide(slide, deck), next: nextForStage(deck, liveSlide.index, liveRow) });
+      pushStage({ current: stageSlide(slide, deck, build), next: nextForStage(deck, liveSlide.index, liveRow, build) });
+    } else if (JSON.stringify(stageSlide(slide, deck, build)) !== JSON.stringify(stageRef.current.current)) {
+      // Only the chords or the key changed (transposing), or the notes: the stage follows, the audience is untouched.
+      pushStage({ current: stageSlide(slide, deck, build), next: nextForStage(deck, liveSlide.index, liveRow, build) });
     }
   }, [decks, liveSlide, liveRow, pushLive, pushStage, nextForStage, settings]);
 
@@ -2017,9 +2049,11 @@ function Operator(): React.JSX.Element {
               group: s.groupName,
               color: s.groupColor,
               enabled: s.enabled,
-              ...(s.chords?.length ? { chordLines: chordSheetLines(s.text, chordsInKey(s.chords, presenterDeck.key)) } : {})
+              ...(s.chords?.length ? { chordLines: chordSheetLines(s.text, chordsInKey(s.chords, presenterDeck.key)) } : {}),
+              ...(stepsOf(s) ? { steps: stepsOf(s) } : {})
             })),
             liveIndex: liveSlide?.deckId === presenterDeck.id ? liveSlide.index : null,
+            ...(presenterDeck.slideshow ? { build: liveSlide?.deckId === presenterDeck.id ? liveSlide.build : 0, frames: slideshowFrames(presenterDeck) } : {}),
             speakingSince: speaking.current?.deckId === presenterDeck.id ? speaking.current.since : null,
             ...(playKey(presenterDeck) && presenterDeck.slides.some((s) => s.chords?.length) ? { key: prettyChord(playKey(presenterDeck)!) } : {})
           }
@@ -2151,6 +2185,12 @@ function Operator(): React.JSX.Element {
     if (c.type === 'goto') return deck.slides[c.index] ? goLiveChosen(deck.id, c.index) : undefined;
     if (c.type !== 'next' && c.type !== 'prev') return;
     if (c.type === 'prev' && current < 0) return;
+    if (deck.slideshow && current >= 0) {
+      const at = { index: current, build: liveSlide!.build };
+      const to = c.type === 'next' ? nextClick(deck, at) : previousClick(deck, at);
+      if (to) goLiveDeck(deck, to.index, rowOfDeck(deck), to.build);
+      return;
+    }
     const target = current < 0 ? nextEnabled(deck, -1, 1) : nextEnabled(deck, current, c.type === 'next' ? 1 : -1);
     if (target >= 0) goLiveDeck(deck, target, rowOfDeck(deck));
   };
@@ -2453,7 +2493,15 @@ function Operator(): React.JSX.Element {
   ];
 
   /** The slide Next will show in the presentation you're looking at (its first, if it isn't on screen). */
-  const upNext = selected ? nextEnabled(selected.deck, liveSlide?.deckId === selected.deck.id ? liveSlide.index : -1, 1) : -1;
+  const liveHere = selected && liveSlide?.deckId === selected.deck.id ? liveSlide : null;
+  // A slideshow slide with clicks left has no "Next" tile: Next stays on it.
+  const upNext = !selected
+    ? -1
+    : selected.deck.slideshow && liveHere
+      ? (nextClick(selected.deck, liveHere)?.index ?? -1) === liveHere.index
+        ? -1
+        : (nextClick(selected.deck, liveHere)?.index ?? -1)
+      : nextEnabled(selected.deck, liveHere ? liveHere.index : -1, 1);
 
   return (
     <div className={`app ${mediaDrag ? 'resizing' : ''}`} style={{ '--media-height': `${mediaHeight}px` } as React.CSSProperties}>
@@ -2622,6 +2670,18 @@ function Operator(): React.JSX.Element {
                 {selected.deck.name || 'Untitled'}
                 {selected.deck.arrangementName && <span className="arrangement"> · {selected.deck.arrangementName}</span>}
               </h2>
+              {selected.deck.slideshow && (
+                <span
+                  className="slideshow-badge"
+                  title={`A slideshow from ${selected.deck.slideshow.source}, shown as it was made: → and Space go click by click. To change the slides, change them in ${selected.deck.slideshow.source} and import it again.${
+                    selected.deck.slideshow.stillEffects
+                      ? ` ${selected.deck.slideshow.stillEffects === 1 ? 'One effect' : `${selected.deck.slideshow.stillEffects} effects`} (emphasis, motion paths or uncommon ones) ${selected.deck.slideshow.stillEffects === 1 ? 'shows' : 'show'} in place without moving.`
+                      : ''
+                  }`}
+                >
+                  Slideshow{selected.deck.slideshow.stillEffects ? ` · ${selected.deck.slideshow.stillEffects} still effect${selected.deck.slideshow.stillEffects === 1 ? '' : 's'}` : ''}
+                </span>
+              )}
               <button className={deckTimer(selected.deck) ? 'active-toggle' : ''} onClick={() => void timerMenu()} title="Make the slides move on by themselves (an announcement loop)">
                 ⟳ {deckTimer(selected.deck) ?? 'Timer'}
               </button>
@@ -2663,6 +2723,7 @@ function Operator(): React.JSX.Element {
                       slide={slide}
                       index={index}
                       live={liveSlide?.deckId === selected.deck.id && liveSlide.index === index}
+                      build={liveSlide?.deckId === selected.deck.id && liveSlide.index === index ? liveSlide.build : undefined}
                       next={index === upNext}
                       onClick={() => goLiveChosen(selected.deck.id, index)}
                       onMenu={() =>

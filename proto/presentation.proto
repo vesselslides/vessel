@@ -20,8 +20,31 @@ message Slide {
       INFO_NONE = 0;
       INFO_IS_TEXT_ELEMENT = 2;
     }
+    // When the element comes and goes in a slideshow (PowerPoint's click
+    // animations). Vessel's own; other apps ignore it.
+    message Build {
+      // The click it happens on: 0 as the slide appears, 1 the first click, and so on.
+      uint32 step = 1;
+      // "appear", "fade", "fly", "float", "wipe" or "zoom".
+      string effect = 2;
+      // The side it comes in from or goes out to: "left", "right", "top" or "bottom".
+      string direction = 3;
+      // Seconds after the click, and how long the effect takes.
+      double delay = 4;
+      double duration = 5;
+    }
+    // Lines of a text box that come and go on their own (PowerPoint's "by paragraph").
+    message LineBuild {
+      uint32 first_line = 1;
+      uint32 line_count = 2;
+      Build build_in = 3;
+      Build build_out = 4;
+    }
     Graphics.Element element = 1;
     uint32 info = 4;
+    Build vessel_build_in = 100;
+    Build vessel_build_out = 101;
+    repeated LineBuild vessel_line_builds = 102;
   }
   repeated Element elements = 1;
   bool draws_background_color = 4;
@@ -162,6 +185,15 @@ message Presentation {
   }
   string music_key = 22;
   Music music = 23;
+  // Set on a slideshow imported from PowerPoint, Keynote or Google Slides: it's
+  // shown as it was made, click by click. Vessel's own; other apps ignore it.
+  message Slideshow {
+    // Where it came from: "PowerPoint", "Keynote" or "Google Slides".
+    string source = 1;
+    // Effects shown in their final place, without their motion (spins, motion paths…).
+    uint32 still_effects = 2;
+  }
+  Slideshow vessel_slideshow = 100;
 }
 
 // A key: its note, and major or minor.

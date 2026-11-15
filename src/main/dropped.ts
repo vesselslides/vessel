@@ -3,7 +3,7 @@
 // service playlists, and Bible files are added to the Bible.
 import { stat } from 'node:fs/promises';
 import { extname, isAbsolute } from 'node:path';
-import { DEFAULT_IMPORT_OPTIONS, isDocumentPath, type ImportOptions } from '../shared/import';
+import { importOptionsFrom, isDocumentPath, type ImportOptions } from '../shared/import';
 import { binKindOf } from '../shared/media';
 import type { DroppedFiles, OpenedFile } from '../shared/types';
 import { VESSEL_EXTENSION } from '../shared/vesselFile';
@@ -30,7 +30,7 @@ export async function openDropped(paths: unknown, opts: Partial<ImportOptions>, 
       result.errors.push(`${baseName(p)}: not found.`);
     }
   }
-  const options = { ...DEFAULT_IMPORT_OPTIONS, ...opts };
+  const options = importOptionsFrom(opts);
   const media: string[] = [];
   for (const path of files) {
     const ext = extname(path).toLowerCase();

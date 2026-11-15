@@ -7,18 +7,26 @@ import { SlideCanvas } from './SlideCanvas';
 interface Words {
   text: string;
   layout: SlideLayout | null;
+  /** Slideshows: clicks made on this slide. */
+  build?: number;
 }
 const sameWords = (a: Words, b: Words): boolean => a.text === b.text && JSON.stringify(a.layout) === JSON.stringify(b.layout);
 const sameBackground = (a: Background | null, b: Background | null): boolean => a?.path === b?.path;
 
-/** The slide's text boxes only: no background colour, pictures or shapes, so the key colour shows through. */
-const wordsOnly = (layout: SlideLayout): SlideLayout => ({ ...layout, background: undefined, graphics: [] });
+/**
+ * The slide's text boxes only: no background colour, pictures or shapes, so the key colour shows through.
+ * A slideshow is shown whole: its pictures and shapes are part of what's being said.
+ */
+const wordsOnly = (layout: SlideLayout): SlideLayout => (layout.slideshow ? layout : { ...layout, background: undefined, graphics: [] });
 
 /** What the stream output shows: the words on a key colour (or over the media), crossfading like the audience screen. */
 export function StreamView({ live, look }: { live: LiveState; look: StreamLook }): React.JSX.Element {
   const ms = live.transitionMs;
   const hidden = live.cleared || live.blackout || !!live.logo;
-  const words = useMemo<Words>(() => (hidden ? { text: '', layout: null } : { text: live.text, layout: live.layout }), [hidden, live.text, live.layout]);
+  const words = useMemo<Words>(
+    () => (hidden ? { text: '', layout: null } : { text: live.text, layout: live.layout, build: live.build }),
+    [hidden, live.text, live.layout, live.build]
+  );
   const texts = useCrossfade(words, sameWords, ms);
   const backgrounds = useCrossfade(look.media && !live.blackout ? live.background : null, sameBackground, ms);
   const style = { '--fade': `${ms}ms`, background: look.background === 'none' ? 'transparent' : KEY_COLOURS[look.background].css } as CSSProperties;
@@ -37,7 +45,7 @@ export function StreamView({ live, look }: { live: LiveState; look: StreamLook }
       {texts.map((l) => (
         <div key={`t${l.key}`} className={`stage-layer text-layer ${l.leaving ? 'leaving' : 'entering'}`}>
           {look.style === 'slide' && l.value.layout ? (
-            <SlideCanvas layout={wordsOnly(l.value.layout)} />
+            <SlideCanvas layout={wordsOnly(l.value.layout)} step={l.value.build} animate />
           ) : (
             l.value.text.trim() && <div className="stream-lyrics">{l.value.text}</div>
           )}

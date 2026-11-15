@@ -25,6 +25,7 @@ import {
   setGroupColor,
   setSlideBackground,
   setSlideBoxText,
+  setSlideEnabled,
   setSlideNotes,
   setSlideText,
   setSongKey,
@@ -86,6 +87,64 @@ function CommitInput({
         if (e.key === 'Escape') setDraft(value);
       }}
     />
+  );
+}
+
+/** A slideshow slide in Edit: its picture, whether it's shown, and the speaker notes. */
+function SlideshowSlide({ slide, index, apply }: { slide: SlideView; index: number; apply: Apply }): React.JSX.Element {
+  const [notes, setNotes] = useState(slide.notes ?? '');
+  useEffect(() => setNotes(slide.notes ?? ''), [slide.notes]);
+  const steps = slide.layout.steps ?? 0;
+  return (
+    <div className={`slideshow-slide ${slide.enabled ? '' : 'disabled'}`}>
+      <div className="slideshow-slide-picture">
+        <div className="slide-canvas">
+          <SlideCanvas layout={slide.layout} />
+        </div>
+        <div className="slideshow-slide-caption">
+          <span>{index + 1}</span>
+          {steps > 0 && <span className="muted">{steps === 1 ? '1 click' : `${steps} clicks`}</span>}
+          <label className="slideshow-slide-shown" title="Turned-off slides are skipped by Next and Back">
+            <input type="checkbox" checked={slide.enabled} onChange={(e) => apply((p) => setSlideEnabled(p, slide.cueId, e.target.checked))} /> Shown
+          </label>
+        </div>
+      </div>
+      <textarea
+        className="slide-notes"
+        value={notes}
+        placeholder="Notes for the presenter"
+        aria-label={`Notes for slide ${index + 1}`}
+        onChange={(e) => setNotes(e.target.value)}
+        onBlur={() => {
+          if (notes.trim() !== (slide.notes ?? '').trim()) apply((p) => setSlideNotes(p, slide.cueId, notes));
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * Edit for a slideshow: it's shown as it was made, so only its name, the
+ * speaker notes and which slides are shown change here. The slides themselves
+ * are changed in PowerPoint or Keynote and imported again.
+ */
+function SlideshowEditor({ deck, apply }: { deck: Deck; apply: Apply }): React.JSX.Element {
+  const source = deck.slideshow?.source ?? 'PowerPoint';
+  return (
+    <div className="editor slideshow-editor">
+      <div className="editor-head">
+        <CommitInput className="title-input" value={deck.name} placeholder="Slideshow name" onCommit={(name) => apply((p) => renamePresentation(p, name))} />
+      </div>
+      <p className="hint slideshow-editor-hint">
+        A slideshow is shown as it was made, click animations and all. Here you can write the speaker notes and choose which slides are shown. To change the
+        slides themselves, change them in {source} and import the file again.
+      </p>
+      <div className="slideshow-slides">
+        {deck.slides.map((s, i) => (
+          <SlideshowSlide key={s.id} slide={s} index={i} apply={apply} />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -665,6 +724,8 @@ export function Editor({
   };
 
   const [showSongInfo, setShowSongInfo] = useState(false);
+
+  if (deck.slideshow) return <SlideshowEditor deck={deck} apply={apply} />;
 
   return (
     <div className="editor">

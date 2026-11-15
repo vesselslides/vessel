@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { CHORD_CHOICES, chordChoice, DEFAULT_IMPORT_OPTIONS, withChordChoice, type ChordChoice, type DocumentKind, type ImportOptions } from '../../shared/import';
+import { CHORD_CHOICES, chordChoice, DEFAULT_IMPORT_OPTIONS, importOptionsFrom, SLIDES_IMPORTS, withChordChoice, type ChordChoice, type DocumentKind, type ImportOptions } from '../../shared/import';
 import type { MediaFolder } from '../../shared/types';
 import { BibleIcon, DocumentIcon, MediaIcon, OpenIcon, PlanIcon, PlaylistIcon, SlidesIcon, TextIcon, VesselIcon } from './Icons';
 
@@ -8,7 +8,7 @@ const KIND_STORE = 'vessel.importKind';
 
 function remembered(): ImportOptions {
   try {
-    return { ...DEFAULT_IMPORT_OPTIONS, ...(JSON.parse(localStorage.getItem(STORE) ?? '{}') as Partial<ImportOptions>) };
+    return importOptionsFrom(JSON.parse(localStorage.getItem(STORE) ?? '{}'));
   } catch {
     return DEFAULT_IMPORT_OPTIONS;
   }
@@ -27,7 +27,7 @@ interface Kind {
 
 const KINDS: Kind[] = [
   { id: 'presentation', title: 'Presentation', blurb: 'Songs from presentation software, older versions too', files: '.pro · .pro6 · .pro6x · .pro5', icon: <OpenIcon size={26} /> },
-  { id: 'powerpoint', title: 'PowerPoint or Slides', blurb: 'From PowerPoint, Google Slides or Keynote', files: '.pptx', icon: <SlidesIcon size={26} /> },
+  { id: 'powerpoint', title: 'PowerPoint or Keynote', blurb: 'Slideshows from PowerPoint, Keynote or Google Slides', files: '.pptx · .ppt · .key', icon: <SlidesIcon size={26} /> },
   { id: 'word', title: 'Word document', blurb: 'Lyrics written in a document', files: '.docx · .odt · .rtf', icon: <DocumentIcon size={26} /> },
   { id: 'text', title: 'Text or chord sheet', blurb: 'Plain lyrics, or chord charts', files: '.txt · ChordPro', icon: <TextIcon size={26} /> },
   { id: 'playlist', title: 'Playlist', blurb: 'A service order from presentation software', files: '.proPlaylist', icon: <PlaylistIcon size={26} /> },
@@ -137,23 +137,22 @@ export function ImportDialog({
 
             {current.id === 'powerpoint' && (
               <>
-                <p className="hint">Each file becomes a presentation. Google Slides and Keynote: export as PowerPoint (.pptx) first.</p>
+                <p className="hint">
+                  Each file becomes a presentation. Google Slides: choose File ▸ Download ▸ Microsoft PowerPoint first. Keynote and older PowerPoint files (.ppt) are
+                  opened with Keynote or PowerPoint on this computer, so it can take a moment.
+                </p>
                 <section className="import-option">
                   <h3>How should the slides come in?</h3>
-                  <label>
-                    <input type="radio" name="pptx-look" checked={opts.pptxLook === 'slides'} onChange={() => change({ pptxLook: 'slides' })} />
-                    <span>
-                      <strong>Keep their look</strong>: backgrounds, pictures and text where they are on each slide
-                    </span>
-                  </label>
-                  <label>
-                    <input type="radio" name="pptx-look" checked={opts.pptxLook === 'lyrics'} onChange={() => change({ pptxLook: 'lyrics' })} />
-                    <span>
-                      <strong>Words only</strong>: make a song from the text, shown with your default theme
-                    </span>
-                  </label>
+                  {SLIDES_IMPORTS.map((o) => (
+                    <label key={o.id}>
+                      <input type="radio" name="pptx-look" checked={opts.pptxAs === o.id} onChange={() => change({ pptxAs: o.id })} />
+                      <span>
+                        <strong>{o.label}</strong>: {o.hint}
+                      </span>
+                    </label>
+                  ))}
                 </section>
-                {opts.pptxLook === 'lyrics' && <LyricsOptions opts={opts} change={change} />}
+                {opts.pptxAs === 'lyrics' && <LyricsOptions opts={opts} change={change} />}
               </>
             )}
 

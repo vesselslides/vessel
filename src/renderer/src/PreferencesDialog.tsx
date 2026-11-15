@@ -3,7 +3,7 @@ import { cleanGroup, DEFAULT_GROUPS, type GroupDefinition } from '../../shared/g
 import { mediaUrl } from '../../shared/media';
 import { audioOutputs } from './sound';
 import type { CopyrightPosition } from '../../shared/ccli';
-import { CHORD_CHOICES, chordChoice, DEFAULT_IMPORT_OPTIONS, withChordChoice, type ChordChoice, type ImportOptions } from '../../shared/import';
+import { CHORD_CHOICES, chordChoice, DEFAULT_IMPORT_OPTIONS, importOptionsFrom, SLIDES_IMPORTS, withChordChoice, type ChordChoice, type ImportOptions } from '../../shared/import';
 import { SLIDE_SIZES } from '../../shared/pro/edit';
 import { presetOf, STAGE_PRESETS, type StageLayout } from '../../shared/stage';
 import type { DisplayInfo, MediaItem, MediaScale, Settings } from '../../shared/types';
@@ -32,7 +32,7 @@ const IMPORT_STORE = 'vessel.importOptions';
 
 function importOptions(): ImportOptions {
   try {
-    return { ...DEFAULT_IMPORT_OPTIONS, ...(JSON.parse(localStorage.getItem(IMPORT_STORE) ?? '{}') as Partial<ImportOptions>) };
+    return importOptionsFrom(JSON.parse(localStorage.getItem(IMPORT_STORE) ?? '{}'));
   } catch {
     return DEFAULT_IMPORT_OPTIONS;
   }
@@ -537,13 +537,16 @@ export function PreferencesDialog({
 
           {section === 'import' && (
             <>
-              <h3>Importing PowerPoint, Word and text</h3>
+              <h3>Importing PowerPoint, Keynote, Word and text</h3>
               <p className="hint">The Import window starts with these, and files you drop onto Vessel use them.</p>
               <label className="pref-field">
-                PowerPoint slides
-                <select value={imports.pptxLook} onChange={(e) => changeImports({ pptxLook: e.target.value as ImportOptions['pptxLook'] })}>
-                  <option value="slides">Keep their look</option>
-                  <option value="lyrics">Words only, with my default theme</option>
+                PowerPoint and Keynote
+                <select value={imports.pptxAs} onChange={(e) => changeImports({ pptxAs: e.target.value as ImportOptions['pptxAs'] })}>
+                  {SLIDES_IMPORTS.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="pref-field">

@@ -263,15 +263,22 @@ function el(tag, cls, text) {
   return n;
 }
 
-function pictureUrl(i) {
+/** The picture of slide i after k clicks: a slideshow has one per click, in order. */
+function pictureUrl(i, k) {
   const pics = state && state.pictures;
-  return pics && i >= 0 && i < pics.count ? '/api/slides/' + pics.key + '/' + i + '.jpg' : '';
+  const p = state && state.presentation;
+  if (!pics || i < 0) return '';
+  const at = p && p.frames ? (p.frames[i] === undefined ? -1 : p.frames[i] + (k || 0)) : i;
+  return at >= 0 && at < pics.count ? '/api/slides/' + pics.key + '/' + at + '.jpg' : '';
 }
 
-/** Fill a slide button: its picture once drawn, its words until then. */
-function fill(button, i, slide) {
+/** Clicks a slide takes (slideshows), 0 otherwise. */
+const stepsOf = (slide) => (slide && slide.steps) || 0;
+
+/** Fill a slide button: its picture once drawn (after k clicks), its words until then. */
+function fill(button, i, slide, k) {
   const img = button.querySelector('img');
-  const url = pictureUrl(i);
+  const url = pictureUrl(i, k);
   if (url) { if (img.getAttribute('src') !== url) img.src = url; }
   else img.removeAttribute('src');
   button.classList.toggle('pictured', !!url);
@@ -282,7 +289,8 @@ function slideButton(i, slide, current) {
   const b = el('button', 'slide' + (i === current ? ' current' : '') + (slide.enabled ? '' : ' disabled'));
   b.append(el('img'), el('span', 'words'), el('span', 'num', String(i + 1)));
   b.querySelector('img').alt = '';
-  fill(b, i, slide);
+  // Every click made, so the whole slide shows.
+  fill(b, i, slide, stepsOf(slide));
   b.onclick = () => { send({ type: 'goto', index: i }); $('all').hidden = true; };
   return b;
 }
@@ -291,6 +299,13 @@ function slideButton(i, slide, current) {
 function nextIndex(p) {
   for (let i = (p.liveIndex === null ? -1 : p.liveIndex) + 1; i < p.slides.length; i++) if (p.slides[i].enabled) return i;
   return -1;
+}
+
+/** Where Next goes: the next click on a slideshow slide, else the next slide as it starts. */
+function nextPlace(p) {
+  const build = p.build || 0;
+  if (p.liveIndex !== null && build < stepsOf(p.slides[p.liveIndex])) return { i: p.liveIndex, k: build + 1 };
+  return { i: nextIndex(p), k: 0 };
 }
 
 function render() {
@@ -317,10 +332,12 @@ function render() {
     tick();
     return;
   }
-  const n = nextIndex(p);
+  const place = nextPlace(p);
+  const n = place.i;
+  const build = p.build || 0;
   // Not on screen yet: show the first slide as what Next will start with.
   if (live) {
-    now.className = 'slide now'; fill(now, p.liveIndex, p.slides[p.liveIndex]);
+    now.className = 'slide now'; fill(now, p.liveIndex, p.slides[p.liveIndex], build);
     $('now-tag').textContent = state.blackout ? 'ON SCREEN · BLACK' : 'ON SCREEN';
   } else {
     now.className = 'slide now off empty'; fill(now, -1, null);
@@ -328,12 +345,15 @@ function render() {
     $('now-tag').textContent = 'ON SCREEN';
   }
   next.className = 'slide next' + (n < 0 ? ' empty' : '');
-  fill(next, n, n < 0 ? null : p.slides[n]);
+  fill(next, n, n < 0 ? null : p.slides[n], place.k);
   if (n < 0) next.querySelector('.words').textContent = 'End of your slides';
-  $('next-tag').textContent = live ? 'NEXT' : 'FIRST';
+  $('next-tag').textContent = !live ? 'FIRST' : place.k > 0 ? 'NEXT CLICK' : 'NEXT';
   $('position').replaceChildren();
-  if (live) $('position').append('Slide ', el('b', '', String(p.liveIndex + 1)), ' of ' + p.slides.length);
-  else $('position').append(p.slides.length + ' slides');
+  if (live) {
+    $('position').append('Slide ', el('b', '', String(p.liveIndex + 1)), ' of ' + p.slides.length);
+    const steps = stepsOf(p.slides[p.liveIndex]);
+    if (steps) $('position').append(' · click ', el('b', '', String(build)), ' of ' + steps);
+  } else $('position').append(p.slides.length + ' slides');
 
   const shown = live ? p.liveIndex : n;
   $('notes-label').textContent = live ? 'Notes' : 'Notes · first slide';

@@ -11,9 +11,9 @@ import {
   type Presentation,
   type Presentation_CueGroup
 } from '../gen/presentation_pb';
-import { Slide_Element_Info, Slide_ElementSchema, PresentationSlide_NotesSchema, type PresentationSlide, type Slide, type Slide_Element } from '../gen/presentation_pb';
+import { Slide_Element_Info, Slide_ElementSchema, PresentationSlide_NotesSchema, type PresentationSlide, type Slide, type Slide_Element, type Slide_Element_Build } from '../gen/presentation_pb';
 import { VersionSchema } from '../gen/common_pb';
-import type { Deck, GraphicLayout, GroupView, SlideAdvance, SlideLayout, SlideView, TextBoxLayout } from '../types';
+import type { BuildLayout, Deck, ElementBuilds, GraphicLayout, GroupView, SlideAdvance, SlideLayout, SlideView, TextBoxLayout } from '../types';
 import { fillColor, graphicOfElement } from './graphics';
 import { groupKey } from '../hotkeys';
 import { groupDefinitionFor, OTHER_GROUP_COLOR } from '../groups';
@@ -150,6 +150,28 @@ export function songKeyOf(p: Presentation): SongKey | undefined {
   return { written, play };
 }
 
+const EFFECTS = new Set<BuildLayout['effect']>(['appear', 'fade', 'fly', 'float', 'wipe', 'zoom']);
+const SIDES = new Set<string>(['left', 'right', 'top', 'bottom']);
+
+function buildOf(b: Slide_Element_Build | undefined): BuildLayout | undefined {
+  if (!b) return undefined;
+  const effect = EFFECTS.has(b.effect as BuildLayout['effect']) ? (b.effect as BuildLayout['effect']) : 'fade';
+  return {
+    step: Math.min(b.step, 999),
+    effect,
+    ...(SIDES.has(b.direction) ? { side: b.direction as BuildLayout['side'] } : {}),
+    delay: Math.max(0, Math.min(b.delay || 0, 60)),
+    duration: effect === 'appear' ? 0 : Math.max(0.05, Math.min(b.duration || 0.5, 10))
+  };
+}
+
+/** An element's slideshow builds, or undefined when it's simply on the slide. */
+function buildsOf(i: Slide_Element_Build | undefined, o: Slide_Element_Build | undefined): ElementBuilds | undefined {
+  const bin = buildOf(i);
+  const bout = buildOf(o);
+  return bin || bout ? { ...(bin ? { in: bin } : {}), ...(bout ? { out: bout } : {}) } : undefined;
+}
+
 /** Read how a cue's slide looks: size, background colour and every visible text box. */
 export function layoutOfCue(cue: Cue): SlideLayout {
   const slide = slideOfCue(cue);
@@ -157,16 +179,25 @@ export function layoutOfCue(cue: Cue): SlideLayout {
   const height = slide?.size?.height || SLIDE_HEIGHT;
   const boxes: TextBoxLayout[] = [];
   const graphics: GraphicLayout[] = [];
+  let steps = 0;
   // Elements draw in list order, so their index is their stacking order.
   (slide?.elements ?? []).forEach((e, z) => {
     const el = e.element;
     if (!el || el.hidden) return;
     const text = el.text;
+    const build = buildsOf(e.vesselBuildIn, e.vesselBuildOut);
+    if (build) steps = Math.max(steps, build.in?.step ?? 0, build.out?.step ?? 0);
     if (!text?.rtfData?.length) {
       const g = graphicOfElement(el, z);
-      if (g) graphics.push(g);
+      if (g) graphics.push(build ? { ...g, build } : g);
       return;
     }
+    const lineBuilds = e.vesselLineBuilds.flatMap((l) => {
+      const b = buildsOf(l.buildIn, l.buildOut);
+      if (!b || !l.lineCount) return [];
+      steps = Math.max(steps, b.in?.step ?? 0, b.out?.step ?? 0);
+      return [{ first: l.firstLine, count: l.lineCount, ...b }];
+    });
     const style = parseRtfStyle(text.rtfData);
     const attrs = text.attributes;
     const b = el.bounds;
@@ -190,10 +221,14 @@ export function layoutOfCue(cue: Cue): SlideLayout {
       uppercase: attrs?.capitalization === Graphics_Text_Attributes_Capitalization.ALL_CAPS,
       shadow: !!text.shadow?.enable,
       outline,
-      shrink: text.scaleBehavior === Graphics_Text_ScaleBehavior.SCALE_FONT_DOWN || text.scaleBehavior === Graphics_Text_ScaleBehavior.SCALE_FONT_UP_DOWN
+      shrink: text.scaleBehavior === Graphics_Text_ScaleBehavior.SCALE_FONT_DOWN || text.scaleBehavior === Graphics_Text_ScaleBehavior.SCALE_FONT_UP_DOWN,
+      ...(style.lineExactPt ? { lineExact: style.lineExactPt } : style.lineMultiple ? { lineMultiple: style.lineMultiple } : {}),
+      ...(style.letterSpacingPt ? { letterSpacing: style.letterSpacingPt } : {}),
+      ...(build ? { build } : {}),
+      ...(lineBuilds.length ? { lineBuilds } : {})
     });
   });
-  return { width, height, background: slide?.drawsBackgroundColor ? colorToCss(slide.backgroundColor) : undefined, boxes, graphics };
+  return { width, height, background: slide?.drawsBackgroundColor ? colorToCss(slide.backgroundColor) : undefined, boxes, graphics, ...(steps ? { steps } : {}) };
 }
 
 /** The same layout with the first text box showing `text` (for live previews while editing). */
@@ -287,6 +322,9 @@ export function presentationToDeck(p: Presentation, id: string, sourcePath?: str
     }
   }
 
+  // A slideshow's slides say so, wherever they're drawn.
+  if (p.vesselSlideshow) for (const s of [...slides, ...groups.flatMap((g) => g.slides)]) s.layout.slideshow = true;
+
   return {
     id,
     name: p.name,
@@ -296,7 +334,8 @@ export function presentationToDeck(p: Presentation, id: string, sourcePath?: str
     selectedArrangementId: arrangement ? uuidOf(arrangement.uuid) : undefined,
     sourcePath,
     arrangementName: arrangement?.name,
-    ...(songKeyOf(p) ? { key: songKeyOf(p) } : {})
+    ...(songKeyOf(p) ? { key: songKeyOf(p) } : {}),
+    ...(p.vesselSlideshow ? { slideshow: { source: p.vesselSlideshow.source || 'PowerPoint', stillEffects: p.vesselSlideshow.stillEffects } } : {})
   };
 }
 

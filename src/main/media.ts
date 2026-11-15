@@ -9,7 +9,7 @@ import type { MediaFolder, MediaItem } from '../shared/types';
 
 const MIME: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp',
-  avif: 'image/avif', heic: 'image/heic', tif: 'image/tiff', tiff: 'image/tiff',
+  avif: 'image/avif', heic: 'image/heic', tif: 'image/tiff', tiff: 'image/tiff', svg: 'image/svg+xml',
   mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mkv: 'video/x-matroska', ogv: 'video/ogg',
   mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', aac: 'audio/aac', flac: 'audio/flac', ogg: 'audio/ogg', oga: 'audio/ogg',
   opus: 'audio/opus', aif: 'audio/aiff', aiff: 'audio/aiff'
