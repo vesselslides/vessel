@@ -12,7 +12,15 @@ import { parsePlaylistFile } from './playlist';
 
 export type ServiceItem =
   | { id: string; kind: 'header'; name: string; color: string }
-  | { id: string; kind: 'presentation'; name: string; path: string; arrangementName?: string };
+  | {
+      id: string;
+      kind: 'presentation';
+      name: string;
+      path: string;
+      arrangementName?: string;
+      /** The presenter remote may control it (right-click ▸ For the presenter). */
+      presenter?: boolean;
+    };
 
 export interface Service {
   name: string;
@@ -28,7 +36,7 @@ function itemToProto(item: ServiceItem): PlaylistItem {
   }
   return create(PlaylistItemSchema, {
     ...base,
-    ItemType: { case: 'presentation', value: { documentPath: pathToUrl(item.path), arrangementName: item.arrangementName ?? '' } }
+    ItemType: { case: 'presentation', value: { documentPath: pathToUrl(item.path), arrangementName: item.arrangementName ?? '', vesselPresenter: !!item.presenter } }
   });
 }
 
@@ -70,7 +78,15 @@ export function documentToService(doc: PlaylistDocument, fallbackName: string): 
       if (it.ItemType.case === 'header') items.push({ id, kind: 'header', name: it.name, color: colorToHex(it.ItemType.value.color) });
       else if (it.ItemType.case === 'presentation') {
         const path = urlToPath(it.ItemType.value.documentPath);
-        if (path) items.push({ id, kind: 'presentation', name: it.name, path, arrangementName: it.ItemType.value.arrangementName || undefined });
+        if (path)
+          items.push({
+            id,
+            kind: 'presentation',
+            name: it.name,
+            path,
+            arrangementName: it.ItemType.value.arrangementName || undefined,
+            ...(it.ItemType.value.vesselPresenter ? { presenter: true } : {})
+          });
       }
     }
   }

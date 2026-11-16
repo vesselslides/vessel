@@ -7,6 +7,7 @@ import type { Presentation } from '../../shared/gen/presentation_pb';
 import { presentationToDeck } from '../../shared/pro/presentation';
 import { allThemes, findTheme, type Theme, type ThemeLibrary } from '../../shared/theme';
 import type { BibleInfo } from '../../shared/types';
+import { ChevronIcon } from './Icons';
 import { SlideCanvas } from './SlideCanvas';
 
 const STORE = 'vessel.bible';
@@ -347,10 +348,10 @@ export function BiblePanel({
                     {result.name} · {result.deck.slides.length} slide{result.deck.slides.length === 1 ? '' : 's'} · click a slide to show it
                   </span>
                   <button onClick={() => act(onAddToPresentation)} title="Put these slides at the end of a presentation or song (you choose which)">
-                    Add to presentation ▾
+                    Add to presentation <ChevronIcon size={11} open />
                   </button>
                   <button onClick={() => act(onAddToService)} title={hasService ? 'Add to the end of a service playlist (you choose which)' : 'Add to a service playlist, or start a new one'}>
-                    Add to service ▾
+                    Add to service <ChevronIcon size={11} open />
                   </button>
                   <button onClick={() => act(onSave)} title="Keep it as a presentation in your library">
                     Save to library

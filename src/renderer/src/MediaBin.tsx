@@ -3,7 +3,7 @@ import { backgroundForPath } from '../../shared/pro/background';
 import type { Background, BinKind, MediaFolder, MediaItem, MediaLook, MediaScale } from '../../shared/types';
 import { MediaView } from './AudienceView';
 import { LookDialog } from './LookDialog';
-import { MusicIcon, MutedIcon, PauseIcon, PlayIcon, WarningIcon } from './Icons';
+import { AdjustIcon, MusicIcon, MutedIcon, PauseIcon, PlayIcon, WarningIcon } from './Icons';
 
 /** Drag type for media bin items; the payload is the file path. */
 export const MEDIA_MIME = 'application/x-vessel-media';
@@ -393,7 +393,7 @@ export function MediaBin({
                   )}
                   {item.look && (
                     <span className="look-badge" title="Look adjusted: blurred, darkened or faded (right-click to change)">
-                      ◐
+                      <AdjustIcon size={12} />
                     </span>
                   )}
                   {item.kind === 'video' && item.muted && (

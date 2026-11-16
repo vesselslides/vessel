@@ -20,6 +20,8 @@ message PlaylistItem {
     URL document_path = 1;
     UUID arrangement = 2;
     string arrangement_name = 5;
+    // Vessel's own: the presenter remote may control it (others ignore it).
+    bool vessel_presenter = 100;
   }
   UUID uuid = 1;
   string name = 2;

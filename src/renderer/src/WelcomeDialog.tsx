@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { DisplayInfo } from '../../shared/types';
-import { BibleIcon, ImportIcon, ScreensIcon } from './Icons';
+import { BibleIcon, CheckIcon, ImportIcon, ScreensIcon } from './Icons';
 import logo from './assets/vessel-slides-reverse.svg';
 
 /** Navy banner with the logo, the same in dark and light. */
@@ -27,7 +27,7 @@ function Step({ n, done, icon, title, children }: { n: number; done: boolean; ic
   return (
     <li className={`welcome-step ${done ? 'done' : ''}`}>
       <span className="welcome-mark" aria-label={done ? 'Done' : `Step ${n}`}>
-        {done ? '✓' : n}
+        {done ? <CheckIcon size={14} /> : n}
       </span>
       <div>
         <h3>

@@ -36,8 +36,8 @@ const html = `<!doctype html>
     <div class="slide" id="next-text"></div>
   </section>
   <div class="nav">
-    <button id="prev" class="big">◀ Back</button>
-    <button id="next" class="big primary">Next ▶</button>
+    <button id="prev" class="big"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg> Back</button>
+    <button id="next" class="big primary">Next <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
   </div>
   <div class="row">
     <button id="clear">Clear</button>
@@ -79,6 +79,8 @@ button { font: inherit; color: inherit; background: var(--panel); border: 1px so
 button:active { transform: scale(0.98); }
 button.primary { background: var(--accent); border-color: var(--accent); color: #16202b; font-weight: 700; }
 button.on { background: var(--live); border-color: var(--live); }
+#prev, #next { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.item.live::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--live); margin-right: 8px; vertical-align: middle; }
 input, textarea { font: inherit; color: inherit; background: #0f1013; border: 1px solid var(--border); border-radius: 12px; padding: 12px; width: 100%; }
 #login-form { display: flex; gap: 8px; }
 #pin { font-size: 24px; letter-spacing: 0.3em; text-align: center; }
@@ -218,7 +220,7 @@ function render() {
   if (!state.service) service.append(el('div', 'empty', 'No service playlist is open in Vessel.'));
   else state.service.items.forEach((it, row) => {
     if (it.kind === 'header') return service.append(el('div', 'header-row', it.name));
-    const b = el('button', 'item' + (it.live ? ' live' : it.current ? ' current' : ''), (it.live ? '● ' : '') + it.name);
+    const b = el('button', 'item' + (it.live ? ' live' : it.current ? ' current' : ''), it.name);
     b.onclick = () => send({ type: 'openRow', row });
     service.append(b);
   });

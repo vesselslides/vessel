@@ -250,7 +250,15 @@ in-app tour (the **?** button at the top right) shows where things are, and
   Next. Tapping a slide picture (or the strip of slides on a tablet) jumps
   straight to a slide. Presenters can't clear the screen or change the
   service, and Next stops at their last slide rather than moving on into the
-  next song. Turn the phone sideways for the slides on the left and the notes
+  next song.
+  **Only their items:** right-click a service item ▸ *For the presenter*
+  (marked 🎤, saved with the playlist). With any marked, the presenter's
+  remote shows and moves only those, and its Next and Back wait while anything
+  else is on screen. With none marked it follows the presentation on screen.
+  Either way it never puts words back after you clear them or black out. The
+  Live panel's **Presenter remote** section (while the remote is on) shows
+  which items are theirs and has a **Locked** switch: the presenter can still
+  read their slides and notes, but their buttons do nothing. Turn the phone sideways for the slides on the left and the notes
   on the right. Notes come from a PowerPoint's speaker notes, or type them in
   *Edit* in the box under each slide; they're saved where ProPresenter keeps
   slide notes, so they travel with the file. Stream Deck and Companion only

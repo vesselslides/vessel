@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { themeLayout, type Theme } from '../../shared/theme';
 import { GALLERY_TAGS, isInLibrary, mergeGallery, STARTER_GALLERY, type GalleryEntry } from '../../shared/themeGallery';
+import { CheckIcon } from './Icons';
 import { SlideCanvas } from './SlideCanvas';
 
 const SAMPLE = 'Amazing grace how sweet the sound\nThat saved a wretch like me';
@@ -95,7 +96,13 @@ export function ThemeGallery({ mine, onAdd, onClose }: { mine: Theme[]; onAdd: (
                       {e.description && <span className="gallery-description">{e.description}</span>}
                     </div>
                     <button className={have ? '' : 'primary'} disabled={have} onClick={() => onAdd(e.theme)}>
-                      {have ? 'In your themes ✓' : 'Add'}
+                      {have ? (
+                        <>
+                          <CheckIcon size={13} /> In your themes
+                        </>
+                      ) : (
+                        'Add'
+                      )}
                     </button>
                   </article>
                 );

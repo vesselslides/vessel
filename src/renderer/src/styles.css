@@ -5681,3 +5681,33 @@ html:has(body.print) {
   justify-content: center;
   padding: 4px 8px;
 }
+
+/* Service items the presenter remote may control. */
+.presenter-badge {
+  margin-left: 6px;
+  font-size: 11px;
+}
+.presenter-badge,
+.library-chevron,
+.library-folder-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.presenter-badge {
+  color: var(--accent);
+}
+.presenter-section .segmented button,
+.animation-bar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.icon-button,
+.bg-badge,
+.timer-badge,
+.look-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}

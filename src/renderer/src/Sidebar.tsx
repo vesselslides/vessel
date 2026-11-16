@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { moveItem, newServiceId, type Service, type ServiceItem } from '../../shared/pro/service';
 import type { LibraryFolders, LibraryItem, PlaylistFileInfo, Settings } from '../../shared/types';
 import { buildLibraryTree, folderChoices, LibraryTree } from './LibraryTree';
+import { EditIcon, MicIcon, PlusIcon, TrashIcon } from './Icons';
 
 /** Drag payloads: a library song (JSON {path, name}) or a service row (its index). */
 /** Drag type for a presentation going into the service; the payload is { path, name }. */
@@ -217,7 +218,12 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
       { id: 'up', label: 'Move up', enabled: index > 0 },
       { id: 'down', label: 'Move down', enabled: index < items.length - 1 },
       { id: 'header', label: 'Insert header above…' },
-      ...(item.kind === 'presentation' ? [{ id: 'reveal', label: revealLabel }] : []),
+      ...(item.kind === 'presentation'
+        ? [
+            { id: 'presenter', label: 'For the presenter (their remote controls only this)', checked: !!item.presenter },
+            { id: 'reveal', label: revealLabel }
+          ]
+        : []),
       { type: 'separator' },
       { id: 'remove', label: 'Remove from service' }
     ]);
@@ -231,6 +237,8 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
       setHeaderDraft('');
     } else if (choice === 'reveal' && item.kind === 'presentation') props.onReveal(item.path);
     else if (choice === 'remove') props.onServiceItems((list) => list.filter((it) => it.id !== item.id));
+    else if (choice === 'presenter')
+      props.onServiceItems((list) => list.map((it) => (it.id === item.id && it.kind === 'presentation' ? { ...it, presenter: !it.presenter || undefined } : it)));
     else if (choice.startsWith('colour:')) {
       const color = choice.slice(7);
       props.onServiceItems((list) => list.map((it) => (it.id === item.id && it.kind === 'header' ? { ...it, color } : it)));
@@ -398,14 +406,18 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
           )}
           {!naming && (
             <>
-              <button title="Rename this playlist" disabled={!service} onClick={() => setNaming('rename')}>
-                ✎
+              <button className="icon-button" title="Rename this playlist" aria-label="Rename this playlist" disabled={!service} onClick={() => setNaming('rename')}>
+                <EditIcon size={15} />
               </button>
-              <button title="New service playlist" onClick={() => setNaming('new')}>
-                +
+              <button className="icon-button" title="New service playlist" aria-label="New service playlist" onClick={() => setNaming('new')}>
+                <PlusIcon size={15} />
               </button>
-              <button title={service?.path ? 'Delete this playlist (moves it to the Trash)' : 'Discard this playlist'} disabled={!service} onClick={props.onDeleteService}>
-                🗑
+              <button
+                className="icon-button"
+                title={service?.path ? 'Delete this playlist (moves it to the Trash)' : 'Discard this playlist'}
+                aria-label={service?.path ? 'Delete this playlist' : 'Discard this playlist'}
+                disabled={!service} onClick={props.onDeleteService}>
+                <TrashIcon size={15} />
               </button>
             </>
           )}
@@ -455,6 +467,11 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
                     {item.kind === 'presentation' && openByPath.get(item.path)?.dirty ? ' *' : ''}
                   </span>
                   {item.kind === 'presentation' && item.arrangementName && <span className="muted"> · {item.arrangementName}</span>}
+                  {item.kind === 'presentation' && item.presenter && (
+                    <span className="presenter-badge" title="For the presenter: their remote controls only items marked like this (right-click to change)">
+                      <MicIcon size={13} />
+                    </span>
+                  )}
                   <button
                     className="row-remove"
                     title="Remove from the service"

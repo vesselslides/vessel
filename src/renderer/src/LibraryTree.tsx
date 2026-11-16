@@ -4,6 +4,7 @@
 // Move to Trash.
 import { useEffect, useState, type DragEvent } from 'react';
 import type { LibraryFolders, LibraryItem } from '../../shared/types';
+import { ChevronIcon, FolderIcon } from './Icons';
 
 /** Drag type for a library folder; the payload is its path. */
 export const FOLDER_MIME = 'application/x-vessel-library-folder';
@@ -264,10 +265,10 @@ export function LibraryTree({
           {...dropProps(node.path)}
         >
           <span className="library-chevron" aria-hidden="true">
-            {isOpen ? '▾' : '▸'}
+            <ChevronIcon size={11} open={isOpen} />
           </span>
           <span className="library-folder-icon" aria-hidden="true">
-            ▤
+            <FolderIcon size={15} />
           </span>
           <span className="library-folder-label">{node.name}</span>
           <span className="muted library-folder-count">{countSongs(node)}</span>

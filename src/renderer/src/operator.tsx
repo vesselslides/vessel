@@ -59,7 +59,7 @@ import { BiblePanel } from './BiblePanel';
 import { AudioPlayer, type AudioTrack } from './AudioPlayer';
 import { binKindOf, mediaName } from '../../shared/media';
 import { backgroundForPath } from '../../shared/pro/background';
-import { BibleIcon, CheckIcon, HelpIcon, ImportIcon, MutedIcon, NewSongIcon, OpenIcon, PlayIcon, PlaylistIcon, RemoteIcon, SaveIcon, SettingsIcon, SoundIcon, ThemesIcon, VesselMark, WarningIcon } from './Icons';
+import { BibleIcon, CheckIcon, HelpIcon, ImageIcon, ImportIcon, MutedIcon, NewSongIcon, OpenIcon, PlayIcon, PlaylistIcon, RemoteIcon, RepeatIcon, SaveIcon, SettingsIcon, SoundIcon, ThemesIcon, TimerIcon, VesselMark, WarningIcon } from './Icons';
 import { ModeSwitch, ScreensButton, ToolButton } from './Toolbar';
 import { CommandPalette, type PaletteAction } from './CommandPalette';
 import { WelcomeDialog } from './WelcomeDialog';
@@ -72,6 +72,7 @@ import { setGroupDefinitions } from '../../shared/groups';
 import { setBackgroundDefaults } from '../../shared/pro/background';
 import type { DocumentImportReport, DocumentKind, ImportOptions } from '../../shared/import';
 import { StagePanel } from './StagePanel';
+import { PresenterPanel } from './PresenterPanel';
 import { MessagePanel } from './MessagePanel';
 import { VideoTransport } from './VideoTransport';
 import { PlanningCenterDialog, type PcoImport } from './PlanningCenterDialog';
@@ -324,7 +325,7 @@ function SlideTile({
       <div className="slide-canvas">
         {slide.background && <MediaView bg={slide.background} muted thumbnail />}
         <SlideCanvas layout={slide.layout} step={live ? build : undefined} ghost />
-        {slide.background && <span className="bg-badge">{slide.background.kind === 'video' ? '▶' : '▣'}</span>}
+        {slide.background && <span className="bg-badge">{slide.background.kind === 'video' ? <PlayIcon size={11} /> : <ImageIcon size={11} />}</span>}
         {!slide.enabled && <span className="off-badge">Off</span>}
       </div>
       <div className="slide-caption" style={{ background: slide.groupColor }}>
@@ -339,7 +340,7 @@ function SlideTile({
         {next && <span className="tile-tag next">Next</span>}
         {slide.advance && (
           <span className="timer-badge" title={`Moves on by itself after ${formatSeconds(slide.advance.seconds, true)}${slide.advance.to === 'first' ? ', back to the first slide' : ''}`}>
-            {slide.advance.to === 'first' ? '↺' : '⟳'} {formatSeconds(slide.advance.seconds)}
+            {slide.advance.to === 'first' ? <RepeatIcon size={11} /> : <TimerIcon size={11} />} {formatSeconds(slide.advance.seconds)}
           </span>
         )}
       </div>
@@ -2066,8 +2067,40 @@ function Operator(): React.JSX.Element {
     window.vessel.setRemoteState(remoteState);
   }, [remoteState]);
 
-  // The presenter view follows the presentation on screen, or the one the operator has open before it goes live.
-  const presenterDeck = decks.find((d) => d.deck.id === liveSlide?.deckId)?.deck ?? selected?.deck ?? null;
+  // The presenter's items (right-click a service item ▸ For the presenter): with any marked, the
+  // presenter remote shows and moves only those. With none, it follows the presentation on screen,
+  // or the one the operator has open before it goes live.
+  const presenterPaths = useMemo(
+    () => (service?.service.items ?? []).flatMap((it) => (it.kind === 'presentation' && it.presenter ? [it.path] : [])),
+    [service]
+  );
+  const presenterPathsKey = presenterPaths.join('\n');
+  // Open them quietly, so their slides are ready on the iPad before they go on screen.
+  useEffect(() => {
+    for (const path of presenterPaths) void openPath(path, { select: false });
+  }, [presenterPathsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [presenterLocked, setPresenterLocked] = useState(false);
+  const lastPresenterDeck = useRef<string | null>(null);
+  const liveLoaded = decks.find((d) => d.deck.id === liveSlide?.deckId);
+  const isTheirs = (d: LoadedDeck | undefined): boolean => !!d?.path && presenterPaths.includes(d.path);
+  let presenterDeck: Deck | null;
+  if (presenterPaths.length) {
+    if (isTheirs(liveLoaded)) lastPresenterDeck.current = liveLoaded!.deck.id;
+    const last = decks.find((d) => d.deck.id === lastPresenterDeck.current && isTheirs(d));
+    const first = presenterPaths.map((p) => decks.find((d) => d.path === p)).find(Boolean);
+    presenterDeck = (last ?? first)?.deck ?? null;
+  } else presenterDeck = liveLoaded?.deck ?? selected?.deck ?? null;
+  const presenterOnScreen = !!presenterDeck && liveSlide?.deckId === presenterDeck.id;
+  /** Why the presenter's Next and Back wait, if they do. */
+  const presenterHold: PresenterState['hold'] = presenterLocked
+    ? { reason: 'locked', message: 'Your remote is locked by the operator. You can still read your notes.' }
+    : presenterPaths.length && !presenterOnScreen
+      ? { reason: 'waiting', message: 'Waiting for your slides. The screen is showing something else.' }
+      : presenterOnScreen && live.cleared
+        ? { reason: 'cleared', message: 'The operator cleared the words. Next works again once your slides are back on screen.' }
+        : live.blackout
+          ? { reason: 'black', message: 'The screen is black. Press Black to bring it back.' }
+          : undefined;
   /** When the presenter's presentation first went on screen, for their "Speaking" time. */
   const speaking = useRef<{ deckId: string; since: number } | null>(null);
   if (liveSlide && speaking.current?.deckId !== liveSlide.deckId) speaking.current = { deckId: liveSlide.deckId, since: Date.now() };
@@ -2092,9 +2125,10 @@ function Operator(): React.JSX.Element {
             ...(playKey(presenterDeck) && presenterDeck.slides.some((s) => s.chords?.length) ? { key: prettyChord(playKey(presenterDeck)!) } : {})
           }
         : null,
-      blackout: live.blackout
+      blackout: live.blackout,
+      ...(presenterHold ? { hold: presenterHold } : {})
     }),
-    [presenterDeck, liveSlide, live.blackout]
+    [presenterDeck, liveSlide, live.blackout, presenterHold?.reason]
   );
   const presenterStateRef = useRef(presenterState);
   presenterStateRef.current = presenterState;
@@ -2213,8 +2247,11 @@ function Operator(): React.JSX.Element {
    */
   const presenterCommand = (c: RemoteCommand): void => {
     const deck = presenterDeck;
+    // Locked: nothing at all. Otherwise Black always works (it's the presenter's own way out).
+    if (presenterLocked) return;
     if (c.type === 'black') return toggleBlackout();
-    if (!deck) return;
+    // Never put words back after the operator cleared them or blacked out, nor move anything that isn't theirs.
+    if (!deck || presenterHold) return;
     const current = liveSlide?.deckId === deck.id ? liveSlide.index : -1;
     if (c.type === 'goto') return deck.slides[c.index] ? goLiveChosen(deck.id, c.index) : undefined;
     if (c.type !== 'next' && c.type !== 'prev') return;
@@ -2721,7 +2758,7 @@ function Operator(): React.JSX.Element {
                 </span>
               )}
               <button className={deckTimer(selected.deck) ? 'active-toggle' : ''} onClick={() => void timerMenu()} title="Make the slides move on by themselves (an announcement loop)">
-                ⟳ {deckTimer(selected.deck) ?? 'Timer'}
+                <TimerIcon size={14} /> {deckTimer(selected.deck) ?? 'Timer'}
               </button>
               {(selected.deck.key || selected.deck.slides.some((s) => s.chords?.length)) && (
                 <KeyButton
@@ -2976,6 +3013,14 @@ function Operator(): React.JSX.Element {
           onHide={() => pushLive({ lowerThird: null })}
           onForget={(id) => void window.vessel.updateSettings({ lowerThirds: normalizeLowerThirds(settings?.lowerThirds).filter((l) => l.id !== id) }).then(setSettings)}
         />
+        {remote?.enabled && (
+          <PresenterPanel
+            items={(service?.service.items ?? []).flatMap((it) => (it.kind === 'presentation' && it.presenter ? [it.name] : []))}
+            presenters={remote.presenters}
+            locked={presenterLocked}
+            onLock={setPresenterLocked}
+          />
+        )}
         <StagePanel
           stage={stage}
           onChange={pushStage}

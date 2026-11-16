@@ -286,3 +286,87 @@ export const AlignBottomIcon = (p: IconProps): React.JSX.Element => (
     <rect x="13" y="10" width="4" height="7" rx="1" />
   </Icon>
 );
+
+export const MicIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <rect x="9" y="3" width="6" height="11" rx="3" />
+    <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
+  </Icon>
+);
+
+export const LockIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <rect x="5" y="11" width="14" height="9" rx="2" />
+    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+  </Icon>
+);
+
+export const FolderIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" />
+  </Icon>
+);
+
+/** Points right; turn it with `open` to point down. */
+export const ChevronIcon = ({ open = false, ...p }: IconProps & { open?: boolean }): React.JSX.Element => (
+  <Icon {...p} style={{ transform: open ? 'rotate(90deg)' : undefined, transition: 'transform 0.12s' }}>
+    <path d="M9 6l6 6-6 6" />
+  </Icon>
+);
+
+export const EditIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M14.5 5.5l4 4L9 19H5v-4z" />
+    <path d="M12.5 7.5l4 4" />
+  </Icon>
+);
+
+export const TrashIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M4.5 7h15M10 4h4M7 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h5.4a1.5 1.5 0 0 0 1.5-1.4L17 7" />
+  </Icon>
+);
+
+export const PlusIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </Icon>
+);
+
+export const ImageIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <rect x="3.5" y="5" width="17" height="14" rx="2" />
+    <path d="M3.5 16l5-5 4 4 2.5-2.5 5.5 5.5" />
+  </Icon>
+);
+
+/** Moves on by itself: a stopwatch. */
+export const TimerIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <circle cx="12" cy="13.5" r="7" />
+    <path d="M12 13.5V10M10 3.5h4" />
+  </Icon>
+);
+
+/** Back to the start: an arrow turning round. */
+export const RepeatIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M5 12a7 7 0 1 0 2.1-5" />
+    <path d="M5 4v4h4" />
+  </Icon>
+);
+
+/** A look adjusted (brightness, colour…): a half-filled circle, in outline. */
+export const AdjustIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="8" />
+    <path d="M12 4v16" />
+    <path d="M12 7h3M12 10.5h5M12 14h5M12 17.5h3" />
+  </Icon>
+);
+
+export const StarIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M12 4l2.4 5 5.4.7-4 3.7 1 5.4L12 16.2l-4.8 2.6 1-5.4-4-3.7 5.4-.7z" />
+  </Icon>
+);

@@ -45,3 +45,16 @@ describe('moveItem to the end', () => {
     expect(moveItem(['a', 'b', 'c'], 0, Infinity)).toEqual(['b', 'c', 'a']);
   });
 });
+
+describe('Items for the presenter', () => {
+  it('keeps which items the presenter remote may control', () => {
+    const service: Service = {
+      name: 'Sunday',
+      items: [
+        { id: 'a', kind: 'presentation', name: 'Holy, Holy, Holy', path: '/lib/Holy.pro' },
+        { id: 'b', kind: 'presentation', name: 'Sermon', path: '/lib/Sermon.pro', presenter: true }
+      ]
+    };
+    expect(decodeService(encodeService(service), 'x')).toEqual(service);
+  });
+});

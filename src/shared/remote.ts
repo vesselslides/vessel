@@ -50,6 +50,12 @@ export interface PresenterState {
     frames?: number[];
   } | null;
   blackout: boolean;
+  /**
+   * Why the presenter's buttons wait: the operator locked the remote, none of
+   * their items is on screen, or the operator cleared or blacked out the
+   * screen. Their slides and notes still show.
+   */
+  hold?: { reason: 'locked' | 'waiting' | 'cleared' | 'black'; message: string };
   /** Pictures of the slides once drawn, at /api/slides/<key>/<index>.jpg. */
   pictures?: { key: string; count: number };
 }

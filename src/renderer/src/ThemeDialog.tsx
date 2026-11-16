@@ -3,6 +3,7 @@ import { allThemes, duplicateTheme, findTheme, themeLayout, type Theme, type The
 import type { Background } from '../../shared/types';
 import { MediaView } from './AudienceView';
 import { SlideCanvas } from './SlideCanvas';
+import { StarIcon } from './Icons';
 import { ThemeGallery } from './ThemeGallery';
 
 const COMMON_FONTS = [
@@ -95,7 +96,7 @@ export function ThemeDialog({
             {allThemes(library).map((t) => (
               <button key={t.id} className={`list-item ${t.id === theme.id ? 'selected' : ''}`} onClick={() => setSelectedId(t.id)}>
                 {t.name}
-                {t.id === library.defaultId ? ' ★' : ''}
+                {t.id === library.defaultId ? ' (default)' : ''}
                 {t.builtIn ? <span className="muted"> · built-in</span> : null}
               </button>
             ))}
@@ -211,7 +212,13 @@ export function ThemeDialog({
         </div>
         <div className="modal-actions">
           <button onClick={() => onLibraryChange({ ...library, defaultId: theme.id })} disabled={library.defaultId === theme.id}>
-            {library.defaultId === theme.id ? 'Default for new songs ★' : 'Use for new songs'}
+            {library.defaultId === theme.id ? (
+              <>
+                <StarIcon size={13} /> Default for new songs
+              </>
+            ) : (
+              'Use for new songs'
+            )}
           </button>
           <span className="spacer" />
           <button onClick={onClose}>Close</button>

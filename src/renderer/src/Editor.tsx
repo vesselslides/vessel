@@ -49,7 +49,7 @@ import { MEDIA_MIME } from './MediaBin';
 import { SlideCanvas } from './SlideCanvas';
 import { useFontList } from './ThemeDialog';
 import { KeyButton } from './KeyButton';
-import { AlignBottomIcon, AlignCenterIcon, AlignLeftIcon, AlignMiddleIcon, AlignRightIcon, AlignTopIcon } from './Icons';
+import { AlignBottomIcon, AlignCenterIcon, AlignLeftIcon, AlignMiddleIcon, AlignRightIcon, AlignTopIcon, PlayIcon } from './Icons';
 import { dropSide, openGroupMenu, openSlideMenu, SLIDE_DRAG, type DropSide } from './slideMenus';
 
 export type Apply = (change: (p: Presentation) => Presentation) => void;
@@ -376,7 +376,7 @@ function AnimationBar({ slides, previous, apply }: { slides: SlideView[]; previo
       </span>
       <span className="spacer" />
       <button onClick={() => setPreview(true)} title="Play the first chosen slide coming on, as the audience will see it">
-        ▶ Preview
+        <PlayIcon size={12} /> Preview
       </button>
       {preview && <MotionPreview slide={first} previous={previous} onClose={() => setPreview(false)} key={ids.join()} />}
     </div>

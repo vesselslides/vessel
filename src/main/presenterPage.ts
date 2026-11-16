@@ -34,6 +34,7 @@ const html = `<!doctype html>
     <span id="speaking"></span>
     <span id="clock"></span>
   </div>
+  <p id="hold" class="hold" hidden></p>
   <section class="slides">
     <button id="now" class="slide now" aria-label="Show every slide"><span class="tag" id="now-tag">ON SCREEN</span><img alt=""><span class="words"></span></button>
     <button id="next" class="slide next" aria-label="Show every slide"><span class="tag" id="next-tag">NEXT</span><img alt=""><span class="words"></span></button>
@@ -53,8 +54,8 @@ const html = `<!doctype html>
   <nav id="strip" class="strip" aria-label="Every slide"></nav>
   <div class="controls">
     <button id="black">Black</button>
-    <button id="prev">◀ Back</button>
-    <button id="advance" class="primary">Next ▶</button>
+    <button id="prev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg> Back</button>
+    <button id="advance" class="primary">Next <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
   </div>
   <p id="offline" class="error" hidden>Reconnecting…</p>
 </main>
@@ -75,6 +76,8 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 button { font: inherit; color: inherit; background: var(--panel-2); border: 1px solid var(--border-strong); border-radius: 14px; cursor: pointer; touch-action: manipulation; }
 button:active { transform: scale(0.98); }
 .error { color: #ff8a8a; }
+.hold { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 12px; border-radius: 8px; background: rgba(240, 180, 60, .15); color: #f4c76a; font-size: 14px; }
+.hold.locked { background: rgba(255, 255, 255, .08); color: #ddd; }
 
 #login { max-width: 360px; margin: 0 auto; padding: 18vh 20px 20px; text-align: center; }
 #login h1 { font-size: 24px; }
@@ -136,6 +139,7 @@ header { grid-area: header; display: flex; align-items: center; gap: 8px; }
 
 .controls { grid-area: controls; display: grid; grid-template-columns: .8fr 1fr 1.6fr; gap: 8px; }
 .controls button { padding: 16px 0; font-size: 18px; font-weight: 700; }
+#prev, #advance { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 #black { font-size: 15px; color: #b9c2cc; }
 #black.on { background: #000; color: #fff; border-color: #fff; }
 .controls .primary { background: var(--accent); color: var(--on-accent); border: none; }
@@ -292,7 +296,19 @@ function slideButton(i, slide, current) {
   // Every click made, so the whole slide shows.
   fill(b, i, slide, stepsOf(slide));
   b.onclick = () => { send({ type: 'goto', index: i }); $('all').hidden = true; };
+  // Waiting or locked: slides can be looked at, not shown.
+  if (state && state.hold) b.disabled = true;
   return b;
+}
+
+const LOCK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+/** Why the buttons wait, with a small lock when the operator locked the remote. */
+function setHold(hold) {
+  const box = $('hold');
+  box.replaceChildren();
+  if (!hold) return;
+  if (hold.reason === 'locked') box.insertAdjacentHTML('beforeend', LOCK);
+  box.append(document.createTextNode(hold.message));
 }
 
 /** The next slide Next would show: turned-off slides are passed over. */
@@ -329,6 +345,10 @@ function render() {
     $('strip').replaceChildren();
     $('all-grid').replaceChildren();
     $('prev').disabled = $('advance').disabled = true;
+    $('hold').hidden = !(state.hold && state.hold.reason === 'locked');
+    setHold(state.hold && state.hold.reason === 'locked' ? state.hold : null);
+    $('hold').className = 'hold locked';
+    $('black').disabled = !!state.hold && state.hold.reason === 'locked';
     tick();
     return;
   }
@@ -368,6 +388,16 @@ function render() {
   if (current) current.scrollIntoView({ block: 'nearest', inline: 'center' });
   $('prev').disabled = !live;
   $('advance').disabled = n < 0;
+  // The operator locked the remote, or the buttons wait (their slides aren't on screen, or it's cleared or black).
+  const hold = state.hold;
+  $('hold').hidden = !hold;
+  setHold(hold);
+  $('hold').className = 'hold' + (hold && hold.reason === 'locked' ? ' locked' : '');
+  if (hold) {
+    $('prev').disabled = $('advance').disabled = true;
+    if (!live) now.querySelector('.words').textContent = hold.reason === 'waiting' ? 'Not on screen. The operator will show your slides.' : 'Not on screen.';
+  }
+  $('black').disabled = !!hold && hold.reason === 'locked';
   tick();
 }
 
