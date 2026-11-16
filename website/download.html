@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Download Vessel</title>
+  <meta name="description" content="Download Vessel, free presentation software for churches, for Mac (Apple chip or Intel) and Windows.">
+  <meta name="theme-color" content="#0c1218">
+  <meta property="og:title" content="Download Vessel">
+  <meta property="og:description" content="Free presentation software for churches, for Mac and Windows.">
+  <meta property="og:image" content="/assets/media/explainer-poster.jpg">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="preconnect" href="https://api.github.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/site.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="Vessel home"><img src="/assets/img/logo.svg" alt="Vessel Slides" width="108" height="30"></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><svg class="icon"><use href="/assets/img/icons.svg#menu"/></svg></button>
+    <nav class="nav" aria-label="Main">
+      <a href="/#features">Features</a>
+      <a href="/#screens">Screens</a>
+      <a href="/#faq">FAQ</a>
+      <a href="/donate">Donate</a>
+      <a href="https://github.com/vesselslides/vessel" rel="noopener">GitHub</a>
+      <a class="btn btn-gold btn-sm" href="/download" aria-current="page"><svg class="icon icon-sm"><use href="/assets/img/icons.svg#download"/></svg>Download</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="page-head">
+    <div class="wrap">
+      <div class="eyebrow">Download</div>
+      <h1>Get Vessel</h1>
+      <p>Free for Mac and Windows. No account, no sign-up. <span id="relLine"></span></p>
+    </div>
+  </div>
+
+  <section style="padding-top:8px">
+    <div class="wrap dl-hero">
+      <div class="card dl-primary" id="primary" aria-live="polite">
+        <div class="os-ico"><svg class="icon"><use href="/assets/img/icons.svg#download"/></svg></div>
+        <h2><span class="skeleton"></span></h2>
+        <p class="meta"><span class="skeleton" style="width:20ch"></span></p>
+      </div>
+
+      <h3 style="margin:56px 0 0; text-align:left">All downloads</h3>
+      <div class="files" id="files"></div>
+      <p class="muted" style="font-size:14px; text-align:left; margin-top:14px">
+        Downloads come straight from <a href="https://github.com/vesselslides/vessel/releases" rel="noopener">GitHub Releases</a>.
+        Already have Vessel? It checks for updates once a day and offers to install them.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <section id="install">
+    <div class="wrap" style="max-width:820px">
+      <div class="section-head" style="margin-bottom:32px">
+        <div class="eyebrow">Install</div>
+        <h2>One extra click, the first time.</h2>
+        <p>Vessel isn't code-signed yet, so your computer asks you to confirm before it opens it. You only do this once.</p>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button role="tab" id="tab-mac" aria-controls="pane-mac" aria-selected="true"><svg class="icon icon-sm"><use href="/assets/img/icons.svg#apple"/></svg>Mac</button>
+        <button role="tab" id="tab-win" aria-controls="pane-win" aria-selected="false"><svg class="icon icon-sm"><use href="/assets/img/icons.svg#windows"/></svg>Windows</button>
+      </div>
+
+      <div role="tabpanel" id="pane-mac" aria-labelledby="tab-mac">
+        <ol class="steps">
+          <li><div>Open the <b>.dmg</b> and drag <b>Vessel</b> into <b>Applications</b>.</div></li>
+          <li><div>Open Vessel from Applications. The first time, macOS may say it can't check the app for malicious software.</div></li>
+          <li><div>Open <span class="menu-path"><b>System Settings</b><b>Privacy &amp; Security</b></span>, scroll down to the message about Vessel and choose <b>Open Anyway</b>, then <b>Open</b>.</div></li>
+        </ol>
+        <div class="notice" style="margin-top:28px"><svg class="icon"><use href="/assets/img/icons.svg#info"/></svg><span>Not sure which Mac you have? Choose <span class="menu-path"><b>Apple menu</b><b>About This Mac</b></span>. "Chip" means an Apple chip; "Processor … Intel" means Intel.</span></div>
+      </div>
+
+      <div role="tabpanel" id="pane-win" aria-labelledby="tab-win" hidden>
+        <ol class="steps">
+          <li><div>Run the <b>.exe</b> you downloaded.</div></li>
+          <li><div>If "Windows protected your PC" appears, choose <b>More info</b>, then <b>Run anyway</b>.</div></li>
+          <li><div>Vessel installs for you (no administrator needed) and opens.</div></li>
+        </ol>
+        <div class="notice" style="margin-top:28px"><svg class="icon"><use href="/assets/img/icons.svg#info"/></svg><span>The standard installer works on every PC and picks the right version. The smaller one is for Intel and AMD PCs only.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <section>
+    <div class="wrap" style="max-width:820px">
+      <div class="section-head" style="margin-bottom:24px">
+        <div class="eyebrow">What's new</div>
+        <h2 id="notesTitle">Release notes</h2>
+      </div>
+      <div class="notes" id="notes"><p><span class="skeleton" style="width:60%"></span></p><p><span class="skeleton" style="width:80%"></span></p></div>
+
+      <div class="faq" id="olderWrap" style="margin-top:40px; border-top:1px solid var(--line)" hidden>
+        <details>
+          <summary>Earlier versions<svg class="icon"><use href="/assets/img/icons.svg#plus"/></svg></summary>
+          <ul class="older" id="older"></ul>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <section>
+    <div class="wrap">
+      <div class="section-head center" style="margin-bottom:40px">
+        <div class="eyebrow">Requirements</div>
+        <h2>What you need</h2>
+      </div>
+      <div class="req">
+        <div class="value"><svg class="icon"><use href="/assets/img/icons.svg#apple"/></svg><h3>Mac</h3><p>macOS 12 Monterey or later, with an Apple chip or Intel.</p></div>
+        <div class="value"><svg class="icon"><use href="/assets/img/icons.svg#windows"/></svg><h3>Windows</h3><p>Windows 10 or 11, 64-bit or Arm.</p></div>
+        <div class="value"><svg class="icon"><use href="/assets/img/icons.svg#monitor"/></svg><h3>Screens</h3><p>A second screen (projector or TV) for the audience, and a third for a stage display if you have one.</p></div>
+      </div>
+      <div class="cta" style="margin-top:64px">
+        <h2>Vessel is free. Keeping it going isn't.</h2>
+        <p>If Vessel serves your church, a gift helps pay for code signing, hosting and time.</p>
+        <div class="hero-actions"><a class="btn btn-gold btn-lg" href="/donate"><svg class="icon"><use href="/assets/img/icons.svg#heart"/></svg>Support Vessel</a></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <a class="brand" href="/"><img src="/assets/img/logo.svg" alt="Vessel Slides" width="94" height="26"></a>
+        <p>Free presentation software for churches.<br>For Mac and Windows.</p>
+      </div>
+      <div>
+        <h4>Vessel</h4>
+        <ul>
+          <li><a href="/download">Download</a></li>
+          <li><a href="/#features">Features</a></li>
+          <li><a href="/donate">Donate</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Help</h4>
+        <ul>
+          <li><a href="https://github.com/vesselslides/vessel/blob/main/docs/USER-GUIDE.md" rel="noopener">User guide</a></li>
+          <li><a href="https://github.com/vesselslides/vessel/issues/new/choose" rel="noopener">Report a problem</a></li>
+          <li><a href="https://github.com/vesselslides/vessel/blob/main/PRIVACY.md" rel="noopener">Privacy</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/vesselslides/vessel" rel="noopener">Source code</a></li>
+          <li><a href="https://github.com/vesselslides/vessel/releases" rel="noopener">All releases</a></li>
+          <li><a href="https://github.com/vesselslides/vessel/blob/main/LICENSE" rel="noopener">Licence (GPL-3.0)</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>&copy; <span data-year>2026</span> Vessel contributors</span>
+      <span>ProPresenter and Planning Center are trademarks of their owners; Vessel isn't affiliated with them.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/site.js"></script>
+<script src="/assets/js/download.js"></script>
+</body>
+</html>
