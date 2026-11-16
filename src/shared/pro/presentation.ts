@@ -17,7 +17,8 @@ import type { BuildLayout, Deck, ElementBuilds, GraphicLayout, GroupView, SlideA
 import { fillColor, graphicOfElement } from './graphics';
 import { groupKey } from '../hotkeys';
 import { groupDefinitionFor, OTHER_GROUP_COLOR } from '../groups';
-import { backgroundOfCue } from './background';
+import { backgroundOfCue, lookFromProto } from './background';
+import { normalizeMotion } from '../motion';
 import { newUuid, uuidOf } from './ids';
 import { parseRtfStyle, plainTextToRtf, rtfToPlainText, type RtfStyle } from './rtf';
 import { isChord, keyFromPro, splitInline, type ChordMark, type SongKey } from '../chords';
@@ -189,7 +190,13 @@ export function layoutOfCue(cue: Cue): SlideLayout {
     if (build) steps = Math.max(steps, build.in?.step ?? 0, build.out?.step ?? 0);
     if (!text?.rtfData?.length) {
       const g = graphicOfElement(el, z);
-      if (g) graphics.push(build ? { ...g, build } : g);
+      const look = g?.kind === 'image' ? lookFromProto(e.vesselLook) : undefined;
+      if (g)
+        graphics.push({
+          ...g,
+          ...(look ? { look } : {}),
+          ...(build ? { build } : {})
+        } as GraphicLayout);
       return;
     }
     const lineBuilds = e.vesselLineBuilds.flatMap((l) => {
@@ -228,7 +235,18 @@ export function layoutOfCue(cue: Cue): SlideLayout {
       ...(lineBuilds.length ? { lineBuilds } : {})
     });
   });
-  return { width, height, background: slide?.drawsBackgroundColor ? colorToCss(slide.backgroundColor) : undefined, boxes, graphics, ...(steps ? { steps } : {}) };
+  const transition = normalizeMotion(cue.vesselTransition, 'transition');
+  const words = normalizeMotion(cue.vesselTextMotion, 'words');
+  return {
+    width,
+    height,
+    background: slide?.drawsBackgroundColor ? colorToCss(slide.backgroundColor) : undefined,
+    boxes,
+    graphics,
+    ...(steps ? { steps } : {}),
+    ...(transition ? { transition } : {}),
+    ...(words ? { words } : {})
+  };
 }
 
 /** The same layout with the first text box showing `text` (for live previews while editing). */

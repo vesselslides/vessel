@@ -1,7 +1,7 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useEffect, useMemo, type CSSProperties } from 'react';
 import { KEY_COLOURS, type StreamLook } from '../../shared/stream';
 import type { Background, LiveState, SlideLayout } from '../../shared/types';
-import { LiveOverlays, MediaView, useCrossfade } from './AudienceView';
+import { LiveOverlays, MediaView, showMediaLooks, useCrossfade } from './AudienceView';
 import { SlideCanvas } from './SlideCanvas';
 
 interface Words {
@@ -27,9 +27,19 @@ export function StreamView({ live, look }: { live: LiveState; look: StreamLook }
     () => (hidden ? { text: '', layout: null } : { text: live.text, layout: live.layout, build: live.build }),
     [hidden, live.text, live.layout, live.build]
   );
-  const texts = useCrossfade(words, sameWords, ms);
+  // Pictures on slides take the media bin's looks; the incoming slide's transition moves the words, as on the audience screen.
+  useEffect(() => {
+    if (live.mediaLooks) showMediaLooks(live.mediaLooks);
+  }, [live.mediaLooks]);
+  const transition = words.layout?.transition;
+  const textMs = transition ? (transition.effect === 'cut' ? 0 : Math.round(transition.duration * 1000)) : ms;
+  const texts = useCrossfade(words, sameWords, textMs);
+  const textVars = { '--fade': `${textMs}ms` } as CSSProperties;
   const backgrounds = useCrossfade(look.media && !live.blackout ? live.background : null, sameBackground, ms);
-  const style = { '--fade': `${ms}ms`, background: look.background === 'none' ? 'transparent' : KEY_COLOURS[look.background].css } as CSSProperties;
+  const style = {
+    '--fade': `${ms}ms`,
+    background: look.background === 'none' ? 'transparent' : KEY_COLOURS[look.background].css
+  } as CSSProperties;
 
   return (
     <div className={`stage stream-view stream-${look.style}`} style={style}>
@@ -43,7 +53,7 @@ export function StreamView({ live, look }: { live: LiveState; look: StreamLook }
           )
       )}
       {texts.map((l) => (
-        <div key={`t${l.key}`} className={`stage-layer text-layer ${l.leaving ? 'leaving' : 'entering'}`}>
+        <div key={`t${l.key}`} className={`stage-layer text-layer tr-${transition?.effect ?? 'fade'} ${l.leaving ? 'leaving' : 'entering'}`} style={textVars}>
           {look.style === 'slide' && l.value.layout ? (
             <SlideCanvas layout={wordsOnly(l.value.layout)} step={l.value.build} animate />
           ) : (

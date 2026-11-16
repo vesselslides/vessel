@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { normalizeLook, PLAIN_LOOK } from '../../shared/media';
 import { backgroundForPath } from '../../shared/pro/background';
-import type { Background, BinKind, MediaFolder, MediaItem, MediaLook } from '../../shared/types';
+import type { Background, BinKind, MediaFolder, MediaItem, MediaLook, MediaScale } from '../../shared/types';
 import { MediaView } from './AudienceView';
+import { LookDialog } from './LookDialog';
 import { MusicIcon, MutedIcon, PauseIcon, PlayIcon, WarningIcon } from './Icons';
 
 /** Drag type for media bin items; the payload is the file path. */
@@ -23,47 +23,6 @@ const KIND_FILTERS: Array<{ id: 'all' | BinKind; label: string }> = [
 ];
 
 const reveal = navigator.platform.startsWith('Mac') ? 'Show in Finder' : 'Show in Explorer';
-
-const LOOK_SLIDERS: Array<{ key: keyof MediaLook; label: string; hint: string }> = [
-  { key: 'blur', label: 'Blur', hint: 'Soften it so the words stand out' },
-  { key: 'darken', label: 'Darken', hint: 'Dim it behind light words' },
-  { key: 'color', label: 'Colour', hint: 'Less colour, down to black and white' }
-];
-
-/** Blur, darken or fade a picture or video; it looks like this wherever it's a background. */
-function LookDialog({ item, onSave, onCancel }: { item: MediaItem; onSave: (look: MediaLook | null) => void; onCancel: () => void }): React.JSX.Element {
-  const [look, setLook] = useState<MediaLook>(item.look ?? PLAIN_LOOK);
-  const bg = backgroundForPath(item.path);
-  return (
-    <div className="modal-backdrop" onMouseDown={onCancel}>
-      <div className="modal look-dialog" onMouseDown={(e) => e.stopPropagation()}>
-        <h2>Adjust look</h2>
-        <p className="hint">“{item.name}” looks like this wherever it’s a background: on the screens, the stream and every song that uses it.</p>
-        <div className="look-preview">
-          {bg && <MediaView bg={bg} muted thumbnail look={look} />}
-          <span className="look-sample">Sample words</span>
-        </div>
-        {LOOK_SLIDERS.map((s) => (
-          <label key={s.key} className="look-slider" title={s.hint}>
-            <span>{s.label}</span>
-            <input type="range" min={0} max={100} value={look[s.key]} onChange={(e) => setLook({ ...look, [s.key]: Number(e.target.value) })} />
-            <span className="look-value">{look[s.key]}%</span>
-          </label>
-        ))}
-        <div className="modal-actions">
-          <button onClick={() => setLook(PLAIN_LOOK)} disabled={!normalizeLook(look)}>
-            Reset
-          </button>
-          <span className="spacer" />
-          <button onClick={onCancel}>Cancel</button>
-          <button className="primary" onClick={() => onSave(normalizeLook(look))}>
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function rememberedFolder(): string {
   try {
@@ -86,6 +45,7 @@ export function MediaBin({
   onFolders,
   onMute,
   onLook,
+  onScale,
   onDropFiles,
   songName,
   onSongBackground,
@@ -110,6 +70,8 @@ export function MediaBin({
   onMute: (item: MediaItem, muted: boolean) => void;
   /** Blur, darken or fade it wherever it's a background (null: as it was). */
   onLook: (item: MediaItem, look: MediaLook | null) => void;
+  /** Fill, fit or stretch as a background (null: Preferences' choice). */
+  onScale: (item: MediaItem, scale: MediaScale | null) => void;
   /** Files dragged in from Finder or Explorer, for this folder. */
   onDropFiles: (paths: string[], folder: string | null) => void;
   /** The presentation being worked on, if any (for "whole song" actions). */
@@ -209,7 +171,17 @@ export function MediaBin({
             { id: 'song-bg', label: `Background for every slide of ${song}`, enabled: !!songName },
             { id: 'song-pic', label: `Picture on every slide of ${song}`, enabled: !!songName && item.kind === 'image' },
             { type: 'separator' as const },
-            { id: 'look', label: 'Adjust look (blur, darken)…' },
+            {
+              label: 'Fit to the screen',
+              submenu: [
+                { id: 'scale:fill', label: 'Fill (crop the edges if needed)', checked: item.scale === 'fill' },
+                { id: 'scale:fit', label: 'Fit (show it all, bars if needed)', checked: item.scale === 'fit' },
+                { id: 'scale:stretch', label: 'Stretch to the screen', checked: item.scale === 'stretch' },
+                { type: 'separator' as const },
+                { id: 'scale:', label: 'As set in Preferences', checked: !item.scale }
+              ]
+            },
+            { id: 'look', label: 'Adjust look (brightness, colour, blur…)…' },
             ...(item.kind === 'video' ? [{ type: 'separator' as const }, { id: 'mute', label: 'Always mute this video', checked: !!item.muted }] : [])
           ]),
       { type: 'separator' },
@@ -224,6 +196,7 @@ export function MediaBin({
     else if (choice?.startsWith('move:')) void move([item.id], choice.slice(5) || null);
     else if (choice === 'mute') onMute(item, !item.muted);
     else if (choice === 'look') setAdjusting(item);
+    else if (choice?.startsWith('scale:')) onScale(item, (choice.slice(6) as MediaScale) || null);
     else if (choice === 'reveal') onReveal(item.path);
     else if (choice === 'find') onFindMissing();
     else if (choice === 'remove') onRemove(item.id);
@@ -381,7 +354,8 @@ export function MediaBin({
         )}
         <div className="media-grid" ref={grid}>
           {shown.map((item) => {
-            const bg = item.kind === 'audio' ? null : backgroundForPath(item.path);
+            const found = item.kind === 'audio' ? null : backgroundForPath(item.path);
+            const bg = found && item.scale ? { ...found, scale: item.scale } : found;
             const live = item.kind === 'audio' ? playingAudio === item.path : liveBackground?.path === item.path;
             const lost = missing.includes(item.path);
             const trigger = (): void => {
@@ -449,7 +423,9 @@ export function MediaBin({
       </div>
       {adjusting && (
         <LookDialog
-          item={adjusting}
+          name={adjusting.name}
+          bg={backgroundForPath(adjusting.path)}
+          look={adjusting.look}
           onCancel={() => setAdjusting(null)}
           onSave={(look) => {
             onLook(adjusting, look);

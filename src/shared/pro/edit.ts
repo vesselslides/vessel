@@ -7,12 +7,13 @@ import { Slide_ElementSchema, type Slide_Element } from '../gen/presentation_pb'
 import { chordsOfElement, groupHeader, newCueGroup, newSlideCue, newUuid, presentationToDeck, writeCueNotes, writeElementChords, slideCue, slideChordsOfCue, slideOfCue, slideTextOfCue, SLIDE_HEIGHT, SLIDE_WIDTH, textElement, textElements, uuidOf, hexToColor } from './presentation';
 import { joinInline, proKey, remapChords, splitInline, type SongKey } from '../chords';
 import { MusicKeyScale_MusicScale, Presentation_MusicSchema } from '../gen/presentation_pb';
-import type { Background, SlideAdvance } from '../types';
-import { backgroundAction, isBackgroundAction } from './background';
+import type { Background, MediaLook, SlideAdvance, SlideMotion } from '../types';
+import { backgroundAction, backgroundOfMedia, isBackgroundAction, lookToProto } from './background';
+import { Cue_MotionSchema } from '../gen/presentation_pb';
 import { parseRtfStyle, plainTextToRtf, replaceRtfText, rtfToPlainText, type RtfStyle } from './rtf';
 import { imageElement, placementBox, type ImagePlacement } from './graphics';
 import { hexToRgb, THEME_SCALE_BEHAVIOR, themeAttributes, themeFill, themeRtfStyle, themeShadow, themeVerticalAlignment, type Theme } from '../theme';
-import { Graphics_Text_Attributes_Alignment, Graphics_Text_Attributes_ParagraphSchema } from '../gen/graphics_pb';
+import { Graphics_Text_Attributes_Alignment, Graphics_Text_Attributes_ParagraphSchema, Graphics_Text_VerticalAlignment } from '../gen/graphics_pb';
 
 type Draft = Presentation;
 
@@ -125,7 +126,15 @@ export interface TextStyleChange {
   /** #rrggbb */
   color?: string;
   align?: RtfStyle['align'];
+  /** Where the words sit in their box: top, middle or bottom. */
+  valign?: 'top' | 'middle' | 'bottom';
 }
+
+const VALIGN: Record<NonNullable<TextStyleChange['valign']>, Graphics_Text_VerticalAlignment> = {
+  top: Graphics_Text_VerticalAlignment.TOP,
+  middle: Graphics_Text_VerticalAlignment.MIDDLE,
+  bottom: Graphics_Text_VerticalAlignment.BOTTOM
+};
 
 const ALIGNMENT: Record<RtfStyle['align'], Graphics_Text_Attributes_Alignment> = {
   left: Graphics_Text_Attributes_Alignment.LEFT,
@@ -159,6 +168,7 @@ export function setTextStyle(p: Presentation, change: TextStyleChange, cueIds?: 
         if (was.lineExactPt) style.lineExactPt = Math.round(was.lineExactPt * grow * 10) / 10;
         if (was.letterSpacingPt) style.letterSpacingPt = Math.round(was.letterSpacingPt * grow * 10) / 10;
         text.rtfData = plainTextToRtf(rtfToPlainText(text.rtfData!), style);
+        if (change.valign) text.verticalAlignment = VALIGN[change.valign];
         // ProPresenter also keeps the first run's look here; keep the two in step.
         const attrs = text.attributes;
         if (!attrs) continue;
@@ -204,6 +214,43 @@ export function removeSlideElement(p: Presentation, cueId: string, elementId: st
   return edit(p, (d) => {
     const slide = slideOfCue(findCue(d, cueId));
     if (slide) slide.elements = slide.elements.filter((e) => uuidOf(e.element?.uuid) !== elementId);
+  });
+}
+
+/** Set (or with null, clear) how these slides come on screen, or how their words come in. */
+export function setSlideMotion(p: Presentation, cueIds: string[], kind: 'transition' | 'words', motion: SlideMotion | null): Presentation {
+  return edit(p, (d) => {
+    for (const id of cueIds) {
+      const cue = findCue(d, id);
+      const value = motion ? create(Cue_MotionSchema, { effect: motion.effect, duration: motion.duration, by: kind === 'words' ? (motion.by ?? '') : '' }) : undefined;
+      if (kind === 'transition') cue.vesselTransition = value;
+      else cue.vesselTextMotion = value;
+    }
+  });
+}
+
+/** These slides' own look for their background (null: back to the media bin's look for the file). */
+export function setSlideBackgroundLook(p: Presentation, cueIds: string[], look: MediaLook | null): Presentation {
+  return edit(p, (d) => {
+    for (const id of cueIds) {
+      for (const a of findCue(d, id).actions) {
+        if (isBackgroundAction(a) && a.ActionTypeData.case === 'media') a.ActionTypeData.value.vesselLook = lookToProto(look);
+      }
+    }
+  });
+}
+
+/** These slides' own look for their pictures (only `path`'s, if given; null: back to the media bin's look). */
+export function setSlidePictureLook(p: Presentation, cueIds: string[], look: MediaLook | null, path?: string): Presentation {
+  return edit(p, (d) => {
+    for (const id of cueIds) {
+      for (const e of slideOfCue(findCue(d, id))?.elements ?? []) {
+        const fill = e.element?.fill;
+        if (!fill?.enable || fill.FillType.case !== 'media' || e.element?.text?.rtfData?.length) continue;
+        if (path && backgroundOfMedia(fill.FillType.value)?.path !== path) continue;
+        e.vesselLook = lookToProto(look);
+      }
+    }
   });
 }
 

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
-import { lookFilter, mediaUrl } from '../../shared/media';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { lookFilter, lookFor, lookOverlay, mediaUrl } from '../../shared/media';
+import { showMediaLooks, useMediaLooks } from './looks';
 import { fillMessage, hasTokens, type LiveMessage } from '../../shared/messages';
 import type { LowerThird } from '../../shared/lowerThirds';
 import type { Background, LiveState, MediaLook, SlideLayout } from '../../shared/types';
@@ -83,17 +84,7 @@ function useVideoClock(video: React.RefObject<HTMLVideoElement | null>, clock: V
   }, [video, clock, loop]);
 }
 
-// Backgrounds' looks by path (media bin ▸ Adjust look), for every MediaView in this window.
-let looks: Record<string, MediaLook> = {};
-const lookListeners = new Set<() => void>();
-export function showMediaLooks(next: Record<string, MediaLook>): void {
-  looks = next;
-  for (const listener of lookListeners) listener();
-}
-const subscribeLooks = (listener: () => void): (() => void) => {
-  lookListeners.add(listener);
-  return () => lookListeners.delete(listener);
-};
+export { showMediaLooks } from './looks';
 
 /** The element's height, kept up to date (a look's blur is a share of it). */
 function useHeight(ref: React.RefObject<HTMLElement | null>, active: boolean): number {
@@ -131,8 +122,9 @@ export function MediaView({
 }): React.JSX.Element {
   const video = useRef<HTMLVideoElement>(null);
   const image = useRef<HTMLImageElement>(null);
-  const shared = useSyncExternalStore(subscribeLooks, () => looks);
-  const look = lookOverride === undefined ? shared[bg.path] : lookOverride;
+  const shared = useMediaLooks();
+  // A slide's own look wins; then the one given (the audience screens get theirs with the live state); then the window's.
+  const look = lookFor(bg.look, lookOverride === undefined ? shared[bg.path] : lookOverride);
   const height = useHeight(bg.kind === 'image' ? image : video, !!look?.blur);
   useVideoClock(video, thumbnail || bg.kind !== 'video' ? null : clock, bg.loop);
   useSoundRouting(video, routing, bg.kind === 'video' && !thumbnail && !muted);
@@ -147,9 +139,23 @@ export function MediaView({
     if (look.blur) style.transform = `scale(${1 + look.blur / 1000})`;
   }
   const src = mediaUrl(bg.path);
-  if (bg.kind === 'image') return <img ref={image} className="media" src={src} style={style} alt="" draggable={false} />;
-  if (thumbnail) return <video ref={video} className="media" src={`${src}#t=0.5`} style={style} preload="metadata" muted />;
-  return <video ref={video} className="media" src={src} style={style} autoPlay loop={bg.loop} muted={muted} playsInline />;
+  const overlays = lookOverlay(look).map((o, i) => <div key={i} className="look-overlay" style={o} />);
+  const media =
+    bg.kind === 'image' ? (
+      <img ref={image} className="media" src={src} style={style} alt="" draggable={false} />
+    ) : thumbnail ? (
+      <video ref={video} className="media" src={`${src}#t=0.5`} style={style} preload="metadata" muted />
+    ) : (
+      <video ref={video} className="media" src={src} style={style} autoPlay loop={bg.loop} muted={muted} playsInline />
+    );
+  return overlays.length ? (
+    <>
+      {media}
+      {overlays}
+    </>
+  ) : (
+    media
+  );
 }
 
 /** A message along the bottom of the screen; its {timer} and {clock} keep moving. */
@@ -184,13 +190,22 @@ export function LiveOverlays({ live }: { live: LiveState }): React.JSX.Element {
 /** The audience picture: background media with text on top, both crossfading. */
 export function AudienceView({ live, muted }: { live: LiveState; muted: boolean }): React.JSX.Element {
   const ms = live.transitionMs;
+  // Pictures on slides take the media bin's looks too.
+  useEffect(() => {
+    if (live.mediaLooks) showMediaLooks(live.mediaLooks);
+  }, [live.mediaLooks]);
   const backgrounds = useCrossfade(live.background, sameBackground, ms);
   const words = useMemo<Words>(
     () => (live.cleared ? { text: '', layout: null } : { text: live.text, layout: live.layout, copyright: live.copyright, build: live.build }),
     [live.cleared, live.text, live.layout, live.copyright, live.build]
   );
-  const texts = useCrossfade(words, sameWords, ms);
+  // The incoming slide's transition (else the usual fade) moves the words: the old slide out, the new one in.
+  const transition = words.layout?.transition;
+  const textMs = transition ? (transition.effect === 'cut' ? 0 : Math.round(transition.duration * 1000)) : ms;
+  const texts = useCrossfade(words, sameWords, textMs);
   const vars = { '--fade': `${ms}ms` } as CSSProperties;
+  const textVars = { '--fade': `${textMs}ms` } as CSSProperties;
+  const effect = transition?.effect ?? 'fade';
   const newestBackground = backgrounds[backgrounds.length - 1]?.value;
   // Keep the last logo while it fades out.
   const lastLogo = useRef<string | null>(null);
@@ -216,7 +231,7 @@ export function AudienceView({ live, muted }: { live: LiveState; muted: boolean 
         </div>
       ))}
       {texts.map((l) => (
-        <div key={`t${l.key}`} className={`stage-layer text-layer ${l.leaving ? 'leaving' : 'entering'}`}>
+        <div key={`t${l.key}`} className={`stage-layer text-layer tr-${effect} ${l.leaving ? 'leaving' : 'entering'}`} style={textVars}>
           {l.value.layout ? <SlideCanvas layout={l.value.layout} step={l.value.build} animate /> : <SlideText text={l.value.text} />}
           {l.value.copyright && <div className="ccli-line">{l.value.copyright}</div>}
         </div>

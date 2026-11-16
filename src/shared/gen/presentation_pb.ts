@@ -21,7 +21,74 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file presentation.proto.
  */
 export const file_presentation: GenFile = /*@__PURE__*/
-  fileDesc("ChJwcmVzZW50YXRpb24ucHJvdG8SDXZlc3NlbC5mb3JtYXQikAYKBVNsaWRlEi4KCGVsZW1lbnRzGAEgAygLMhwudmVzc2VsLmZvcm1hdC5TbGlkZS5FbGVtZW50Eh4KFmRyYXdzX2JhY2tncm91bmRfY29sb3IYBCABKAgSLgoQYmFja2dyb3VuZF9jb2xvchgFIAEoCzIULnZlc3NlbC5mb3JtYXQuQ29sb3ISKgoEc2l6ZRgGIAEoCzIcLnZlc3NlbC5mb3JtYXQuR3JhcGhpY3MuU2l6ZRIhCgR1dWlkGAcgASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEGrcECgdFbGVtZW50EjAKB2VsZW1lbnQYASABKAsyHy52ZXNzZWwuZm9ybWF0LkdyYXBoaWNzLkVsZW1lbnQSDAoEaW5mbxgEIAEoDRI7Cg92ZXNzZWxfYnVpbGRfaW4YZCABKAsyIi52ZXNzZWwuZm9ybWF0LlNsaWRlLkVsZW1lbnQuQnVpbGQSPAoQdmVzc2VsX2J1aWxkX291dBhlIAEoCzIiLnZlc3NlbC5mb3JtYXQuU2xpZGUuRWxlbWVudC5CdWlsZBJCChJ2ZXNzZWxfbGluZV9idWlsZHMYZiADKAsyJi52ZXNzZWwuZm9ybWF0LlNsaWRlLkVsZW1lbnQuTGluZUJ1aWxkGlkKBUJ1aWxkEgwKBHN0ZXAYASABKA0SDgoGZWZmZWN0GAIgASgJEhEKCWRpcmVjdGlvbhgDIAEoCRINCgVkZWxheRgEIAEoARIQCghkdXJhdGlvbhgFIAEoARqgAQoJTGluZUJ1aWxkEhIKCmZpcnN0X2xpbmUYASABKA0SEgoKbGluZV9jb3VudBgCIAEoDRI0CghidWlsZF9pbhgDIAEoCzIiLnZlc3NlbC5mb3JtYXQuU2xpZGUuRWxlbWVudC5CdWlsZBI1CglidWlsZF9vdXQYBCABKAsyIi52ZXNzZWwuZm9ybWF0LlNsaWRlLkVsZW1lbnQuQnVpbGQiLwoESW5mbxINCglJTkZPX05PTkUQABIYChRJTkZPX0lTX1RFWFRfRUxFTUVOVBACIo8BChFQcmVzZW50YXRpb25TbGlkZRIoCgpiYXNlX3NsaWRlGAEgASgLMhQudmVzc2VsLmZvcm1hdC5TbGlkZRI1CgVub3RlcxgCIAEoCzImLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uU2xpZGUuTm90ZXMaGQoFTm90ZXMSEAoIcnRmX2RhdGEYASABKAwi0AQKBkFjdGlvbhIhCgR1dWlkGAEgASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEEgwKBG5hbWUYAiABKAkSEQoJaXNFbmFibGVkGAYgASgIEi4KBHR5cGUYCSABKA4yIC52ZXNzZWwuZm9ybWF0LkFjdGlvbi5BY3Rpb25UeXBlEjAKBW1lZGlhGBQgASgLMh8udmVzc2VsLmZvcm1hdC5BY3Rpb24uTWVkaWFUeXBlSAASMAoFc2xpZGUYFyABKAsyHy52ZXNzZWwuZm9ybWF0LkFjdGlvbi5TbGlkZVR5cGVIABpnCglNZWRpYVR5cGUSJQoHZWxlbWVudBgFIAEoCzIULnZlc3NlbC5mb3JtYXQuTWVkaWESMwoKbGF5ZXJfdHlwZRgKIAEoDjIfLnZlc3NlbC5mb3JtYXQuQWN0aW9uLkxheWVyVHlwZRpOCglTbGlkZVR5cGUSOAoMcHJlc2VudGF0aW9uGAIgASgLMiAudmVzc2VsLmZvcm1hdC5QcmVzZW50YXRpb25TbGlkZUgAQgcKBVNsaWRlImAKCkFjdGlvblR5cGUSFwoTQUNUSU9OX1RZUEVfVU5LTk9XThAAEhUKEUFDVElPTl9UWVBFX01FRElBEAISIgoeQUNUSU9OX1RZUEVfUFJFU0VOVEFUSU9OX1NMSURFEAsiQQoJTGF5ZXJUeXBlEhkKFUxBWUVSX1RZUEVfQkFDS0dST1VORBAAEhkKFUxBWUVSX1RZUEVfRk9SRUdST1VORBABQhAKDkFjdGlvblR5cGVEYXRhIhYKBkhvdEtleRIMCgRjb2RlGAEgASgFIoQBCgVHcm91cBIhCgR1dWlkGAEgASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEEgwKBG5hbWUYAiABKAkSIwoFY29sb3IYAyABKAsyFC52ZXNzZWwuZm9ybWF0LkNvbG9yEiUKBmhvdEtleRgEIAEoCzIVLnZlc3NlbC5mb3JtYXQuSG90S2V5Ir0FCgNDdWUSIQoEdXVpZBgBIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBIMCgRuYW1lGAIgASgJEkcKFmNvbXBsZXRpb25fdGFyZ2V0X3R5cGUYAyABKA4yJy52ZXNzZWwuZm9ybWF0LkN1ZS5Db21wbGV0aW9uVGFyZ2V0VHlwZRIzChZjb21wbGV0aW9uX3RhcmdldF91dWlkGAQgASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEEkcKFmNvbXBsZXRpb25fYWN0aW9uX3R5cGUYBSABKA4yJy52ZXNzZWwuZm9ybWF0LkN1ZS5Db21wbGV0aW9uQWN0aW9uVHlwZRImCgdhY3Rpb25zGAogAygLMhUudmVzc2VsLmZvcm1hdC5BY3Rpb24SEQoJaXNFbmFibGVkGAwgASgIEhcKD2NvbXBsZXRpb25fdGltZRgNIAEoASK9AQoUQ29tcGxldGlvblRhcmdldFR5cGUSHwobQ09NUExFVElPTl9UQVJHRVRfVFlQRV9OT05FEAASHwobQ09NUExFVElPTl9UQVJHRVRfVFlQRV9ORVhUEAESIQodQ09NUExFVElPTl9UQVJHRVRfVFlQRV9SQU5ET00QAhIeChpDT01QTEVUSU9OX1RBUkdFVF9UWVBFX0NVRRADEiAKHENPTVBMRVRJT05fVEFSR0VUX1RZUEVfRklSU1QQBCKpAQoUQ29tcGxldGlvbkFjdGlvblR5cGUSIAocQ09NUExFVElPTl9BQ1RJT05fVFlQRV9GSVJTVBAAEh8KG0NPTVBMRVRJT05fQUNUSU9OX1RZUEVfTEFTVBABEicKI0NPTVBMRVRJT05fQUNUSU9OX1RZUEVfQUZURVJfQUNUSU9OEAISJQohQ09NUExFVElPTl9BQ1RJT05fVFlQRV9BRlRFUl9USU1FEAMigQsKDFByZXNlbnRhdGlvbhI4ChBhcHBsaWNhdGlvbl9pbmZvGAEgASgLMh4udmVzc2VsLmZvcm1hdC5BcHBsaWNhdGlvbkluZm8SIQoEdXVpZBgCIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBIMCgRuYW1lGAMgASgJEg0KBW5vdGVzGAcgASgJEjEKFHNlbGVjdGVkX2FycmFuZ2VtZW50GAogASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEEj0KDGFycmFuZ2VtZW50cxgLIAMoCzInLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uLkFycmFuZ2VtZW50EjgKCmN1ZV9ncm91cHMYDCADKAsyJC52ZXNzZWwuZm9ybWF0LlByZXNlbnRhdGlvbi5DdWVHcm91cBIgCgRjdWVzGA0gAygLMhIudmVzc2VsLmZvcm1hdC5DdWUSLgoEY2NsaRgOIAEoCzIgLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uLkNDTEkSQwoPYmlibGVfcmVmZXJlbmNlGA8gASgLMioudmVzc2VsLmZvcm1hdC5QcmVzZW50YXRpb24uQmlibGVSZWZlcmVuY2USEQoJbXVzaWNfa2V5GBYgASgJEjAKBW11c2ljGBcgASgLMiEudmVzc2VsLmZvcm1hdC5QcmVzZW50YXRpb24uTXVzaWMSPwoQdmVzc2VsX3NsaWRlc2hvdxhkIAEoCzIlLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uLlNsaWRlc2hvdxqzAQoEQ0NMSRIOCgZhdXRob3IYASABKAkSFgoOYXJ0aXN0X2NyZWRpdHMYAiABKAkSEgoKc29uZ190aXRsZRgDIAEoCRIRCglwdWJsaXNoZXIYBCABKAkSFgoOY29weXJpZ2h0X3llYXIYBSABKA0SEwoLc29uZ19udW1iZXIYBiABKA0SDwoHZGlzcGxheRgHIAEoCBINCgVhbGJ1bRgIIAEoCRIPCgdhcnR3b3JrGAkgASgMGtoBCg5CaWJsZVJlZmVyZW5jZRISCgpib29rX2luZGV4GAEgASgNEhEKCWJvb2tfbmFtZRgCIAEoCRIuCg1jaGFwdGVyX3JhbmdlGAMgASgLMhcudmVzc2VsLmZvcm1hdC5JbnRSYW5nZRIsCgt2ZXJzZV9yYW5nZRgEIAEoCzIXLnZlc3NlbC5mb3JtYXQuSW50UmFuZ2USGAoQdHJhbnNsYXRpb25fbmFtZRgFIAEoCRIpCiF0cmFuc2xhdGlvbl9pbnRlcm5hbF9hYmJyZXZpYXRpb24YByABKAkabgoLQXJyYW5nZW1lbnQSIQoEdXVpZBgBIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBIMCgRuYW1lGAIgASgJEi4KEWdyb3VwX2lkZW50aWZpZXJzGAMgAygLMhMudmVzc2VsLmZvcm1hdC5VVUlEGl0KCEN1ZUdyb3VwEiMKBWdyb3VwGAEgASgLMhQudmVzc2VsLmZvcm1hdC5Hcm91cBIsCg9jdWVfaWRlbnRpZmllcnMYAiADKAsyEy52ZXNzZWwuZm9ybWF0LlVVSUQalwEKBU11c2ljEhoKEm9yaWdpbmFsX211c2ljX2tleRgBIAEoCRIWCg51c2VyX211c2ljX2tleRgCIAEoCRIuCghvcmlnaW5hbBgDIAEoCzIcLnZlc3NlbC5mb3JtYXQuTXVzaWNLZXlTY2FsZRIqCgR1c2VyGAQgASgLMhwudmVzc2VsLmZvcm1hdC5NdXNpY0tleVNjYWxlGjIKCVNsaWRlc2hvdxIOCgZzb3VyY2UYASABKAkSFQoNc3RpbGxfZWZmZWN0cxgCIAEoDSKCBQoNTXVzaWNLZXlTY2FsZRI4CgltdXNpY19rZXkYASABKA4yJS52ZXNzZWwuZm9ybWF0Lk11c2ljS2V5U2NhbGUuTXVzaWNLZXkSPAoLbXVzaWNfc2NhbGUYAiABKA4yJy52ZXNzZWwuZm9ybWF0Lk11c2ljS2V5U2NhbGUuTXVzaWNTY2FsZSK8AwoITXVzaWNLZXkSFAoQTVVTSUNfS0VZX0FfRkxBVBAAEg8KC01VU0lDX0tFWV9BEAESFQoRTVVTSUNfS0VZX0FfU0hBUlAQAhIUChBNVVNJQ19LRVlfQl9GTEFUEAMSDwoLTVVTSUNfS0VZX0IQBBIVChFNVVNJQ19LRVlfQl9TSEFSUBAFEhQKEE1VU0lDX0tFWV9DX0ZMQVQQBhIPCgtNVVNJQ19LRVlfQxAHEhUKEU1VU0lDX0tFWV9DX1NIQVJQEAgSFAoQTVVTSUNfS0VZX0RfRkxBVBAJEg8KC01VU0lDX0tFWV9EEAoSFQoRTVVTSUNfS0VZX0RfU0hBUlAQCxIUChBNVVNJQ19LRVlfRV9GTEFUEAwSDwoLTVVTSUNfS0VZX0UQDRIVChFNVVNJQ19LRVlfRV9TSEFSUBAOEhQKEE1VU0lDX0tFWV9GX0ZMQVQQDxIPCgtNVVNJQ19LRVlfRhAQEhUKEU1VU0lDX0tFWV9GX1NIQVJQEBESFAoQTVVTSUNfS0VZX0dfRkxBVBASEg8KC01VU0lDX0tFWV9HEBMSFQoRTVVTSUNfS0VZX0dfU0hBUlAQFCI6CgpNdXNpY1NjYWxlEhUKEU1VU0lDX1NDQUxFX01BSk9SEAASFQoRTVVTSUNfU0NBTEVfTUlOT1IQAWIGcHJvdG8z", [file_common, file_graphics]);
+  fileDesc("ChJwcmVzZW50YXRpb24ucHJvdG8SDXZlc3NlbC5mb3JtYXQikwEKClZlc3NlbExvb2sSDAoEYmx1chgBIAEoARIOCgZkYXJrZW4YAiABKAESEgoKc2F0dXJhdGlvbhgDIAEoARISCgpicmlnaHRuZXNzGAQgASgBEhAKCGNvbnRyYXN0GAUgASgBEgsKA2h1ZRgGIAEoARIOCgZ3YXJtdGgYByABKAESEAoIdmlnbmV0dGUYCCABKAEiwAYKBVNsaWRlEi4KCGVsZW1lbnRzGAEgAygLMhwudmVzc2VsLmZvcm1hdC5TbGlkZS5FbGVtZW50Eh4KFmRyYXdzX2JhY2tncm91bmRfY29sb3IYBCABKAgSLgoQYmFja2dyb3VuZF9jb2xvchgFIAEoCzIULnZlc3NlbC5mb3JtYXQuQ29sb3ISKgoEc2l6ZRgGIAEoCzIcLnZlc3NlbC5mb3JtYXQuR3JhcGhpY3MuU2l6ZRIhCgR1dWlkGAcgASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEGucECgdFbGVtZW50EjAKB2VsZW1lbnQYASABKAsyHy52ZXNzZWwuZm9ybWF0LkdyYXBoaWNzLkVsZW1lbnQSDAoEaW5mbxgEIAEoDRI7Cg92ZXNzZWxfYnVpbGRfaW4YZCABKAsyIi52ZXNzZWwuZm9ybWF0LlNsaWRlLkVsZW1lbnQuQnVpbGQSPAoQdmVzc2VsX2J1aWxkX291dBhlIAEoCzIiLnZlc3NlbC5mb3JtYXQuU2xpZGUuRWxlbWVudC5CdWlsZBJCChJ2ZXNzZWxfbGluZV9idWlsZHMYZiADKAsyJi52ZXNzZWwuZm9ybWF0LlNsaWRlLkVsZW1lbnQuTGluZUJ1aWxkEi4KC3Zlc3NlbF9sb29rGGcgASgLMhkudmVzc2VsLmZvcm1hdC5WZXNzZWxMb29rGlkKBUJ1aWxkEgwKBHN0ZXAYASABKA0SDgoGZWZmZWN0GAIgASgJEhEKCWRpcmVjdGlvbhgDIAEoCRINCgVkZWxheRgEIAEoARIQCghkdXJhdGlvbhgFIAEoARqgAQoJTGluZUJ1aWxkEhIKCmZpcnN0X2xpbmUYASABKA0SEgoKbGluZV9jb3VudBgCIAEoDRI0CghidWlsZF9pbhgDIAEoCzIiLnZlc3NlbC5mb3JtYXQuU2xpZGUuRWxlbWVudC5CdWlsZBI1CglidWlsZF9vdXQYBCABKAsyIi52ZXNzZWwuZm9ybWF0LlNsaWRlLkVsZW1lbnQuQnVpbGQiLwoESW5mbxINCglJTkZPX05PTkUQABIYChRJTkZPX0lTX1RFWFRfRUxFTUVOVBACIo8BChFQcmVzZW50YXRpb25TbGlkZRIoCgpiYXNlX3NsaWRlGAEgASgLMhQudmVzc2VsLmZvcm1hdC5TbGlkZRI1CgVub3RlcxgCIAEoCzImLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uU2xpZGUuTm90ZXMaGQoFTm90ZXMSEAoIcnRmX2RhdGEYASABKAwigQUKBkFjdGlvbhIhCgR1dWlkGAEgASgLMhMudmVzc2VsLmZvcm1hdC5VVUlEEgwKBG5hbWUYAiABKAkSEQoJaXNFbmFibGVkGAYgASgIEi4KBHR5cGUYCSABKA4yIC52ZXNzZWwuZm9ybWF0LkFjdGlvbi5BY3Rpb25UeXBlEjAKBW1lZGlhGBQgASgLMh8udmVzc2VsLmZvcm1hdC5BY3Rpb24uTWVkaWFUeXBlSAASMAoFc2xpZGUYFyABKAsyHy52ZXNzZWwuZm9ybWF0LkFjdGlvbi5TbGlkZVR5cGVIABqXAQoJTWVkaWFUeXBlEiUKB2VsZW1lbnQYBSABKAsyFC52ZXNzZWwuZm9ybWF0Lk1lZGlhEjMKCmxheWVyX3R5cGUYCiABKA4yHy52ZXNzZWwuZm9ybWF0LkFjdGlvbi5MYXllclR5cGUSLgoLdmVzc2VsX2xvb2sYZCABKAsyGS52ZXNzZWwuZm9ybWF0LlZlc3NlbExvb2saTgoJU2xpZGVUeXBlEjgKDHByZXNlbnRhdGlvbhgCIAEoCzIgLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uU2xpZGVIAEIHCgVTbGlkZSJgCgpBY3Rpb25UeXBlEhcKE0FDVElPTl9UWVBFX1VOS05PV04QABIVChFBQ1RJT05fVFlQRV9NRURJQRACEiIKHkFDVElPTl9UWVBFX1BSRVNFTlRBVElPTl9TTElERRALIkEKCUxheWVyVHlwZRIZChVMQVlFUl9UWVBFX0JBQ0tHUk9VTkQQABIZChVMQVlFUl9UWVBFX0ZPUkVHUk9VTkQQAUIQCg5BY3Rpb25UeXBlRGF0YSIWCgZIb3RLZXkSDAoEY29kZRgBIAEoBSKEAQoFR3JvdXASIQoEdXVpZBgBIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBIMCgRuYW1lGAIgASgJEiMKBWNvbG9yGAMgASgLMhQudmVzc2VsLmZvcm1hdC5Db2xvchIlCgZob3RLZXkYBCABKAsyFS52ZXNzZWwuZm9ybWF0LkhvdEtleSLiBgoDQ3VlEiEKBHV1aWQYASABKAsyEy52ZXNzZWwuZm9ybWF0LlVVSUQSDAoEbmFtZRgCIAEoCRJHChZjb21wbGV0aW9uX3RhcmdldF90eXBlGAMgASgOMicudmVzc2VsLmZvcm1hdC5DdWUuQ29tcGxldGlvblRhcmdldFR5cGUSMwoWY29tcGxldGlvbl90YXJnZXRfdXVpZBgEIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBJHChZjb21wbGV0aW9uX2FjdGlvbl90eXBlGAUgASgOMicudmVzc2VsLmZvcm1hdC5DdWUuQ29tcGxldGlvbkFjdGlvblR5cGUSJgoHYWN0aW9ucxgKIAMoCzIVLnZlc3NlbC5mb3JtYXQuQWN0aW9uEhEKCWlzRW5hYmxlZBgMIAEoCBIXCg9jb21wbGV0aW9uX3RpbWUYDSABKAESNAoRdmVzc2VsX3RyYW5zaXRpb24YZCABKAsyGS52ZXNzZWwuZm9ybWF0LkN1ZS5Nb3Rpb24SNQoSdmVzc2VsX3RleHRfbW90aW9uGGUgASgLMhkudmVzc2VsLmZvcm1hdC5DdWUuTW90aW9uGjYKBk1vdGlvbhIOCgZlZmZlY3QYASABKAkSEAoIZHVyYXRpb24YAiABKAESCgoCYnkYAyABKAkivQEKFENvbXBsZXRpb25UYXJnZXRUeXBlEh8KG0NPTVBMRVRJT05fVEFSR0VUX1RZUEVfTk9ORRAAEh8KG0NPTVBMRVRJT05fVEFSR0VUX1RZUEVfTkVYVBABEiEKHUNPTVBMRVRJT05fVEFSR0VUX1RZUEVfUkFORE9NEAISHgoaQ09NUExFVElPTl9UQVJHRVRfVFlQRV9DVUUQAxIgChxDT01QTEVUSU9OX1RBUkdFVF9UWVBFX0ZJUlNUEAQiqQEKFENvbXBsZXRpb25BY3Rpb25UeXBlEiAKHENPTVBMRVRJT05fQUNUSU9OX1RZUEVfRklSU1QQABIfChtDT01QTEVUSU9OX0FDVElPTl9UWVBFX0xBU1QQARInCiNDT01QTEVUSU9OX0FDVElPTl9UWVBFX0FGVEVSX0FDVElPThACEiUKIUNPTVBMRVRJT05fQUNUSU9OX1RZUEVfQUZURVJfVElNRRADIoELCgxQcmVzZW50YXRpb24SOAoQYXBwbGljYXRpb25faW5mbxgBIAEoCzIeLnZlc3NlbC5mb3JtYXQuQXBwbGljYXRpb25JbmZvEiEKBHV1aWQYAiABKAsyEy52ZXNzZWwuZm9ybWF0LlVVSUQSDAoEbmFtZRgDIAEoCRINCgVub3RlcxgHIAEoCRIxChRzZWxlY3RlZF9hcnJhbmdlbWVudBgKIAEoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBI9CgxhcnJhbmdlbWVudHMYCyADKAsyJy52ZXNzZWwuZm9ybWF0LlByZXNlbnRhdGlvbi5BcnJhbmdlbWVudBI4CgpjdWVfZ3JvdXBzGAwgAygLMiQudmVzc2VsLmZvcm1hdC5QcmVzZW50YXRpb24uQ3VlR3JvdXASIAoEY3VlcxgNIAMoCzISLnZlc3NlbC5mb3JtYXQuQ3VlEi4KBGNjbGkYDiABKAsyIC52ZXNzZWwuZm9ybWF0LlByZXNlbnRhdGlvbi5DQ0xJEkMKD2JpYmxlX3JlZmVyZW5jZRgPIAEoCzIqLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uLkJpYmxlUmVmZXJlbmNlEhEKCW11c2ljX2tleRgWIAEoCRIwCgVtdXNpYxgXIAEoCzIhLnZlc3NlbC5mb3JtYXQuUHJlc2VudGF0aW9uLk11c2ljEj8KEHZlc3NlbF9zbGlkZXNob3cYZCABKAsyJS52ZXNzZWwuZm9ybWF0LlByZXNlbnRhdGlvbi5TbGlkZXNob3caswEKBENDTEkSDgoGYXV0aG9yGAEgASgJEhYKDmFydGlzdF9jcmVkaXRzGAIgASgJEhIKCnNvbmdfdGl0bGUYAyABKAkSEQoJcHVibGlzaGVyGAQgASgJEhYKDmNvcHlyaWdodF95ZWFyGAUgASgNEhMKC3NvbmdfbnVtYmVyGAYgASgNEg8KB2Rpc3BsYXkYByABKAgSDQoFYWxidW0YCCABKAkSDwoHYXJ0d29yaxgJIAEoDBraAQoOQmlibGVSZWZlcmVuY2USEgoKYm9va19pbmRleBgBIAEoDRIRCglib29rX25hbWUYAiABKAkSLgoNY2hhcHRlcl9yYW5nZRgDIAEoCzIXLnZlc3NlbC5mb3JtYXQuSW50UmFuZ2USLAoLdmVyc2VfcmFuZ2UYBCABKAsyFy52ZXNzZWwuZm9ybWF0LkludFJhbmdlEhgKEHRyYW5zbGF0aW9uX25hbWUYBSABKAkSKQohdHJhbnNsYXRpb25faW50ZXJuYWxfYWJicmV2aWF0aW9uGAcgASgJGm4KC0FycmFuZ2VtZW50EiEKBHV1aWQYASABKAsyEy52ZXNzZWwuZm9ybWF0LlVVSUQSDAoEbmFtZRgCIAEoCRIuChFncm91cF9pZGVudGlmaWVycxgDIAMoCzITLnZlc3NlbC5mb3JtYXQuVVVJRBpdCghDdWVHcm91cBIjCgVncm91cBgBIAEoCzIULnZlc3NlbC5mb3JtYXQuR3JvdXASLAoPY3VlX2lkZW50aWZpZXJzGAIgAygLMhMudmVzc2VsLmZvcm1hdC5VVUlEGpcBCgVNdXNpYxIaChJvcmlnaW5hbF9tdXNpY19rZXkYASABKAkSFgoOdXNlcl9tdXNpY19rZXkYAiABKAkSLgoIb3JpZ2luYWwYAyABKAsyHC52ZXNzZWwuZm9ybWF0Lk11c2ljS2V5U2NhbGUSKgoEdXNlchgEIAEoCzIcLnZlc3NlbC5mb3JtYXQuTXVzaWNLZXlTY2FsZRoyCglTbGlkZXNob3cSDgoGc291cmNlGAEgASgJEhUKDXN0aWxsX2VmZmVjdHMYAiABKA0iggUKDU11c2ljS2V5U2NhbGUSOAoJbXVzaWNfa2V5GAEgASgOMiUudmVzc2VsLmZvcm1hdC5NdXNpY0tleVNjYWxlLk11c2ljS2V5EjwKC211c2ljX3NjYWxlGAIgASgOMicudmVzc2VsLmZvcm1hdC5NdXNpY0tleVNjYWxlLk11c2ljU2NhbGUivAMKCE11c2ljS2V5EhQKEE1VU0lDX0tFWV9BX0ZMQVQQABIPCgtNVVNJQ19LRVlfQRABEhUKEU1VU0lDX0tFWV9BX1NIQVJQEAISFAoQTVVTSUNfS0VZX0JfRkxBVBADEg8KC01VU0lDX0tFWV9CEAQSFQoRTVVTSUNfS0VZX0JfU0hBUlAQBRIUChBNVVNJQ19LRVlfQ19GTEFUEAYSDwoLTVVTSUNfS0VZX0MQBxIVChFNVVNJQ19LRVlfQ19TSEFSUBAIEhQKEE1VU0lDX0tFWV9EX0ZMQVQQCRIPCgtNVVNJQ19LRVlfRBAKEhUKEU1VU0lDX0tFWV9EX1NIQVJQEAsSFAoQTVVTSUNfS0VZX0VfRkxBVBAMEg8KC01VU0lDX0tFWV9FEA0SFQoRTVVTSUNfS0VZX0VfU0hBUlAQDhIUChBNVVNJQ19LRVlfRl9GTEFUEA8SDwoLTVVTSUNfS0VZX0YQEBIVChFNVVNJQ19LRVlfRl9TSEFSUBAREhQKEE1VU0lDX0tFWV9HX0ZMQVQQEhIPCgtNVVNJQ19LRVlfRxATEhUKEU1VU0lDX0tFWV9HX1NIQVJQEBQiOgoKTXVzaWNTY2FsZRIVChFNVVNJQ19TQ0FMRV9NQUpPUhAAEhUKEU1VU0lDX1NDQUxFX01JTk9SEAFiBnByb3RvMw", [file_common, file_graphics]);
+
+/**
+ * How a picture or video is adjusted where it's shown (blur, colour…).
+ * Vessel's own; other apps ignore it. Every value 0 leaves it as it is.
+ *
+ * @generated from message vessel.format.VesselLook
+ */
+export type VesselLook = Message<"vessel.format.VesselLook"> & {
+  /**
+   * 0–100.
+   *
+   * @generated from field: double blur = 1;
+   */
+  blur: number;
+
+  /**
+   * @generated from field: double darken = 2;
+   */
+  darken: number;
+
+  /**
+   * −100 (grey) to 100 (twice as colourful).
+   *
+   * @generated from field: double saturation = 3;
+   */
+  saturation: number;
+
+  /**
+   * −100 to 100.
+   *
+   * @generated from field: double brightness = 4;
+   */
+  brightness: number;
+
+  /**
+   * @generated from field: double contrast = 5;
+   */
+  contrast: number;
+
+  /**
+   * Degrees, −180 to 180.
+   *
+   * @generated from field: double hue = 6;
+   */
+  hue: number;
+
+  /**
+   * −100 (cooler) to 100 (warmer).
+   *
+   * @generated from field: double warmth = 7;
+   */
+  warmth: number;
+
+  /**
+   * 0–100: darker corners.
+   *
+   * @generated from field: double vignette = 8;
+   */
+  vignette: number;
+};
+
+/**
+ * Describes the message vessel.format.VesselLook.
+ * Use `create(VesselLookSchema)` to create a new message.
+ */
+export const VesselLookSchema: GenMessage<VesselLook> = /*@__PURE__*/
+  messageDesc(file_presentation, 0);
 
 /**
  * One slide: the elements on it, in drawing order (back to front), and its size.
@@ -60,7 +127,7 @@ export type Slide = Message<"vessel.format.Slide"> & {
  * Use `create(SlideSchema)` to create a new message.
  */
 export const SlideSchema: GenMessage<Slide> = /*@__PURE__*/
-  messageDesc(file_presentation, 0);
+  messageDesc(file_presentation, 1);
 
 /**
  * @generated from message vessel.format.Slide.Element
@@ -90,6 +157,13 @@ export type Slide_Element = Message<"vessel.format.Slide.Element"> & {
    * @generated from field: repeated vessel.format.Slide.Element.LineBuild vessel_line_builds = 102;
    */
   vesselLineBuilds: Slide_Element_LineBuild[];
+
+  /**
+   * This slide's own look for a picture on it (else the media bin's look for the file).
+   *
+   * @generated from field: vessel.format.VesselLook vessel_look = 103;
+   */
+  vesselLook?: VesselLook | undefined;
 };
 
 /**
@@ -97,7 +171,7 @@ export type Slide_Element = Message<"vessel.format.Slide.Element"> & {
  * Use `create(Slide_ElementSchema)` to create a new message.
  */
 export const Slide_ElementSchema: GenMessage<Slide_Element> = /*@__PURE__*/
-  messageDesc(file_presentation, 0, 0);
+  messageDesc(file_presentation, 1, 0);
 
 /**
  * When the element comes and goes in a slideshow (PowerPoint's click
@@ -145,7 +219,7 @@ export type Slide_Element_Build = Message<"vessel.format.Slide.Element.Build"> &
  * Use `create(Slide_Element_BuildSchema)` to create a new message.
  */
 export const Slide_Element_BuildSchema: GenMessage<Slide_Element_Build> = /*@__PURE__*/
-  messageDesc(file_presentation, 0, 0, 0);
+  messageDesc(file_presentation, 1, 0, 0);
 
 /**
  * Lines of a text box that come and go on their own (PowerPoint's "by paragraph").
@@ -179,7 +253,7 @@ export type Slide_Element_LineBuild = Message<"vessel.format.Slide.Element.LineB
  * Use `create(Slide_Element_LineBuildSchema)` to create a new message.
  */
 export const Slide_Element_LineBuildSchema: GenMessage<Slide_Element_LineBuild> = /*@__PURE__*/
-  messageDesc(file_presentation, 0, 0, 1);
+  messageDesc(file_presentation, 1, 0, 1);
 
 /**
  * Flags; 2 marks a text box.
@@ -202,7 +276,7 @@ export enum Slide_Element_Info {
  * Describes the enum vessel.format.Slide.Element.Info.
  */
 export const Slide_Element_InfoSchema: GenEnum<Slide_Element_Info> = /*@__PURE__*/
-  enumDesc(file_presentation, 0, 0, 0);
+  enumDesc(file_presentation, 1, 0, 0);
 
 /**
  * @generated from message vessel.format.PresentationSlide
@@ -224,7 +298,7 @@ export type PresentationSlide = Message<"vessel.format.PresentationSlide"> & {
  * Use `create(PresentationSlideSchema)` to create a new message.
  */
 export const PresentationSlideSchema: GenMessage<PresentationSlide> = /*@__PURE__*/
-  messageDesc(file_presentation, 1);
+  messageDesc(file_presentation, 2);
 
 /**
  * The presenter's notes for the slide (ProPresenter's "Slide Notes").
@@ -243,7 +317,7 @@ export type PresentationSlide_Notes = Message<"vessel.format.PresentationSlide.N
  * Use `create(PresentationSlide_NotesSchema)` to create a new message.
  */
 export const PresentationSlide_NotesSchema: GenMessage<PresentationSlide_Notes> = /*@__PURE__*/
-  messageDesc(file_presentation, 1, 0);
+  messageDesc(file_presentation, 2, 0);
 
 /**
  * Something a slide does when it's shown: show its own content, or put media on a layer.
@@ -294,7 +368,7 @@ export type Action = Message<"vessel.format.Action"> & {
  * Use `create(ActionSchema)` to create a new message.
  */
 export const ActionSchema: GenMessage<Action> = /*@__PURE__*/
-  messageDesc(file_presentation, 2);
+  messageDesc(file_presentation, 3);
 
 /**
  * @generated from message vessel.format.Action.MediaType
@@ -309,6 +383,13 @@ export type Action_MediaType = Message<"vessel.format.Action.MediaType"> & {
    * @generated from field: vessel.format.Action.LayerType layer_type = 10;
    */
   layerType: Action_LayerType;
+
+  /**
+   * This slide's own look for its background (else the media bin's look for the file).
+   *
+   * @generated from field: vessel.format.VesselLook vessel_look = 100;
+   */
+  vesselLook?: VesselLook | undefined;
 };
 
 /**
@@ -316,7 +397,7 @@ export type Action_MediaType = Message<"vessel.format.Action.MediaType"> & {
  * Use `create(Action_MediaTypeSchema)` to create a new message.
  */
 export const Action_MediaTypeSchema: GenMessage<Action_MediaType> = /*@__PURE__*/
-  messageDesc(file_presentation, 2, 0);
+  messageDesc(file_presentation, 3, 0);
 
 /**
  * @generated from message vessel.format.Action.SlideType
@@ -339,7 +420,7 @@ export type Action_SlideType = Message<"vessel.format.Action.SlideType"> & {
  * Use `create(Action_SlideTypeSchema)` to create a new message.
  */
 export const Action_SlideTypeSchema: GenMessage<Action_SlideType> = /*@__PURE__*/
-  messageDesc(file_presentation, 2, 1);
+  messageDesc(file_presentation, 3, 1);
 
 /**
  * @generated from enum vessel.format.Action.ActionType
@@ -365,7 +446,7 @@ export enum Action_ActionType {
  * Describes the enum vessel.format.Action.ActionType.
  */
 export const Action_ActionTypeSchema: GenEnum<Action_ActionType> = /*@__PURE__*/
-  enumDesc(file_presentation, 2, 0);
+  enumDesc(file_presentation, 3, 0);
 
 /**
  * @generated from enum vessel.format.Action.LayerType
@@ -386,7 +467,7 @@ export enum Action_LayerType {
  * Describes the enum vessel.format.Action.LayerType.
  */
 export const Action_LayerTypeSchema: GenEnum<Action_LayerType> = /*@__PURE__*/
-  enumDesc(file_presentation, 2, 1);
+  enumDesc(file_presentation, 3, 1);
 
 /**
  * A keyboard shortcut; codes 1–26 are the letters A–Z.
@@ -405,7 +486,7 @@ export type HotKey = Message<"vessel.format.HotKey"> & {
  * Use `create(HotKeySchema)` to create a new message.
  */
 export const HotKeySchema: GenMessage<HotKey> = /*@__PURE__*/
-  messageDesc(file_presentation, 3);
+  messageDesc(file_presentation, 4);
 
 /**
  * A named, coloured section of a presentation: "Verse 1", "Chorus"…
@@ -439,7 +520,7 @@ export type Group = Message<"vessel.format.Group"> & {
  * Use `create(GroupSchema)` to create a new message.
  */
 export const GroupSchema: GenMessage<Group> = /*@__PURE__*/
-  messageDesc(file_presentation, 4);
+  messageDesc(file_presentation, 5);
 
 /**
  * A slide in the presentation, with what happens when it's shown and when it moves on.
@@ -488,6 +569,16 @@ export type Cue = Message<"vessel.format.Cue"> & {
    * @generated from field: double completion_time = 13;
    */
   completionTime: number;
+
+  /**
+   * @generated from field: vessel.format.Cue.Motion vessel_transition = 100;
+   */
+  vesselTransition?: Cue_Motion | undefined;
+
+  /**
+   * @generated from field: vessel.format.Cue.Motion vessel_text_motion = 101;
+   */
+  vesselTextMotion?: Cue_Motion | undefined;
 };
 
 /**
@@ -495,7 +586,44 @@ export type Cue = Message<"vessel.format.Cue"> & {
  * Use `create(CueSchema)` to create a new message.
  */
 export const CueSchema: GenMessage<Cue> = /*@__PURE__*/
-  messageDesc(file_presentation, 5);
+  messageDesc(file_presentation, 6);
+
+/**
+ * How the slide comes on screen, and how its words come in. Vessel's own.
+ *
+ * @generated from message vessel.format.Cue.Motion
+ */
+export type Cue_Motion = Message<"vessel.format.Cue.Motion"> & {
+  /**
+   * Transitions: "fade", "push", "slide", "zoom", "blur", "flip", "cube", "wipe", "iris", "cut".
+   * Words: "fade", "fade-up", "typewriter", "pop", "bounce", "blur-in", "drop", "rise",
+   * "slide-in", "zoom", "zoom-out", "flip", "spin", "glow", "wave", "tracking".
+   *
+   * @generated from field: string effect = 1;
+   */
+  effect: string;
+
+  /**
+   * Seconds.
+   *
+   * @generated from field: double duration = 2;
+   */
+  duration: number;
+
+  /**
+   * Words: what comes in on its own: "all", "line", "sentence", "word" or "letter".
+   *
+   * @generated from field: string by = 3;
+   */
+  by: string;
+};
+
+/**
+ * Describes the message vessel.format.Cue.Motion.
+ * Use `create(Cue_MotionSchema)` to create a new message.
+ */
+export const Cue_MotionSchema: GenMessage<Cue_Motion> = /*@__PURE__*/
+  messageDesc(file_presentation, 6, 0);
 
 /**
  * Where a slide's own timer goes when it runs out.
@@ -533,7 +661,7 @@ export enum Cue_CompletionTargetType {
  * Describes the enum vessel.format.Cue.CompletionTargetType.
  */
 export const Cue_CompletionTargetTypeSchema: GenEnum<Cue_CompletionTargetType> = /*@__PURE__*/
-  enumDesc(file_presentation, 5, 0);
+  enumDesc(file_presentation, 6, 0);
 
 /**
  * What the timer waits for; Vessel uses "after time".
@@ -566,7 +694,7 @@ export enum Cue_CompletionActionType {
  * Describes the enum vessel.format.Cue.CompletionActionType.
  */
 export const Cue_CompletionActionTypeSchema: GenEnum<Cue_CompletionActionType> = /*@__PURE__*/
-  enumDesc(file_presentation, 5, 1);
+  enumDesc(file_presentation, 6, 1);
 
 /**
  * @generated from message vessel.format.Presentation
@@ -643,7 +771,7 @@ export type Presentation = Message<"vessel.format.Presentation"> & {
  * Use `create(PresentationSchema)` to create a new message.
  */
 export const PresentationSchema: GenMessage<Presentation> = /*@__PURE__*/
-  messageDesc(file_presentation, 6);
+  messageDesc(file_presentation, 7);
 
 /**
  * Song details for copyright notices and CCLI reports.
@@ -702,7 +830,7 @@ export type Presentation_CCLI = Message<"vessel.format.Presentation.CCLI"> & {
  * Use `create(Presentation_CCLISchema)` to create a new message.
  */
 export const Presentation_CCLISchema: GenMessage<Presentation_CCLI> = /*@__PURE__*/
-  messageDesc(file_presentation, 6, 0);
+  messageDesc(file_presentation, 7, 0);
 
 /**
  * Marks a presentation as a Bible passage.
@@ -746,7 +874,7 @@ export type Presentation_BibleReference = Message<"vessel.format.Presentation.Bi
  * Use `create(Presentation_BibleReferenceSchema)` to create a new message.
  */
 export const Presentation_BibleReferenceSchema: GenMessage<Presentation_BibleReference> = /*@__PURE__*/
-  messageDesc(file_presentation, 6, 1);
+  messageDesc(file_presentation, 7, 1);
 
 /**
  * An order to sing the groups in, e.g. Verse 1, Chorus, Verse 2, Chorus.
@@ -775,7 +903,7 @@ export type Presentation_Arrangement = Message<"vessel.format.Presentation.Arran
  * Use `create(Presentation_ArrangementSchema)` to create a new message.
  */
 export const Presentation_ArrangementSchema: GenMessage<Presentation_Arrangement> = /*@__PURE__*/
-  messageDesc(file_presentation, 6, 2);
+  messageDesc(file_presentation, 7, 2);
 
 /**
  * A group and the slides (cues) in it.
@@ -799,7 +927,7 @@ export type Presentation_CueGroup = Message<"vessel.format.Presentation.CueGroup
  * Use `create(Presentation_CueGroupSchema)` to create a new message.
  */
 export const Presentation_CueGroupSchema: GenMessage<Presentation_CueGroup> = /*@__PURE__*/
-  messageDesc(file_presentation, 6, 3);
+  messageDesc(file_presentation, 7, 3);
 
 /**
  * The song's key, as written (original) and as it's played (user), e.g. "G" or "F#m".
@@ -833,7 +961,7 @@ export type Presentation_Music = Message<"vessel.format.Presentation.Music"> & {
  * Use `create(Presentation_MusicSchema)` to create a new message.
  */
 export const Presentation_MusicSchema: GenMessage<Presentation_Music> = /*@__PURE__*/
-  messageDesc(file_presentation, 6, 4);
+  messageDesc(file_presentation, 7, 4);
 
 /**
  * Set on a slideshow imported from PowerPoint, Keynote or Google Slides: it's
@@ -862,7 +990,7 @@ export type Presentation_Slideshow = Message<"vessel.format.Presentation.Slidesh
  * Use `create(Presentation_SlideshowSchema)` to create a new message.
  */
 export const Presentation_SlideshowSchema: GenMessage<Presentation_Slideshow> = /*@__PURE__*/
-  messageDesc(file_presentation, 6, 5);
+  messageDesc(file_presentation, 7, 5);
 
 /**
  * A key: its note, and major or minor.
@@ -886,7 +1014,7 @@ export type MusicKeyScale = Message<"vessel.format.MusicKeyScale"> & {
  * Use `create(MusicKeyScaleSchema)` to create a new message.
  */
 export const MusicKeyScaleSchema: GenMessage<MusicKeyScale> = /*@__PURE__*/
-  messageDesc(file_presentation, 7);
+  messageDesc(file_presentation, 8);
 
 /**
  * @generated from enum vessel.format.MusicKeyScale.MusicKey
@@ -1002,7 +1130,7 @@ export enum MusicKeyScale_MusicKey {
  * Describes the enum vessel.format.MusicKeyScale.MusicKey.
  */
 export const MusicKeyScale_MusicKeySchema: GenEnum<MusicKeyScale_MusicKey> = /*@__PURE__*/
-  enumDesc(file_presentation, 7, 0);
+  enumDesc(file_presentation, 8, 0);
 
 /**
  * @generated from enum vessel.format.MusicKeyScale.MusicScale
@@ -1023,5 +1151,5 @@ export enum MusicKeyScale_MusicScale {
  * Describes the enum vessel.format.MusicKeyScale.MusicScale.
  */
 export const MusicKeyScale_MusicScaleSchema: GenEnum<MusicKeyScale_MusicScale> = /*@__PURE__*/
-  enumDesc(file_presentation, 7, 1);
+  enumDesc(file_presentation, 8, 1);
 

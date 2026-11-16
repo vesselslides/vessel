@@ -12,7 +12,21 @@ import { setGroupDefinitions } from '../shared/groups';
 import { addBible, downloadFreeBible, listBibles, loadBible, removeBible } from './bibles';
 import { DEFAULT_IMPORT_OPTIONS, DOCUMENT_EXTENSIONS, DOCUMENT_KINDS, importOptionsFrom, isDocumentPath, UNSUPPORTED_DOCUMENTS, type DocumentKind, type ImportOptions } from '../shared/import';
 import { loadThemes, saveThemes } from './themes';
-import { insideLibrary, listLibrary, listPlaylists, insidePlaylistFolder, renamePlaylist, saveToLibrary, watchLibrary, writePlaylist } from './library';
+import {
+  insideLibrary,
+  listLibrary,
+  listLibraryFolders,
+  listPlaylists,
+  insidePlaylistFolder,
+  moveInLibrary,
+  newLibraryFolder,
+  renameLibraryFolder,
+  renamePlaylist,
+  saveToLibrary,
+  trashableFolder,
+  watchLibrary,
+  writePlaylist
+} from './library';
 import { getSettings, updateSettings } from './settings';
 import { migrateFromLumen, type MigrationReport } from './migrate';
 import { setupRemote, shutdownRemote } from './remote';
@@ -24,7 +38,7 @@ import { pcoConnect, pcoDisconnect, pcoPlanItems, pcoPlans, pcoServiceTypes, pco
 import { NDI_SITE, NDI_SIZES, normalizeNdi, type NdiStatus } from '../shared/ndi';
 import appIcon from '../../build/icon.png?asset';
 import type { ThemeLibrary } from '../shared/theme';
-import { addToMediaBin, createMediaFolder, deleteMediaFolder, handleMediaProtocol, loadMediaBin, loadMediaFolders, moveMedia, registerMediaScheme, relinkMediaBin, removeFromMediaBin, renameMediaFolder, setMediaLook, setMediaMuted } from './media';
+import { addToMediaBin, createMediaFolder, deleteMediaFolder, handleMediaProtocol, loadMediaBin, loadMediaFolders, moveMedia, registerMediaScheme, relinkMediaBin, removeFromMediaBin, renameMediaFolder, setMediaLook, setMediaMuted, setMediaScale } from './media';
 import { findMoved, missingPaths } from './relink';
 import { availableUpdate, checkForUpdates, installUpdate, startUpdateChecks } from './updates';
 import { describe, endRun, log, startRun } from './log';
@@ -667,6 +681,15 @@ function registerIpc(): void {
     await shell.trashItem(path);
     return true;
   });
+  ipcMain.handle('library:folders', () => listLibraryFolders());
+  ipcMain.handle('library:new-folder', (_e, parent: string, name: string) => newLibraryFolder(String(parent), String(name)));
+  ipcMain.handle('library:rename-folder', (_e, path: string, name: string) => renameLibraryFolder(String(path), String(name)));
+  ipcMain.handle('library:move', (_e, path: string, toFolder: string) => moveInLibrary(String(path), String(toFolder)));
+  ipcMain.handle('library:trash-folder', async (_e, path: string) => {
+    if (!(await trashableFolder(String(path)))) return false;
+    await shell.trashItem(String(path));
+    return true;
+  });
   ipcMain.handle('playlists:trash', async (_e, path: string) => {
     if (await insidePlaylistFolder(path)) await shell.trashItem(path);
   });
@@ -693,6 +716,7 @@ function registerIpc(): void {
   ipcMain.handle('media:folder-delete', (_e, id: string) => deleteMediaFolder(String(id)));
   ipcMain.handle('media:move', (_e, ids: string[], folder: string | null) => moveMedia(ids, folder ? String(folder) : null));
   ipcMain.handle('media:mute', (_e, id: string, muted: boolean) => setMediaMuted(String(id), !!muted));
+  ipcMain.handle('media:scale', (_e, id: string, scale: unknown) => setMediaScale(String(id), scale));
   ipcMain.handle('media:look', (_e, id: string, look: unknown) => setMediaLook(String(id), look));
   ipcMain.handle('media:import', async (_e, folder?: string | null) => {
     const result = await dialog.showOpenDialog(operatorWindow!, {

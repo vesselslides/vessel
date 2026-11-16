@@ -30,6 +30,7 @@ import {
   setSlideText,
   setSongKey,
   setTextStyle,
+  setSlideMotion,
   splitSlide,
   type TextStyleChange
 } from '../../shared/pro/edit';
@@ -39,12 +40,16 @@ import { layoutWithText, songKeyOf } from '../../shared/pro/presentation';
 import { chordSheetToInline, guessKey, hasChords, inlineToChordSheet, joinInline, splitInline } from '../../shared/chords';
 import { tidyLyrics } from '../../shared/import/lyrics';
 import { mediaName } from '../../shared/media';
-import type { Deck, GroupView, MediaItem, SlideView } from '../../shared/types';
-import { MediaView } from './AudienceView';
+import { INITIAL_LIVE, type Deck, type GroupView, type LiveState, type MediaItem, type MediaLook, type SlideView } from '../../shared/types';
+import { AudienceView, MediaView } from './AudienceView';
+import { SlideLookDialog, type SlideLookTarget } from './LookDialog';
+import { isSelectAll, useSlideSelection } from './selection';
+import { DEFAULT_SECONDS, SPEEDS, speedOf, TRANSITIONS, WORD_MOTIONS, WORD_UNITS, wordMotion, type WordUnit } from '../../shared/motion';
 import { MEDIA_MIME } from './MediaBin';
 import { SlideCanvas } from './SlideCanvas';
 import { useFontList } from './ThemeDialog';
 import { KeyButton } from './KeyButton';
+import { AlignBottomIcon, AlignCenterIcon, AlignLeftIcon, AlignMiddleIcon, AlignRightIcon, AlignTopIcon } from './Icons';
 import { dropSide, openGroupMenu, openSlideMenu, SLIDE_DRAG, type DropSide } from './slideMenus';
 
 export type Apply = (change: (p: Presentation) => Presentation) => void;
@@ -155,23 +160,34 @@ function cssToHex(css: string): string {
 }
 
 /**
- * The words' look for the whole presentation or one group: font, size,
- * bold, italic, colour and alignment. Shows the first slide's settings.
+ * The words' look for the chosen slides: font, size, bold, italic, colour and
+ * alignment. Shows the first chosen slide's settings.
  */
-function TextBar({ deck, apply }: { deck: Deck; apply: Apply }): React.JSX.Element | null {
+function TextBar({ slides, total, apply, onSelectAll }: { slides: SlideView[]; total: number; apply: Apply; onSelectAll: () => void }): React.JSX.Element {
   const fonts = useFontList();
-  const [scope, setScope] = useState('all');
-  const group = deck.groups.find((g) => g.id === scope);
-  const slides = group ? group.slides : deck.groups.flatMap((g) => g.slides);
   const first = slides.find((s) => s.layout.boxes.length);
   // A colour picker reports every step of a drag; save once it settles.
   const colorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => clearTimeout(colorTimer.current ?? undefined), []);
-  if (!first) return null;
+  const ids = slides.map((s) => s.cueId);
+  const chosen = <ChosenChip count={slides.length} total={total} onSelectAll={onSelectAll} />;
+  if (!first)
+    return (
+      <div className="text-bar" aria-label="Text style">
+        <span className="text-bar-label">Text</span>
+        <span className="muted">
+          {slides.length
+            ? 'The chosen slides have no words.'
+            : 'Click a slide to change its words. Shift-click picks a run, ⌘/Ctrl-click adds one, ⌘A picks every slide.'}
+        </span>
+        <span className="spacer" />
+        {chosen}
+      </div>
+    );
   const box = first.layout.boxes[0];
   /** The size as the Theme dialog shows it: points on a 1080-high slide. */
   const size = Math.round((box.sizePt * 1080) / (first.layout.height || 1080));
-  const change = (c: TextStyleChange): void => apply((p) => setTextStyle(p, c, group ? group.slides.map((s) => s.cueId) : undefined));
+  const change = (c: TextStyleChange): void => apply((p) => setTextStyle(p, c, ids));
   const resize = (to: number): void => {
     if (to > 0 && to !== size) change({ scale: to / size });
   };
@@ -203,32 +219,201 @@ function TextBar({ deck, apply }: { deck: Deck; apply: Apply }): React.JSX.Eleme
         type="color"
         title="Text colour"
         defaultValue={cssToHex(box.color)}
-        key={box.color}
+        key={`${box.color}|${ids.join(',')}`}
         onChange={(e) => {
           const color = e.target.value;
           clearTimeout(colorTimer.current ?? undefined);
           colorTimer.current = setTimeout(() => change({ color }), 300);
         }}
       />
-      <span className="segmented small" role="group" aria-label="Alignment">
-        {(['left', 'center', 'right'] as const).map((a) => (
-          <button key={a} className={box.align === a ? 'active' : ''} onClick={() => change({ align: a })}>
-            {a === 'left' ? 'Left' : a === 'center' ? 'Centre' : 'Right'}
-          </button>
-        ))}
+      <span className="segmented small icon-segments" role="group" aria-label="Alignment">
+        {(['left', 'center', 'right'] as const).map((a) => {
+          const label = a === 'left' ? 'Align left' : a === 'center' ? 'Centre' : 'Align right';
+          const Glyph = a === 'left' ? AlignLeftIcon : a === 'center' ? AlignCenterIcon : AlignRightIcon;
+          return (
+            <button key={a} className={box.align === a ? 'active' : ''} onClick={() => change({ align: a })} title={label} aria-label={label} aria-pressed={box.align === a}>
+              <Glyph size={16} />
+            </button>
+          );
+        })}
+      </span>
+      <span className="segmented small icon-segments" role="group" aria-label="Position on the slide" title="Where the words sit: at the top, in the middle or at the bottom of their box">
+        {(['top', 'middle', 'bottom'] as const).map((v) => {
+          const label = v === 'top' ? 'Top of the slide' : v === 'middle' ? 'Middle' : 'Bottom of the slide';
+          const Glyph = v === 'top' ? AlignTopIcon : v === 'middle' ? AlignMiddleIcon : AlignBottomIcon;
+          return (
+            <button key={v} className={box.valign === v ? 'active' : ''} onClick={() => change({ valign: v })} title={label} aria-label={label} aria-pressed={box.valign === v}>
+              <Glyph size={16} />
+            </button>
+          );
+        })}
       </span>
       <span className="spacer" />
-      <label className="text-scope">
-        Change
-        <select value={group ? scope : 'all'} onChange={(e) => setScope(e.target.value)}>
-          <option value="all">every slide</option>
-          {deck.groups.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.name || 'Untitled group'} only
+      {chosen}
+    </div>
+  );
+}
+
+/** "3 of 12 slides chosen", and a button to choose them all. */
+function ChosenChip({ count, total, onSelectAll }: { count: number; total: number; onSelectAll: () => void }): React.JSX.Element {
+  return (
+    <span className="chosen-chip">
+      <span className={count ? 'chosen-count' : 'muted'}>
+        {count === total && total > 1 ? `All ${total} slides` : count === 1 ? '1 slide' : `${count} slides`}
+      </span>
+      {count < total && (
+        <button onClick={onSelectAll} title="Choose every slide (⌘A / Ctrl+A)">
+          Choose all
+        </button>
+      )}
+    </span>
+  );
+}
+
+/**
+ * How the chosen slides come on screen (transition) and how their words come
+ * in, with the speed, and a preview of the first chosen slide.
+ */
+function AnimationBar({ slides, previous, apply }: { slides: SlideView[]; previous: SlideView | undefined; apply: Apply }): React.JSX.Element | null {
+  const [preview, setPreview] = useState(false);
+  const first = slides[0];
+  if (!first) return null;
+  const ids = slides.map((s) => s.cueId);
+  const agree = (get: (s: SlideView) => string): string => (slides.every((s) => get(s) === get(first)) ? get(first) : 'mixed');
+  const transition = agree((s) => s.layout.transition?.effect ?? '');
+  const words = agree((s) => s.layout.words?.effect ?? '');
+  const durations = slides.flatMap((s) => [s.layout.transition?.duration, s.layout.words?.duration]).filter((d): d is number => d !== undefined);
+  const speed =
+    durations.length && durations.every((d) => speedOf(d) === speedOf(durations[0])) ? speedOf(durations[0]) : durations.length ? 'mixed' : 'normal';
+  const setMotion = (kind: 'transition' | 'words', effect: string): void =>
+    apply((p) =>
+      slides.reduce(
+        (q, s) =>
+          setSlideMotion(
+            q,
+            [s.cueId],
+            kind,
+            effect
+              ? {
+                  effect,
+                  ...(kind === 'words' && s.layout.words?.by ? { by: s.layout.words.by } : {}),
+                  duration:
+                    (kind === 'transition' ? s.layout.transition : s.layout.words)?.duration ??
+                    (speed === 'mixed' ? DEFAULT_SECONDS : (SPEEDS.find((x) => x.id === speed)?.seconds ?? DEFAULT_SECONDS))
+                }
+              : null
+          ),
+        p
+      )
+    );
+  const byOf = (s: SlideView): string => (s.layout.words ? (s.layout.words.by ?? wordMotion(s.layout.words.effect)?.by ?? 'all') : '');
+  const withWords = slides.filter((s) => s.layout.words);
+  const by = withWords.length ? (withWords.every((s) => byOf(s) === byOf(withWords[0])) ? byOf(withWords[0]) : 'mixed') : 'all';
+  const setBy = (unit: WordUnit): void => apply((p) => withWords.reduce((q, s) => setSlideMotion(q, [s.cueId], 'words', { ...s.layout.words!, by: unit }), p));
+  const setSpeed = (id: string): void => {
+    const seconds = SPEEDS.find((x) => x.id === id)?.seconds ?? DEFAULT_SECONDS;
+    apply((p) =>
+      slides.reduce((q, s) => {
+        let r = q;
+        if (s.layout.transition)
+          r = setSlideMotion(r, [s.cueId], 'transition', {
+            ...s.layout.transition,
+            duration: seconds
+          });
+        if (s.layout.words)
+          r = setSlideMotion(r, [s.cueId], 'words', {
+            ...s.layout.words,
+            duration: seconds
+          });
+        return r;
+      }, p)
+    );
+  };
+  return (
+    <div className="text-bar animation-bar" aria-label="Animation">
+      <span className="text-bar-label">Animation</span>
+      <label className="motion-pick" title="How the slide comes on screen, replacing the one before">
+        Transition
+        <select value={transition} onChange={(e) => setMotion('transition', e.target.value)}>
+          {transition === 'mixed' && <option value="mixed">Mixed</option>}
+          <option value="">Usual fade</option>
+          {TRANSITIONS.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
             </option>
           ))}
         </select>
       </label>
+      <label className="motion-pick" title="How the words come in once the slide is up">
+        Words
+        <select value={words} onChange={(e) => setMotion('words', e.target.value)} disabled={!slides.some((s) => s.layout.boxes.length)}>
+          {words === 'mixed' && <option value="mixed">Mixed</option>}
+          <option value="">All at once</option>
+          {WORD_MOTIONS.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="motion-pick" title="What comes in on its own: everything at once, or each line, sentence, word or letter after the one before">
+        By
+        <select value={by} onChange={(e) => setBy(e.target.value as WordUnit)} disabled={!slides.some((s) => s.layout.words)}>
+          {by === 'mixed' && <option value="mixed">Mixed</option>}
+          {WORD_UNITS.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <span className="segmented small" role="group" aria-label="Speed">
+        {SPEEDS.map((sp) => (
+          <button key={sp.id} className={speed === sp.id ? 'active' : ''} onClick={() => setSpeed(sp.id)} disabled={!durations.length}>
+            {sp.label}
+          </button>
+        ))}
+      </span>
+      <span className="spacer" />
+      <button onClick={() => setPreview(true)} title="Play the first chosen slide coming on, as the audience will see it">
+        ▶ Preview
+      </button>
+      {preview && <MotionPreview slide={first} previous={previous} onClose={() => setPreview(false)} key={ids.join()} />}
+    </div>
+  );
+}
+
+/** The slide before it, then the slide coming on with its transition and words, as on the audience screen; again on Replay. */
+function MotionPreview({ slide, previous, onClose }: { slide: SlideView; previous: SlideView | undefined; onClose: () => void }): React.JSX.Element {
+  const [run, setRun] = useState(0);
+  const [showing, setShowing] = useState<SlideView | undefined>(previous);
+  useEffect(() => {
+    setShowing(previous);
+    const t = setTimeout(() => setShowing(slide), 700);
+    return () => clearTimeout(t);
+  }, [run, slide, previous]);
+  const live: LiveState = {
+    ...INITIAL_LIVE,
+    cleared: !showing,
+    text: showing?.text ?? '',
+    layout: showing?.layout ?? null,
+    background: showing?.background ?? null
+  };
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <div className="modal motion-preview" onMouseDown={(e) => e.stopPropagation()}>
+        <h2>Preview</h2>
+        <div className="motion-preview-screen">
+          <AudienceView live={live} muted />
+        </div>
+        <div className="modal-actions">
+          <button onClick={() => setRun((r) => r + 1)}>Replay</button>
+          <span className="spacer" />
+          <button className="primary" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -244,9 +429,32 @@ interface CardProps {
   media: MediaItem[];
   focus: boolean;
   onFocused: () => void;
+  /** Chosen, for the text and animation bars and the right-click menu. */
+  chosen: boolean;
+  /** A click on the card: chooses it (with Shift or ⌘/Ctrl, a run or one more). */
+  onChoose: (e: React.MouseEvent | React.FocusEvent) => void;
+  /** Every chosen slide, when this one is among several, for the right-click menu. */
+  targets?: SlideView[];
+  onSelectAll: () => void;
+  onAdjustLook: (target: SlideLookTarget) => void;
 }
 
-function SlideCard({ chordMode, deck, slide, index, group, apply, media, focus, onFocused }: CardProps): React.JSX.Element {
+function SlideCard({
+  chordMode,
+  deck,
+  slide,
+  index,
+  group,
+  apply,
+  media,
+  focus,
+  onFocused,
+  chosen,
+  onChoose,
+  targets,
+  onSelectAll,
+  onAdjustLook
+}: CardProps): React.JSX.Element {
   const value = chordMode ? joinInline(slide.text, slide.chords) : slide.text;
   const [text, setText] = useState(value);
   // A slide with several text boxes (a title and body from PowerPoint) gets a field for each.
@@ -291,7 +499,16 @@ function SlideCard({ chordMode, deck, slide, index, group, apply, media, focus, 
     apply((p) => splitSlide(p, group.id, slide.cueId, text.slice(0, cursor), text.slice(cursor), chordMode));
   };
   const menu = (): void =>
-    void openSlideMenu({ deck, slide, media, apply, split: { text, cursor: area.current?.selectionStart ?? 0 } });
+    void openSlideMenu({
+      deck,
+      slide,
+      targets,
+      media,
+      apply,
+      split: { text, cursor: area.current?.selectionStart ?? 0 },
+      onSelectAll,
+      onAdjustLook
+    });
 
   // A background from a .pro file may not be in the media bin; still list it.
   const bgPath = slide.background?.path;
@@ -304,7 +521,10 @@ function SlideCard({ chordMode, deck, slide, index, group, apply, media, focus, 
   return (
     <div
       ref={card}
-      className={`edit-card ${dropHint ? `drop-${dropHint}` : ''}`}
+      className={`edit-card ${chosen ? 'chosen' : ''} ${dropHint ? `drop-${dropHint}` : ''}`}
+      aria-selected={chosen}
+      onMouseDown={onChoose}
+      onFocus={onChoose}
       onContextMenu={(e) => {
         e.preventDefault();
         menu();
@@ -696,7 +916,8 @@ export function Editor({
   focusCue,
   onFocused,
   history,
-  ccliLicence
+  ccliLicence,
+  onMediaLook
 }: {
   deck: Deck;
   presentation: Presentation;
@@ -707,8 +928,55 @@ export function Editor({
   history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void };
   /** The church's CCLI licence number, for the copyright line preview. */
   ccliLicence: string;
+  /** Adjust look saved "everywhere": the look goes on the file in the media bin. */
+  onMediaLook: (item: MediaItem, look: MediaLook | null) => void;
 }): React.JSX.Element {
   const [newGroupName, setNewGroupName] = useState('');
+  // Chosen slides: the text and animation bars and the right-click menu change these. The first is chosen to start.
+  const order = useMemo(() => deck.groups.flatMap((g) => g.slides.map((s) => s.cueId)), [deck.groups]);
+  const selection = useSlideSelection(order);
+  const [lookTarget, setLookTarget] = useState<SlideLookTarget | null>(null);
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current || !order[0]) return;
+    started.current = true;
+    selection.only(order[0]);
+  }, [order, selection]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (isSelectAll(e)) {
+        e.preventDefault();
+        selection.all();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selection]);
+  const slideById = useMemo(() => new Map(deck.groups.flatMap((g) => g.slides.map((s) => [s.cueId, s] as const))), [deck.groups]);
+  const chosenSlides = selection.ids.flatMap((id) => slideById.get(id) ?? []);
+  const before = chosenSlides[0] ? slideById.get(order[order.indexOf(chosenSlides[0].cueId) - 1]) : undefined;
+  const choose =
+    (cueId: string) =>
+    (e: React.MouseEvent | React.FocusEvent): void => {
+      if (e.type === 'focus') {
+        // Tabbing into a slide's words chooses it.
+        if (!selection.has(cueId)) selection.only(cueId);
+        return;
+      }
+      const m = e as React.MouseEvent;
+      // A right-click keeps the slides chosen, so its menu changes them all.
+      if (m.button === 2) {
+        if (!selection.has(cueId)) selection.only(cueId);
+        return;
+      }
+      const inField = !!(m.target as HTMLElement).closest('textarea, input, select, button');
+      if (!inField && selection.click(cueId, m)) {
+        m.preventDefault();
+        return;
+      }
+      selection.only(cueId);
+    };
+
   const [lyricsMode, setLyricsMode] = useState(false);
   const songChords = useMemo(() => deck.slides.flatMap((s) => (s.chords ?? []).map((c) => c.chord)), [deck.slides]);
   // Chords show on each slide (in brackets) when the song has some; the Chords button turns that on and off.
@@ -770,7 +1038,9 @@ export function Editor({
         <LyricsEditor presentation={presentation} deck={deck} apply={apply} onClose={() => setLyricsMode(false)} />
       ) : (
         <>
-          <TextBar deck={deck} apply={apply} />
+          <TextBar slides={chosenSlides} total={order.length} apply={apply} onSelectAll={selection.all} />
+          <AnimationBar slides={chosenSlides} previous={before} apply={apply} />
+          {lookTarget && <SlideLookDialog target={lookTarget} media={media} apply={apply} onMediaLook={onMediaLook} onClose={() => setLookTarget(null)} />}
           <ArrangementBar deck={deck} apply={apply} />
 
           {deck.groups.map((group, gi) => (
@@ -819,6 +1089,11 @@ export function Editor({
                     media={media}
                     focus={focusCue === slide.cueId}
                     onFocused={onFocused}
+                    chosen={selection.has(slide.cueId)}
+                    onChoose={choose(slide.cueId)}
+                    targets={selection.has(slide.cueId) && chosenSlides.length > 1 ? chosenSlides : undefined}
+                    onSelectAll={selection.all}
+                    onAdjustLook={setLookTarget}
                   />
                 ))}
                 <button

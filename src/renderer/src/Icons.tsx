@@ -242,3 +242,47 @@ export const VesselMark = ({ size = 20, title }: { size?: number; title?: string
     <polygon points="638.9,578.9 775.6,500 502.1,342.1" fill="currentColor" stroke="currentColor" strokeWidth="44" strokeLinejoin="round" />
   </svg>
 );
+
+// Text alignment (lines of text against the left, centre or right) and position
+// (blocks against the top, middle or bottom line).
+export const AlignLeftIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M4 6h16M4 10h10M4 14h16M4 18h10" />
+  </Icon>
+);
+
+export const AlignCenterIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M4 6h16M7 10h10M4 14h16M7 18h10" />
+  </Icon>
+);
+
+export const AlignRightIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M4 6h16M10 10h10M4 14h16M10 18h10" />
+  </Icon>
+);
+
+export const AlignTopIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M4 4h16" />
+    <rect x="7" y="7" width="4" height="12" rx="1" />
+    <rect x="13" y="7" width="4" height="7" rx="1" />
+  </Icon>
+);
+
+export const AlignMiddleIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M4 12h16" />
+    <rect x="7" y="6" width="4" height="12" rx="1" />
+    <rect x="13" y="8.5" width="4" height="7" rx="1" />
+  </Icon>
+);
+
+export const AlignBottomIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M4 20h16" />
+    <rect x="7" y="5" width="4" height="12" rx="1" />
+    <rect x="13" y="10" width="4" height="7" rx="1" />
+  </Icon>
+);

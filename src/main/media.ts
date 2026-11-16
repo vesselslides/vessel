@@ -5,7 +5,7 @@ import { basename, extname, join, sep } from 'node:path';
 import { getSettings } from './settings';
 import { Readable } from 'node:stream';
 import { binKindOf, mediaName, normalizeLook } from '../shared/media';
-import type { MediaFolder, MediaItem } from '../shared/types';
+import type { MediaFolder, MediaItem, MediaScale } from '../shared/types';
 
 const MIME: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp',
@@ -168,6 +168,14 @@ export async function deleteMediaFolder(id: string): Promise<{ folders: MediaFol
 
 export async function setMediaMuted(id: string, muted: boolean): Promise<MediaItem[]> {
   const items = (await loadMediaBin()).map((i) => (i.id === id ? { ...i, muted: !!muted || undefined } : i));
+  await saveMediaBin(items);
+  return items;
+}
+
+/** Fill, fit or stretch a picture or video as a background (null: Preferences ▸ Media's choice). */
+export async function setMediaScale(id: string, scale: unknown): Promise<MediaItem[]> {
+  const clean: MediaScale | undefined = scale === 'fill' || scale === 'fit' || scale === 'stretch' ? scale : undefined;
+  const items = (await loadMediaBin()).map((i) => (i.id === id && i.kind !== 'audio' ? { ...i, scale: clean } : i));
   await saveMediaBin(items);
   return items;
 }

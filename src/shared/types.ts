@@ -34,6 +34,8 @@ export interface Background {
   kind: MediaKind;
   loop: boolean;
   scale: MediaScale;
+  /** This slide's own look for it, over the media bin's look for the file. */
+  look?: MediaLook;
 }
 
 /** A file in the media bin. */
@@ -48,13 +50,34 @@ export interface MediaItem {
   muted?: boolean;
   /** How it's drawn as a background: blurred, darkened or less colourful. */
   look?: MediaLook;
+  /** How it fits the screen as a background (else Preferences ▸ Media's choice). */
+  scale?: MediaScale;
 }
 
-/** A background's look (media bin ▸ Adjust look): each 0–100, where 0 blur, 0 darken and 100 colour leave it as it is. */
+/**
+ * How a picture or video is adjusted (Adjust look). blur and darken are 0–100;
+ * color is the saturation, 0 (grey) to 200 (100 leaves it as it is); the rest
+ * are −100 to 100 (hue in degrees, −180 to 180; vignette 0–100), 0 or missing
+ * leaving it as it is.
+ */
 export interface MediaLook {
   blur: number;
   darken: number;
   color: number;
+  brightness?: number;
+  contrast?: number;
+  hue?: number;
+  warmth?: number;
+  vignette?: number;
+}
+
+/** How a slide comes on screen, or how its words come in (see shared/motion.ts for the effects). */
+export interface SlideMotion {
+  effect: string;
+  /** Seconds. */
+  duration: number;
+  /** Words only: what comes in on its own (see WORD_UNITS); everything at once if missing. */
+  by?: 'all' | 'line' | 'sentence' | 'word' | 'letter';
 }
 
 /** A folder in the media bin, to keep media organised (it isn't a folder on disk). */
@@ -131,7 +154,7 @@ export type GraphicLayout = {
   /** Slideshows: when it comes and goes. */
   build?: ElementBuilds;
 } & (
-  | { kind: 'image'; path: string; scale: MediaScale }
+  | { kind: 'image'; path: string; scale: MediaScale; look?: MediaLook }
   | { kind: 'shape'; shape: 'rectangle' | 'ellipse' | 'rounded'; fill: string | null; stroke: { width: number; color: string } | null; roundness: number }
 );
 
@@ -148,6 +171,9 @@ export interface SlideLayout {
   steps?: number;
   /** Draw it as it is after this many clicks, without animating (thumbnails, pictures, the stage screen). */
   step?: number;
+  /** How the slide comes on screen (else the usual fade), and how its words come in. */
+  transition?: SlideMotion;
+  words?: SlideMotion;
 }
 
 export interface SlideView {
@@ -363,6 +389,12 @@ export interface LibraryItem {
   search: string;
 }
 
+/** The folders inside one library folder, as paths relative to it ("Worship/Hymns"). */
+export interface LibraryFolders {
+  root: string;
+  folders: string[];
+}
+
 /** A saved service playlist file. */
 export interface PlaylistFileInfo {
   path: string;
@@ -476,6 +508,8 @@ export interface VesselApi {
   moveMedia(ids: string[], folder: string | null): Promise<MediaItem[]>;
   /** Always play a video silently, or with its sound again. */
   setMediaMuted(id: string, muted: boolean): Promise<MediaItem[]>;
+  /** How a picture or video fits the screen as a background; null goes back to Preferences ▸ Media's choice. */
+  setMediaScale(id: string, scale: MediaScale | null): Promise<MediaItem[]>;
   /** Blur, darken or fade a picture or video wherever it's a background; null puts it back as it was. */
   setMediaLook(id: string, look: MediaLook | null): Promise<MediaItem[]>;
   /** Note that a song was shown today (counted once a day); false if it was already noted. */
@@ -535,6 +569,15 @@ export interface VesselApi {
   revealFile(path: string): Promise<void>;
   /** Move a song in a library folder to the Trash. */
   trashSong(path: string): Promise<boolean>;
+  /** Folders inside the library folders, empty ones too. */
+  listLibraryFolders(): Promise<LibraryFolders[]>;
+  /** Make a folder in a library folder (or a folder in one); returns its path. */
+  newLibraryFolder(parent: string, name: string): Promise<string>;
+  renameLibraryFolder(path: string, name: string): Promise<string>;
+  /** Move a folder (and the songs in it) to the Trash. */
+  trashLibraryFolder(path: string): Promise<boolean>;
+  /** Move a song or folder into another folder of the library; returns its new path. */
+  moveInLibrary(path: string, toFolder: string): Promise<string>;
   remoteStatus(): Promise<RemoteStatus>;
   setRemoteEnabled(enabled: boolean): Promise<RemoteStatus>;
   newRemotePin(): Promise<RemoteStatus>;

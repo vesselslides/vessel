@@ -12,6 +12,25 @@ package vessel.format;
 import "common.proto";
 import "graphics.proto";
 
+// How a picture or video is adjusted where it's shown (blur, colour…).
+// Vessel's own; other apps ignore it. Every value 0 leaves it as it is.
+message VesselLook {
+  // 0–100.
+  double blur = 1;
+  double darken = 2;
+  // −100 (grey) to 100 (twice as colourful).
+  double saturation = 3;
+  // −100 to 100.
+  double brightness = 4;
+  double contrast = 5;
+  // Degrees, −180 to 180.
+  double hue = 6;
+  // −100 (cooler) to 100 (warmer).
+  double warmth = 7;
+  // 0–100: darker corners.
+  double vignette = 8;
+}
+
 // One slide: the elements on it, in drawing order (back to front), and its size.
 message Slide {
   message Element {
@@ -45,6 +64,8 @@ message Slide {
     Build vessel_build_in = 100;
     Build vessel_build_out = 101;
     repeated LineBuild vessel_line_builds = 102;
+    // This slide's own look for a picture on it (else the media bin's look for the file).
+    VesselLook vessel_look = 103;
   }
   repeated Element elements = 1;
   bool draws_background_color = 4;
@@ -76,6 +97,8 @@ message Action {
   message MediaType {
     Media element = 5;
     LayerType layer_type = 10;
+    // This slide's own look for its background (else the media bin's look for the file).
+    VesselLook vessel_look = 100;
   }
   message SlideType {
     oneof Slide {
@@ -131,6 +154,19 @@ message Cue {
   bool isEnabled = 12;
   // Seconds, for the slide timer.
   double completion_time = 13;
+  // How the slide comes on screen, and how its words come in. Vessel's own.
+  message Motion {
+    // Transitions: "fade", "push", "slide", "zoom", "blur", "flip", "cube", "wipe", "iris", "cut".
+    // Words: "fade", "fade-up", "typewriter", "pop", "bounce", "blur-in", "drop", "rise",
+    // "slide-in", "zoom", "zoom-out", "flip", "spin", "glow", "wave", "tracking".
+    string effect = 1;
+    // Seconds.
+    double duration = 2;
+    // Words: what comes in on its own: "all", "line", "sentence", "word" or "letter".
+    string by = 3;
+  }
+  Motion vessel_transition = 100;
+  Motion vessel_text_motion = 101;
 }
 
 message Presentation {

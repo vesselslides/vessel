@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { moveItem, newServiceId, type Service, type ServiceItem } from '../../shared/pro/service';
-import type { LibraryItem, PlaylistFileInfo, Settings } from '../../shared/types';
+import type { LibraryFolders, LibraryItem, PlaylistFileInfo, Settings } from '../../shared/types';
+import { buildLibraryTree, folderChoices, LibraryTree } from './LibraryTree';
 
 /** Drag payloads: a library song (JSON {path, name}) or a service row (its index). */
 /** Drag type for a presentation going into the service; the payload is { path, name }. */
@@ -19,6 +20,11 @@ export interface OpenDeckInfo {
 export interface SidebarProps {
   settings: Settings | null;
   library: LibraryItem[];
+  /** Folders inside the library folders (empty ones too). */
+  libraryFolders: LibraryFolders[];
+  /** A song or folder moved or renamed in the library. */
+  onLibraryMoved: (from: string, to: string) => void;
+  onLibraryChanged: () => void;
   openDecks: OpenDeckInfo[];
   onOpen: (path: string) => void;
   onSelectOpen: (index: number) => void;
@@ -140,6 +146,9 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
   const { service } = props;
   const [query, setQuery] = useState('');
   const [showFolders, setShowFolders] = useState(false);
+  const [newTopFolder, setNewTopFolder] = useState(0);
+  const trees = useMemo(() => buildLibraryTree(props.library, props.libraryFolders), [props.library, props.libraryFolders]);
+  const moveTargets = useMemo(() => folderChoices(trees), [trees]);
   const [dropRow, setDropRow] = useState<number | null>(null);
   /** The playlist row shows the dropdown, or a name field while creating or renaming. */
   const [naming, setNaming] = useState<'new' | 'rename' | 'duplicate' | null>(null);
@@ -236,10 +245,28 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
       { id: 'add', label: 'Add to service', enabled: !!service },
       { type: 'separator' },
       { id: 'duplicate', label: 'Duplicate' },
+      {
+        label: 'Move to folder',
+        enabled: moveTargets.length > 0,
+        submenu: [
+          { id: 'move:', label: 'Top of the library' },
+          { type: 'separator' as const },
+          ...moveTargets.map((f, i) => ({ id: `move:${i}`, label: f.label }))
+        ]
+      },
       { id: 'reveal', label: revealLabel },
       { type: 'separator' },
       { id: 'trash', label: 'Move to Trash…' }
     ]);
+    if (choice?.startsWith('move:')) {
+      const to = choice === 'move:' ? trees[0]?.path : moveTargets[Number(choice.slice(5))]?.path;
+      if (to)
+        void window.vessel
+          .moveInLibrary(item.path, to)
+          .then((moved) => props.onLibraryMoved(item.path, moved))
+          .catch((err: unknown) => alert(err instanceof Error ? err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(err)));
+      return;
+    }
     if (choice === 'open') props.onOpen(item.path);
     else if (choice === 'live') props.onGoLivePath(item.path);
     else if (choice === 'add') props.onServiceItems((list) => [...list, songItem(item.path, item.name)]);
@@ -255,12 +282,42 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
       { id: 'open', label: 'Open…' },
       { id: 'import', label: 'Import PowerPoint, Word or text…' },
       { type: 'separator' },
+      { id: 'new-folder', label: 'New folder…' },
       { id: 'folder', label: 'Add a library folder…' }
     ]);
+    if (choice === 'new-folder') {
+      setQuery('');
+      setNewTopFolder((n) => n + 1);
+      return;
+    }
     if (choice === 'new') props.onNewSong();
     else if (choice === 'open') props.onOpenFiles();
     else if (choice === 'import') props.onImportDocuments();
     else if (choice === 'folder') props.onAddFolder();
+  };
+
+  /** A song in the library list, indented under its folder. */
+  const renderSong = (item: LibraryItem, depth: number): React.JSX.Element => {
+    const open = openByPath.get(item.path);
+    return (
+      <button
+        key={item.path}
+        style={depth ? { paddingLeft: 6 + depth * 14 + 18 } : undefined}
+        className={`list-item ${open?.selected ? 'selected' : ''}`}
+        title={item.path}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData(LIBRARY_MIME, JSON.stringify({ path: item.path, name: item.name }));
+          e.dataTransfer.effectAllowed = 'copy';
+        }}
+        onClick={() => props.onOpen(item.path)}
+        onContextMenu={onMenu(() => void songMenu(item))}
+      >
+        {item.name}
+        {duplicateNames.has(item.name) && fileOf(item.path) !== item.name && <span className="muted"> · {fileOf(item.path)}</span>}
+        {open?.dirty ? ' *' : ''}
+      </button>
+    );
   };
 
   const onMenu = (fn: () => void) => (e: React.MouseEvent) => {
@@ -446,27 +503,18 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
         <input className="library-search" type="search" placeholder="Search titles and lyrics" value={query} onChange={(e) => setQuery(e.target.value)} />
         {props.library.length === 0 && <p className="empty">No songs yet. New songs and imports are saved here.</p>}
         {props.library.length > 0 && results.length === 0 && <p className="empty">Nothing matches “{query}”.</p>}
-        {results.map((item) => {
-          const open = openByPath.get(item.path);
-          return (
-            <button
-              key={item.path}
-              className={`list-item ${open?.selected ? 'selected' : ''}`}
-              title={item.path}
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData(LIBRARY_MIME, JSON.stringify({ path: item.path, name: item.name }));
-                e.dataTransfer.effectAllowed = 'copy';
-              }}
-              onClick={() => props.onOpen(item.path)}
-              onContextMenu={onMenu(() => void songMenu(item))}
-            >
-              {item.name}
-              {duplicateNames.has(item.name) && fileOf(item.path) !== item.name && <span className="muted"> · {fileOf(item.path)}</span>}
-              {open?.dirty ? ' *' : ''}
-            </button>
-          );
-        })}
+        {query.trim() ? (
+          results.map((item) => renderSong(item, 0))
+        ) : (
+          <LibraryTree
+            trees={trees}
+            renderSong={renderSong}
+            onMoved={props.onLibraryMoved}
+            onChanged={props.onLibraryChanged}
+            onStatus={(m) => alert(m)}
+            newTopFolder={newTopFolder}
+          />
+        )}
       </section>
 
       {outside.length > 0 && (

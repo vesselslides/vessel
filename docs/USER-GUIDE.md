@@ -60,7 +60,13 @@ in-app tour (the **?** button at the top right) shows where things are, and
     (General), for backups.
 - **Library:** every `.pro` in `Documents/Vessel/Library` (plus any folders you
   add under *Folders*, e.g. your ProPresenter library) is listed and kept up to
-  date as files change. Search matches titles and lyrics. New songs and
+  date as files change. Search matches titles and lyrics. **Folders inside
+  folders:** right-click the library ▸ *New folder…*, or a folder ▸ *New folder
+  inside…*, *Rename…* or *Move to Trash*. Drag a song or a folder onto a
+  folder to move it, or right-click a song ▸ *Move to folder*. They're real
+  folders inside the library folder, so Finder, Explorer and backups see the
+  same thing; open songs and the service follow a song when it moves. Click a
+  folder to close or open it. New songs and
   imports are saved there straight away; Changes are saved as you go (autosave, on unless turned off in Preferences ▸ General); *Save* (⌘S) saves straight away.
   Quitting with unsaved changes asks first.
 - **Service playlists:** build the running order in the sidebar: drag songs in
@@ -165,10 +171,18 @@ in-app tour (the **?** button at the top right) shows where things are, and
   click a video in the media bin ▸ *Always mute this video* for motion
   backgrounds that should never make a sound; it's marked 🔇 and stays silent
   wherever it's used, including as a slide's background.
-- **Background look:** right-click a picture or video in the media bin ▸
-  *Adjust look* to **blur**, **darken** or take the **colour** out of it, with
-  a preview. It looks that way wherever it's a background (screens, stream,
-  NDI® and thumbnails) and is marked ◐. *Reset* puts it back.
+- **Adjust look:** right-click a picture or video in the media bin ▸
+  *Adjust look* for **brightness**, **contrast**, **saturation**, **hue**,
+  **warmth**, **blur**, **darken** and a **vignette**, with a preview
+  (double-click a slider to put it back). It looks that way wherever it's used,
+  as a background or a picture placed on a slide (screens, stream, NDI® and
+  thumbnails), and is marked ◐. From a slide (right-click ▸ *Adjust look of
+  background…* or *…of picture…*, in Show or Edit) it can be kept for **this
+  slide only** (or the slides chosen) instead. *Reset* puts it back.
+- **Fit to the screen:** right-click a picture or video in the media bin ▸
+  *Fit to the screen* ▸ **Fill**, **Fit** or **Stretch**, for that file over
+  Preferences ▸ Media's choice; it changes on screen straight away. A slide's
+  right-click ▸ *Background* sets it for the chosen slides.
 - **Stage display:** a second screen for the people on stage (choose it with the Screens button; one display can't be used for both outputs). It shows the clock, a
   countdown or count-up timer (amber in the last minute, red and negative when
   over time), the current slide and its group, the next slide in amber (or
@@ -298,14 +312,32 @@ in-app tour (the **?** button at the top right) shows where things are, and
   open a ProPresenter file with disabled slides). It's dimmed and marked
   *Off*; Next and Previous, the stage's *Next* and the phone remote skip it,
   and clicking it still shows it if you need it.
+- **Choosing slides:** in Show and Edit, ⌘-click / Ctrl-click adds or takes
+  away a slide, Shift-click chooses a run, and ⌘A / Ctrl+A chooses every slide.
+  The Edit bars and the right-click menu then change all the chosen slides
+  together (in Show a plain click still puts a slide on screen). Edit starts
+  with the first slide chosen.
+- **Animations:** Edit's **Animation** bar, or right-click a slide (in Show
+  too) ▸ *Transition* and *Words come in*. Transitions: fade, push, slide over,
+  zoom, blur, flip, cube, wipe, iris and cut. Words: fade, fade up,
+  typewriter, pop, bounce, blur in, drop in, rise, slide in, zoom in, zoom
+  out, flip up, spin, glow, wave and spread in, each **by** everything at
+  once, line by line, sentence by sentence, word by word or letter by letter.
+  Each has Slow, Normal and Fast; *▶ Preview* plays the first chosen slide
+  coming on. They play on the screens and the stream.
+- **Right-click a slide** (Show or Edit): go live, edit text, choose all
+  slides, transition, words (and what comes in on its own), text (bigger,
+  smaller, bold, italic, alignment, top / middle / bottom, colour), background, add picture, adjust look, timer, turn off and delete,
+  for every chosen slide at once.
 - **Shortcuts:** number + Enter jumps to a slide; group letters jump to groups
   (shown next to each group name; ProPresenter's own group hot keys are used
   when a file has them); `.` blacks out.
 - **Slide editor** (Edit mode): edit slide text (keeps each text box's font,
   size, colour and alignment; a slide with several text boxes, like a
   PowerPoint title and body, gets a field for each), the **Text** bar to change
-  the font, size (A− / A+, or type one), bold, italic, colour and alignment of
-  every slide or one group, add, duplicate, delete and drag slides between
+  the font, size (A− / A+, or type one), bold, italic, colour, alignment and
+  **position** (Top, Middle or Bottom of the text box) of the **chosen
+  slides**, add, duplicate, delete and drag slides between
   groups, rename, recolour and reorder groups, and build arrangements by
   dragging group chips (groups can repeat). Drag a slide by its picture,
   right-click for the same menu as in Show plus *Split at cursor* (also ⌥Enter),

@@ -26,6 +26,7 @@ import {
   type Deck,
   type DisplayInfo,
   type LiveState,
+  type LibraryFolders,
   type LibraryItem,
   type MediaFolder,
   type MediaItem,
@@ -44,6 +45,8 @@ import { backgroundForSlide, rememberCleared } from '../../shared/live';
 import { LIBRARY_MIME, Sidebar } from './Sidebar';
 import { KeyButton } from './KeyButton';
 import { dropSide, dropSlideOn, openGroupMenu, openSlideMenu, SLIDE_DRAG, type DropSide } from './slideMenus';
+import { SlideLookDialog, type SlideLookTarget } from './LookDialog';
+import { isSelectAll, useSlideSelection } from './selection';
 import { RemoteDialog } from './RemoteDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { ImportDialog } from './ImportDialog';
@@ -260,6 +263,7 @@ function SlideTile({
   live,
   build,
   next,
+  chosen = false,
   onClick,
   onMenu,
   onDropSlide,
@@ -272,7 +276,9 @@ function SlideTile({
   build?: number;
   /** The slide Next (→ or Space) will show. */
   next: boolean;
-  onClick: () => void;
+  /** Chosen (⌘/Ctrl-click, Shift-click or ⌘A), for the right-click menu to change. */
+  chosen?: boolean;
+  onClick: (e: React.MouseEvent) => void;
   onMenu: () => void;
   /** A slide dropped on this one's left half (before it) or right half (after it). */
   onDropSlide: (drag: { groupId: string; cueId: string }, side: DropSide) => void;
@@ -282,7 +288,8 @@ function SlideTile({
   const [dropHint, setDropHint] = useState<DropSide | 'media' | null>(null);
   return (
     <button
-      className={`slide-tile ${live ? 'live' : ''} ${next ? 'next' : ''} ${dropHint ? `drop-${dropHint}` : ''} ${slide.enabled ? '' : 'disabled'}`}
+      className={`slide-tile ${live ? 'live' : ''} ${next ? 'next' : ''} ${chosen ? 'chosen' : ''} ${dropHint ? `drop-${dropHint}` : ''} ${slide.enabled ? '' : 'disabled'}`}
+      aria-pressed={chosen || undefined}
       aria-current={live ? 'true' : undefined}
       title={slide.enabled ? undefined : 'Turned off: Next and Previous skip it. Click to show it anyway; right-click to turn it back on.'}
       onClick={onClick}
@@ -348,6 +355,7 @@ function Operator(): React.JSX.Element {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [library, setLibrary] = useState<LibraryItem[]>([]);
+  const [libraryFolders, setLibraryFolders] = useState<LibraryFolders[]>([]);
   const [playlistFiles, setPlaylistFiles] = useState<PlaylistFileInfo[]>([]);
   const [service, setService] = useState<OpenService | null>(null);
   const serviceRef = useRef<OpenService | null>(null);
@@ -476,6 +484,12 @@ function Operator(): React.JSX.Element {
   const [typedNumber, setTypedNumber] = useState('');
 
   const selected = decks.find((d) => d.deck.id === selectedId);
+  // Show: slides chosen with ⌘/Ctrl-click, Shift-click or ⌘A, for the right-click menu to change together.
+  const showOrder = useMemo(() => [...new Set(selected?.deck.slides.map((s) => s.cueId) ?? [])], [selected?.deck.slides]);
+  const showSelection = useSlideSelection(showOrder);
+  const showSelectionRef = useRef(showSelection);
+  showSelectionRef.current = showSelection;
+  const [lookTarget, setLookTarget] = useState<SlideLookTarget | null>(null);
 
   /** Media files that can't be found, among the open presentation's and the media bin's. Checked again when Vessel comes back to the front. */
   const [missing, setMissing] = useState<string[]>([]);
@@ -538,6 +552,7 @@ function Operator(): React.JSX.Element {
 
   const refreshLibrary = useCallback(() => {
     void window.vessel.listLibrary().then(setLibrary);
+    void window.vessel.listLibraryFolders().then(setLibraryFolders);
     void window.vessel.listPlaylists().then(setPlaylistFiles);
   }, []);
 
@@ -1224,6 +1239,20 @@ function Operator(): React.JSX.Element {
     setStatus(`Moved “${name}” to the Trash.`);
   };
 
+  /**
+   * A song or folder moved or renamed in the library: open songs and the
+   * service follow it to its new place.
+   */
+  const relocateInLibrary = (from: string, to: string): void => {
+    if (from === to) return refreshLibrary();
+    const moved = (p: string | undefined): string | undefined =>
+      p === from ? to : p && (p.startsWith(from + '/') || p.startsWith(from + '\\')) ? to + p.slice(from.length) : p;
+    setDecks((prev) => prev.map((d) => (d.path && moved(d.path) !== d.path ? { ...d, path: moved(d.path) } : d)));
+    if (serviceRef.current?.service.items.some((it) => it.kind === 'presentation' && moved(it.path) !== it.path))
+      changeServiceItems((items) => items.map((it) => (it.kind === 'presentation' && moved(it.path) !== it.path ? { ...it, path: moved(it.path)! } : it)));
+    refreshLibrary();
+  };
+
   /** File ▸ Open Playlist. */
   const openPlaylist = async (): Promise<void> => importPlaylists(await window.vessel.openFiles('playlist'));
 
@@ -1836,6 +1865,11 @@ function Operator(): React.JSX.Element {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         void save();
+        return;
+      }
+      if (mode === 'show' && isSelectAll(e)) {
+        e.preventDefault();
+        showSelectionRef.current.all();
         return;
       }
       if (mode === 'edit' || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -2577,6 +2611,9 @@ function Operator(): React.JSX.Element {
       <Sidebar
         settings={settings}
         library={library}
+        libraryFolders={libraryFolders}
+        onLibraryMoved={relocateInLibrary}
+        onLibraryChanged={refreshLibrary}
         openDecks={decks.map((d) => ({ path: d.path, name: d.deck.name, dirty: d.dirty, selected: d.deck.id === selectedId }))}
         onOpen={openFromLibrary}
         onSelectOpen={(i) => setSelectedId(decks[i]?.deck.id ?? null)}
@@ -2653,6 +2690,7 @@ function Operator(): React.JSX.Element {
             onFocused={() => setFocusCue(null)}
             history={{ canUndo: selected.past.length > 0, canRedo: selected.future.length > 0, undo, redo }}
             ccliLicence={settings?.ccliLicence ?? ''}
+            onMediaLook={(item, look) => void window.vessel.setMediaLook(item.id, look).then(setMedia)}
           />
         ) : selected ? (
           <>
@@ -2725,13 +2763,24 @@ function Operator(): React.JSX.Element {
                       live={liveSlide?.deckId === selected.deck.id && liveSlide.index === index}
                       build={liveSlide?.deckId === selected.deck.id && liveSlide.index === index ? liveSlide.build : undefined}
                       next={index === upNext}
-                      onClick={() => goLiveChosen(selected.deck.id, index)}
+                      chosen={showSelection.has(slide.cueId)}
+                      onClick={(e) => {
+                        if (showSelection.click(slide.cueId, e)) return;
+                        showSelection.clear();
+                        goLiveChosen(selected.deck.id, index);
+                      }}
                       onMenu={() =>
                         void openSlideMenu({
                           deck: selected.deck,
                           slide,
+                          targets:
+                            showSelection.has(slide.cueId) && showSelection.ids.length > 1
+                              ? showSelection.ids.flatMap((id) => selected.deck.slides.find((s) => s.cueId === id) ?? [])
+                              : undefined,
                           media,
                           apply,
+                          onSelectAll: showSelection.all,
+                          onAdjustLook: setLookTarget,
                           onGoLive: () => goLiveChosen(selected.deck.id, index),
                           onCustomTimer: () => setAskTimer({ kind: 'slide', cueId: slide.cueId, seconds: slide.advance?.seconds, to: slide.advance?.to ?? 'next' }),
                           onEditText: () => {
@@ -2965,6 +3014,14 @@ function Operator(): React.JSX.Element {
         onFolders={setMediaFolders}
         onMute={(item, muted) => void window.vessel.setMediaMuted(item.id, muted).then(setMedia)}
         onLook={(item, look) => void window.vessel.setMediaLook(item.id, look).then(setMedia)}
+        onScale={(item, scale) =>
+          void window.vessel.setMediaScale(item.id, scale).then((items) => {
+            setMedia(items);
+            // On screen now: it changes straight away.
+            const now = liveRef.current.background;
+            if (now?.path === item.path) pushLive({ background: { ...now, scale: scale ?? backgroundForPath(item.path)?.scale ?? 'fill' } });
+          })
+        }
         onDropFiles={(paths, folder) => {
           setDraggingFiles(false);
           void addDropped(paths, undefined, folder);
@@ -3031,6 +3088,15 @@ function Operator(): React.JSX.Element {
             setShowPrefs(false);
             setPrefsSection(undefined);
           }}
+        />
+      )}
+      {lookTarget && (
+        <SlideLookDialog
+          target={lookTarget}
+          media={media}
+          apply={apply}
+          onMediaLook={(item, look) => void window.vessel.setMediaLook(item.id, look).then(setMedia)}
+          onClose={() => setLookTarget(null)}
         />
       )}
       {askTimer && (

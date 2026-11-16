@@ -1,11 +1,11 @@
 // Slide backgrounds: ProPresenter stores them as a Media action on the cue,
 // targeting the background layer, with the file referenced by URL.
 import { create } from '@bufbuild/protobuf';
-import { Action_ActionType, Action_LayerType, ActionSchema, type Action } from '../gen/presentation_pb';
+import { Action_ActionType, Action_LayerType, ActionSchema, VesselLookSchema, type Action, type VesselLook } from '../gen/presentation_pb';
 import type { Cue } from '../gen/presentation_pb';
 import { Media_ScaleBehavior, Media_TransportProperties_PlaybackBehavior, MediaSchema, type Media } from '../gen/graphics_pb';
-import { mediaKindOf } from '../media';
-import type { Background, MediaScale } from '../types';
+import { mediaKindOf, normalizeLook } from '../media';
+import type { Background, MediaLook, MediaScale } from '../types';
 import { newUuid } from './ids';
 import { pathToUrl, urlToPath } from './url';
 
@@ -19,6 +19,38 @@ function scaleFromPro(s: Media_ScaleBehavior | undefined): MediaScale {
   if (s === Media_ScaleBehavior.FIT) return 'fit';
   if (s === Media_ScaleBehavior.STRETCH) return 'stretch';
   return 'fill';
+}
+
+/** A slide's own look as stored (saturation −100…100 is the look's colour 0…200). */
+export function lookFromProto(l: VesselLook | undefined): MediaLook | undefined {
+  if (!l) return undefined;
+  return (
+    normalizeLook({
+      blur: l.blur,
+      darken: l.darken,
+      color: 100 + l.saturation,
+      brightness: l.brightness,
+      contrast: l.contrast,
+      hue: l.hue,
+      warmth: l.warmth,
+      vignette: l.vignette
+    }) ?? undefined
+  );
+}
+
+export function lookToProto(look: MediaLook | null | undefined): VesselLook | undefined {
+  const l = normalizeLook(look);
+  if (!l) return undefined;
+  return create(VesselLookSchema, {
+    blur: l.blur,
+    darken: l.darken,
+    saturation: l.color - 100,
+    brightness: l.brightness ?? 0,
+    contrast: l.contrast ?? 0,
+    hue: l.hue ?? 0,
+    warmth: l.warmth ?? 0,
+    vignette: l.vignette ?? 0
+  });
 }
 
 export function isBackgroundAction(action: Action): boolean {
@@ -41,7 +73,8 @@ export function backgroundOfCue(cue: Cue): Background | undefined {
   for (const action of cue.actions) {
     if (!isBackgroundAction(action) || action.ActionTypeData.case !== 'media') continue;
     const bg = backgroundOfMedia(action.ActionTypeData.value.element);
-    if (bg) return bg;
+    const look = lookFromProto(action.ActionTypeData.value.vesselLook);
+    if (bg) return look ? { ...bg, look } : bg;
   }
   return undefined;
 }
@@ -76,7 +109,14 @@ export function backgroundAction(bg: Background): Action {
     name: bg.path.split(/[\\/]/).pop() ?? '',
     type: Action_ActionType.MEDIA,
     isEnabled: true,
-    ActionTypeData: { case: 'media', value: { element: backgroundMedia(bg), layerType: Action_LayerType.BACKGROUND } }
+    ActionTypeData: {
+      case: 'media',
+      value: {
+        element: backgroundMedia(bg),
+        layerType: Action_LayerType.BACKGROUND,
+        vesselLook: lookToProto(bg.look)
+      }
+    }
   });
 }
 
