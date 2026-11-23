@@ -183,6 +183,26 @@ export function setTextStyle(p: Presentation, change: TextStyleChange, cueIds?: 
   });
 }
 
+/**
+ * Use `to` wherever the presentation uses the font `from` (a missing font's
+ * replacement, written into the song). Other fonts, sizes and colours stay.
+ */
+export function replaceFont(p: Presentation, from: string, to: string): Presentation {
+  const key = from.trim().toLowerCase();
+  return edit(p, (d) => {
+    for (const cue of d.cues) {
+      for (const el of textElements(slideOfCue(cue))) {
+        const text = el.element!.text!;
+        const was = parseRtfStyle(text.rtfData!);
+        if (was.font.trim().toLowerCase() !== key) continue;
+        text.rtfData = plainTextToRtf(rtfToPlainText(text.rtfData!), { ...was, font: to });
+        const font = text.attributes?.font;
+        if (font) Object.assign(font, { name: to, family: to });
+      }
+    }
+  });
+}
+
 /** Put a picture on slides at a placement (on top of what's there). */
 export function addSlideImage(p: Presentation, cueIds: string[], path: string, placement: ImagePlacement): Presentation {
   return edit(p, (d) => {

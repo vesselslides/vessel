@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { RemoteCommand, RemoteRole, RemoteStatus } from '../shared/remote';
 import type { AppCommand } from '../shared/shortcuts';
-import type { LiveState, VesselApi, StageState } from '../shared/types';
+import type { FontState, LiveState, VesselApi, StageState } from '../shared/types';
 import type { StreamLook } from '../shared/stream';
 
 const api: VesselApi = {
@@ -16,6 +16,17 @@ const api: VesselApi = {
   moveMedia: (ids, folder) => ipcRenderer.invoke('media:move', ids, folder),
   setMediaMuted: (id, muted) => ipcRenderer.invoke('media:mute', id, muted),
   setMediaScale: (id, scale) => ipcRenderer.invoke('media:scale', id, scale),
+  fontState: () => ipcRenderer.invoke('fonts:state'),
+  isFreeFont: (name) => ipcRenderer.invoke('fonts:free', name),
+  downloadFreeFont: (name) => ipcRenderer.invoke('fonts:download', name),
+  addFontFiles: (family) => ipcRenderer.invoke('fonts:add-files', family),
+  removeFont: (id) => ipcRenderer.invoke('fonts:remove', id),
+  setFontSubstitute: (missing, use) => ipcRenderer.invoke('fonts:substitute', missing, use),
+  onFontsChanged: (listener) => {
+    const handler = (_e: unknown, state: FontState): void => listener(state);
+    ipcRenderer.on('fonts:changed', handler);
+    return () => ipcRenderer.removeListener('fonts:changed', handler);
+  },
   setMediaLook: (id, look) => ipcRenderer.invoke('media:look', id, look),
   logSongUsage: (entry) => ipcRenderer.invoke('ccli:log', entry),
   songUsage: () => ipcRenderer.invoke('ccli:usage'),

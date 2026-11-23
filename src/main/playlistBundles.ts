@@ -13,6 +13,7 @@ import { listLibrary } from './library';
 import { addToMediaFolderNamed, loadMediaBin } from './media';
 import { songIndex } from './songIndex';
 import { unbundlePlaylist, writePlaylistBundle } from './playlistBundle';
+import { addSharedFont, fontsFor } from './fonts';
 import { getSettings } from './settings';
 
 /** Ask where, then save the service with its songs and media. Null if cancelled. */
@@ -28,7 +29,7 @@ export async function exportPlaylistBundle(
   };
   const picked = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts);
   if (picked.canceled || !picked.filePath) return null;
-  const { files, missing } = await writePlaylistBundle(picked.filePath, service, edited);
+  const { files, missing } = await writePlaylistBundle(picked.filePath, service, edited, fontsFor);
   log.info(`Exported a playlist with media: ${files} files${missing.length ? `, ${missing.length} missing` : ''}`);
   return { path: picked.filePath, files, missing };
 }
@@ -43,7 +44,8 @@ export async function readPlaylistFile(path: string): Promise<OpenedFile> {
     libraryFolder: s.libraryFolder,
     mediaRoot: join(dirname(s.libraryFolder), 'Media'),
     songs: songIndex((await listLibrary()).map((l) => l.path)),
-    existingMedia: (await loadMediaBin()).map((m) => m.path)
+    existingMedia: (await loadMediaBin()).map((m) => m.path),
+    addFont: addSharedFont
   });
   if (!unbundled) return { path, bytes: new Uint8Array(await readFile(path)) };
   if (unbundled.media.length) await addToMediaFolderNamed(unbundled.media, unbundled.name);

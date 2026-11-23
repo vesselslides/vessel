@@ -40,6 +40,7 @@ import appIcon from '../../build/icon.png?asset';
 import type { ThemeLibrary } from '../shared/theme';
 import { addToMediaBin, createMediaFolder, deleteMediaFolder, handleMediaProtocol, loadMediaBin, loadMediaFolders, moveMedia, registerMediaScheme, relinkMediaBin, removeFromMediaBin, renameMediaFolder, setMediaLook, setMediaMuted, setMediaScale } from './media';
 import { findMoved, missingPaths } from './relink';
+import { addFontFiles, downloadFreeFont, FONT_EXTENSIONS, fontState, isFreeFont, removeFont, setSubstitute } from './fonts';
 import { availableUpdate, checkForUpdates, installUpdate, startUpdateChecks } from './updates';
 import { describe, endRun, log, startRun } from './log';
 import { saveProblemReport } from './problemReport';
@@ -717,6 +718,22 @@ function registerIpc(): void {
   ipcMain.handle('media:move', (_e, ids: string[], folder: string | null) => moveMedia(ids, folder ? String(folder) : null));
   ipcMain.handle('media:mute', (_e, id: string, muted: boolean) => setMediaMuted(String(id), !!muted));
   ipcMain.handle('media:scale', (_e, id: string, scale: unknown) => setMediaScale(String(id), scale));
+  // Vessel's own fonts (Documents/Vessel/Fonts) and stand-ins for missing ones.
+  ipcMain.handle('fonts:state', () => fontState());
+  ipcMain.handle('fonts:free', (_e, name: string) => isFreeFont(String(name)));
+  ipcMain.handle('fonts:download', (_e, name: string) => downloadFreeFont(String(name)));
+  ipcMain.handle('fonts:remove', (_e, id: string) => removeFont(String(id)));
+  ipcMain.handle('fonts:substitute', (_e, missing: string, use: string | null) => setSubstitute(String(missing), use ? String(use) : null));
+  ipcMain.handle('fonts:add-files', async (e, family: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender) ?? undefined;
+    const pick = await dialog.showOpenDialog(win!, {
+      title: `Choose the font file for “${family}”`,
+      buttonLabel: 'Use this font',
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'Fonts', extensions: FONT_EXTENSIONS }]
+    });
+    return pick.canceled ? null : addFontFiles(String(family), pick.filePaths);
+  });
   ipcMain.handle('media:look', (_e, id: string, look: unknown) => setMediaLook(String(id), look));
   ipcMain.handle('media:import', async (_e, folder?: string | null) => {
     const result = await dialog.showOpenDialog(operatorWindow!, {

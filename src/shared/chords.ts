@@ -23,10 +23,26 @@ const CHORD = /^[A-G](?:#|b|♯|♭)?(?:maj|min|m|M|sus|dim|aug|add|°|ø|\+)?\d
 export const isChord = (token: string): boolean => CHORD.test(token.replace(/^\(|\)$/g, ''));
 
 /** A line made only of chords (and bar lines or repeat marks), as in a chord chart; "Intro: G C D" counts too. */
+/**
+ * The chords in one item of a chord line, each with how far into the item it
+ * starts: "G" is one; "A-D" (or "A–D"), chords joined by a dash, is two. Null
+ * when it isn't chords.
+ */
+export function chordsIn(token: string): Array<{ offset: number; chord: string }> | null {
+  if (isChord(token)) return [{ offset: 0, chord: token.replace(/^\(|\)$/g, '') }];
+  if (!/[-–]/.test(token)) return null;
+  const parts: Array<{ offset: number; chord: string }> = [];
+  for (const m of token.matchAll(/[^-–]+/g)) {
+    if (!isChord(m[0])) return null;
+    parts.push({ offset: m.index!, chord: m[0].replace(/^\(|\)$/g, '') });
+  }
+  return parts.length > 1 ? parts : null;
+}
+
 export function isChordLine(line: string): boolean {
   const played = /^\s*(?:intro|outro|instrumental|interlude|turnaround|tag|ending|riff|vamp)\b[^:]{0,12}:\s*(.*)$/i.exec(line);
   const tokens = (played ? played[1] : line).trim().split(/\s+/).filter(Boolean);
-  return tokens.some((t) => isChord(t)) && tokens.every((t) => isChord(t) || /^[|/\-–.]+$/.test(t) || /^[x×]\d$/i.test(t));
+  return tokens.some((t) => chordsIn(t)) && tokens.every((t) => chordsIn(t) || /^[|/\-–.]+$/.test(t) || /^[x×]\d$/i.test(t));
 }
 
 const INLINE = /\[([^\]\s]{1,16})\]/g;
@@ -85,7 +101,7 @@ export function chordSheetToInline(sheet: string, isLabel: (line: string) => boo
     }
     // Each chord goes on the letter under its first character (counting the words alone, if they have [G] chords already).
     const below = splitInline(words);
-    const above = [...line.matchAll(/\S+/g)].filter((m) => isChord(m[0])).map((m) => ({ at: Math.min(m.index!, below.text.length), chord: m[0].replace(/^\(|\)$/g, '') }));
+    const above = [...line.matchAll(/\S+/g)].flatMap((m) => (chordsIn(m[0]) ?? []).map((c) => ({ at: Math.min(m.index! + c.offset, below.text.length), chord: c.chord })));
     out.push(joinInline(below.text, [...below.chords, ...above]));
     i++;
   }

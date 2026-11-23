@@ -4,6 +4,10 @@ import { DEFAULT_STREAM_LOOK, type StreamLook } from '../../shared/stream';
 import { INITIAL_LIVE, type LiveState } from '../../shared/types';
 import { StreamView } from './StreamView';
 import './styles.css';
+import { startVesselFonts } from './fonts';
+
+// Vessel's own fonts and stand-ins for missing ones, in this window too.
+startVesselFonts();
 
 // The NDI window opens see-through (#see-through), so its first frames are too.
 const seeThrough = location.hash === '#see-through';

@@ -59,7 +59,7 @@ import { BiblePanel } from './BiblePanel';
 import { AudioPlayer, type AudioTrack } from './AudioPlayer';
 import { binKindOf, mediaName } from '../../shared/media';
 import { backgroundForPath } from '../../shared/pro/background';
-import { BibleIcon, CheckIcon, HelpIcon, ImageIcon, ImportIcon, MutedIcon, NewSongIcon, OpenIcon, PlayIcon, PlaylistIcon, RemoteIcon, RepeatIcon, SaveIcon, SettingsIcon, SoundIcon, ThemesIcon, TimerIcon, VesselMark, WarningIcon } from './Icons';
+import { BibleIcon, CheckIcon, HelpIcon, ImageIcon, ImportIcon, MutedIcon, NewSongIcon, OpenIcon, PlayIcon, PlaylistIcon, RemoteIcon, FontIcon, RepeatIcon, SaveIcon, SettingsIcon, SoundIcon, ThemesIcon, TimerIcon, VesselMark, WarningIcon } from './Icons';
 import { ModeSwitch, ScreensButton, ToolButton } from './Toolbar';
 import { CommandPalette, type PaletteAction } from './CommandPalette';
 import { WelcomeDialog } from './WelcomeDialog';
@@ -89,6 +89,11 @@ import { MEDIA_MIME, MediaBin } from './MediaBin';
 import { AudienceView, MediaView, showMediaLooks } from './AudienceView';
 import { SlideCanvas } from './SlideCanvas';
 import './styles.css';
+import { fontsKnown, missingFonts, startVesselFonts, useFontsVersion } from './fonts';
+import { FontsDialog } from './FontsDialog';
+
+// Vessel's own fonts and stand-ins for missing ones, in this window too.
+startVesselFonts();
 
 interface LoadedDeck {
   deck: Deck;
@@ -356,6 +361,8 @@ function Operator(): React.JSX.Element {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [library, setLibrary] = useState<LibraryItem[]>([]);
+  /** Set by an import: check the opened presentation's fonts. */
+  const checkFontsAfterImport = useRef(false);
   const [libraryFolders, setLibraryFolders] = useState<LibraryFolders[]>([]);
   const [playlistFiles, setPlaylistFiles] = useState<PlaylistFileInfo[]>([]);
   const [service, setService] = useState<OpenService | null>(null);
@@ -782,6 +789,8 @@ function Operator(): React.JSX.Element {
 
   /** Open or import files; returns the presentations that now have a file (to add to a service). */
   const addOpened = async (files: OpenedFile[], extra: string[] = []): Promise<Array<{ path: string; name: string }>> => {
+    // Imported from PowerPoint, Keynote or a document: check its fonts once it's open.
+    if (files.some((f) => f.documentReport)) checkFontsAfterImport.current = true;
     const messages: string[] = [];
     const kept: Array<{ path: string; name: string }> = [];
     let unpacked = 0;
@@ -2080,6 +2089,37 @@ function Operator(): React.JSX.Element {
     for (const path of presenterPaths) void openPath(path, { select: false });
   }, [presenterPathsKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const [presenterLocked, setPresenterLocked] = useState(false);
+
+  // Fonts the open presentation uses that this computer doesn't have: a notice on it, and
+  // the Fonts window, which opens by itself right after an import that needs it.
+  const fontsVersion = useFontsVersion();
+  const [fontsWindow, setFontsWindow] = useState(false);
+  // A font with a stand-in chosen on this computer isn't missing any more (the Fonts window still lists it, to change).
+  const missingHere = useMemo(() => (selected ? missingFonts(selected.deck).filter((m) => !m.substitute) : []), [selected, fontsVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!checkFontsAfterImport.current || !selected || !fontsKnown()) return;
+    checkFontsAfterImport.current = false;
+    if (missingHere.length) setFontsWindow(true);
+  }, [selected?.deck.id, fontsVersion, missingHere.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  const standInsHere = useMemo(() => (selected ? missingFonts(selected.deck).filter((m) => m.substitute) : []), [selected, fontsVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fontsNotice =
+    missingHere.length === 0 && standInsHere.length > 0 ? (
+      <button
+        className="fonts-chip quiet"
+        onClick={() => setFontsWindow(true)}
+        title={`Drawn with stand-ins on this computer: ${standInsHere.map((m) => `${m.font} → ${m.substitute}`).join(', ')}. Click to change.`}
+      >
+        <FontIcon size={14} /> {standInsHere.length === 1 ? '1 font stand-in' : `${standInsHere.length} font stand-ins`}
+      </button>
+    ) : missingHere.length > 0 ? (
+      <button
+        className="fonts-chip"
+        onClick={() => setFontsWindow(true)}
+        title={`Not on this computer: ${missingHere.map((m) => m.font).join(', ')}. Click to download, add or replace ${missingHere.length === 1 ? 'it' : 'them'}.`}
+      >
+        <WarningIcon size={14} /> {missingHere.length === 1 ? '1 font missing' : `${missingHere.length} fonts missing`}
+      </button>
+    ) : null;
   const lastPresenterDeck = useRef<string | null>(null);
   const liveLoaded = decks.find((d) => d.deck.id === liveSlide?.deckId);
   const isTheirs = (d: LoadedDeck | undefined): boolean => !!d?.path && presenterPaths.includes(d.path);
@@ -2728,6 +2768,7 @@ function Operator(): React.JSX.Element {
             history={{ canUndo: selected.past.length > 0, canRedo: selected.future.length > 0, undo, redo }}
             ccliLicence={settings?.ccliLicence ?? ''}
             onMediaLook={(item, look) => void window.vessel.setMediaLook(item.id, look).then(setMedia)}
+            fontsNotice={fontsNotice}
           />
         ) : selected ? (
           <>
@@ -2745,6 +2786,7 @@ function Operator(): React.JSX.Element {
                 {selected.deck.name || 'Untitled'}
                 {selected.deck.arrangementName && <span className="arrangement"> · {selected.deck.arrangementName}</span>}
               </h2>
+              {fontsNotice}
               {selected.deck.slideshow && (
                 <span
                   className="slideshow-badge"
@@ -3135,6 +3177,7 @@ function Operator(): React.JSX.Element {
           }}
         />
       )}
+      {fontsWindow && selected && <FontsDialog deck={selected.deck} apply={apply} onClose={() => setFontsWindow(false)} />}
       {lookTarget && (
         <SlideLookDialog
           target={lookTarget}

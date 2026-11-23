@@ -10,6 +10,10 @@ import { mediaUrl } from '../../shared/media';
 import type { Background, SlideView } from '../../shared/types';
 import { SlideCanvas } from './SlideCanvas';
 import './styles.css';
+import { startVesselFonts } from './fonts';
+
+// Vessel's own fonts and stand-ins for missing ones, in this window too.
+startVesselFonts();
 
 declare global {
   interface Window {

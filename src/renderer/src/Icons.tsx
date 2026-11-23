@@ -370,3 +370,16 @@ export const StarIcon = (p: IconProps): React.JSX.Element => (
     <path d="M12 4l2.4 5 5.4.7-4 3.7 1 5.4L12 16.2l-4.8 2.6 1-5.4-4-3.7 5.4-.7z" />
   </Icon>
 );
+
+export const DownloadIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14" />
+  </Icon>
+);
+
+/** A font: a capital A with its crossbar. */
+export const FontIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M5 19L11 5h2l6 14M7.6 13.5h8.8" />
+  </Icon>
+);

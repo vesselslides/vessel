@@ -17,6 +17,11 @@ import { mediaPathsOf, relinkMedia } from '../shared/pro/relink';
 import { decodeService, encodeService, serviceToDocument, type Service } from '../shared/pro/service';
 import { safeFileName } from '../shared/vesselFile';
 import { sameMedia, type SongIndex } from './songIndex';
+import { fontsUsedBy, type PackedFont, type SharedFont } from '../shared/pro/fontsUsed';
+
+/** Where Vessel packs fonts in a bundle, and the list of them (other apps ignore both). */
+const FONTS_DIR = 'Vessel Fonts';
+const FONTS_LIST = 'Vessel Fonts/fonts.json';
 import { unzipTo, zipWriter } from './zipStream';
 
 /** Where a file goes inside the bundle: its path without the leading "/" (or "C:"). */
@@ -27,10 +32,17 @@ export const bundlePath = (path: string): string =>
     .replace(/^\/+/, '');
 
 /** Write the service, its songs and their media as one .proPlaylist. Songs or media not found are named in `missing`. */
-export async function writePlaylistBundle(target: string, service: Service, edited: Record<string, Uint8Array> = {}): Promise<{ files: number; missing: string[] }> {
+export async function writePlaylistBundle(
+  target: string,
+  service: Service,
+  edited: Record<string, Uint8Array> = {},
+  /** Vessel's copies of fonts the songs use, to pack along (other apps ignore them). */
+  fontsFor?: (families: string[]) => Promise<SharedFont[]>
+): Promise<{ files: number; missing: string[] }> {
   const missing: string[] = [];
   const songs = [...new Set(service.items.flatMap((it) => (it.kind === 'presentation' ? [it.path] : [])))];
   const media = new Set<string>();
+  const families = new Set<string>();
   const found: string[] = [];
   for (const path of songs) {
     if (!existsSync(path) && !edited[path]) {
@@ -39,7 +51,9 @@ export async function writePlaylistBundle(target: string, service: Service, edit
     }
     found.push(path);
     try {
-      for (const m of mediaPathsOf(parsePresentation(edited[path] ?? new Uint8Array(await readFile(path))))) media.add(m);
+      const presentation = parsePresentation(edited[path] ?? new Uint8Array(await readFile(path)));
+      for (const m of mediaPathsOf(presentation)) media.add(m);
+      for (const f of fontsUsedBy(presentation)) families.add(f);
     } catch {
       // Not readable as a presentation: bundled as it is, without media.
     }
@@ -62,6 +76,12 @@ export async function writePlaylistBundle(target: string, service: Service, edit
       // Pictures and videos are compressed already.
       await zip.add(bundlePath(path), path, false);
       files++;
+    }
+    const fonts = fontsFor && families.size ? await fontsFor([...families]) : [];
+    if (fonts.length) {
+      const packed: PackedFont[] = fonts.map((f, i) => ({ family: f.family, weight: f.weight, italic: f.italic, source: f.source, from: f.from, file: `${FONTS_DIR}/${i + 1}-${basename(f.path)}` }));
+      for (const [i, f] of fonts.entries()) await zip.add(packed[i].file, f.path, false);
+      await zip.add(FONTS_LIST, new TextEncoder().encode(JSON.stringify(packed, null, 2)));
     }
     await zip.close();
   } catch (err) {
@@ -123,6 +143,8 @@ export async function unbundlePlaylist(
     songs?: SongIndex;
     /** Media in the bin: the same file (name and size) is used rather than copied. */
     existingMedia?: string[];
+    /** Keep a font that came packed along in Vessel's fonts folder. */
+    addFont?: (font: PackedFont, path: string) => Promise<void>;
   }
 ): Promise<Unbundled | null> {
   const head = new Uint8Array(4);
@@ -136,7 +158,16 @@ export async function unbundlePlaylist(
   try {
     await unzipTo(file, scratch);
     const all = await listFiles(scratch);
-    const entries = all.filter((e) => e !== 'data' && !e.endsWith('/data'));
+    // Fonts Vessel packed along: kept in Vessel's fonts folder.
+    if (to.addFont && all.includes(FONTS_LIST)) {
+      try {
+        const packed = JSON.parse(await readFile(join(scratch, FONTS_LIST), 'utf8')) as PackedFont[];
+        for (const f of packed) if (typeof f.file === 'string' && all.includes(f.file)) await to.addFont(f, join(scratch, ...f.file.split('/')));
+      } catch {
+        // A damaged list: the playlist still opens, drawn with what fonts there are.
+      }
+    }
+    const entries = all.filter((e) => e !== 'data' && !e.endsWith('/data') && e !== FONTS_LIST && !e.startsWith(`${FONTS_DIR}/`));
     if (!entries.length) return null;
     const dataEntry = all.includes('data') ? 'data' : all.find((e) => e.endsWith('/data'));
     if (!dataEntry) throw new Error('This playlist file has no playlist inside');

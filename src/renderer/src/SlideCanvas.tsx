@@ -4,6 +4,7 @@ import { lookFilter, lookFor, lookOverlay, mediaUrl } from '../../shared/media';
 import { wordMotion } from '../../shared/motion';
 import type { BuildLayout, ElementBuilds, GraphicLayout, SlideLayout, SlideMotion, TextBoxLayout } from '../../shared/types';
 import { useMediaLooks } from './looks';
+import { fontReplaced, useFontsVersion } from './fonts';
 
 // ---- Slideshow builds: what's on screen after so many clicks, and the effects between
 
@@ -176,6 +177,7 @@ function BuiltLines({ box, at }: { box: TextBoxLayout; at: Builds }): React.JSX.
 }
 
 function TextBox({ box, layout, at }: { box: TextBoxLayout; layout: SlideLayout; at: Builds }): React.JSX.Element {
+  const fontsVersion = useFontsVersion();
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
 
@@ -184,9 +186,11 @@ function TextBox({ box, layout, at }: { box: TextBoxLayout; layout: SlideLayout;
     const o = outer.current;
     const i = inner.current;
     if (!o || !i) return;
+    // Imported slideshows: if the font is drawn with something else here (missing, or a stand-in), shrink to fit rather than spill.
+    const shrink = box.shrink || (!!layout.slideshow && fontReplaced(box.font));
     const fit = (): void => {
       i.style.setProperty('--fit', '1');
-      if (!box.shrink) return;
+      if (!shrink) return;
       // Measure the words as they end up, not mid-animation (a zoom or a drop would look too big).
       i.classList.add('wm-measure');
       let scale = 1;
@@ -199,8 +203,13 @@ function TextBox({ box, layout, at }: { box: TextBoxLayout; layout: SlideLayout;
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(o);
-    return () => ro.disconnect();
-  }, [box]);
+    // A font that arrives after drawing (Vessel's own, loading) changes the size: fit again.
+    document.fonts.addEventListener('loadingdone', fit);
+    return () => {
+      ro.disconnect();
+      document.fonts.removeEventListener('loadingdone', fit);
+    };
+  }, [box, fontsVersion, layout.slideshow]);
 
   const font = cssFont(box.font, box.bold, box.italic);
   const style: CSSProperties = {

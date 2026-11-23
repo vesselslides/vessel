@@ -395,6 +395,29 @@ export interface LibraryFolders {
   folders: string[];
 }
 
+/** A font file in Vessel's own fonts folder (Documents/Vessel/Fonts), usable on every screen. */
+export interface VesselFont {
+  id: string;
+  /** The family the slides ask for ("Gotham Bold", "Montserrat"). */
+  family: string;
+  /** File name inside the fonts folder. */
+  file: string;
+  /** 100–900; none means it serves every weight (a single face standing in for the family). */
+  weight?: number;
+  italic?: boolean;
+  /** Where it came from: carried inside a PowerPoint, downloaded free, or a font file the church added. */
+  source: 'embedded' | 'download' | 'file';
+  /** For embedded fonts: the presentation it came in. */
+  from?: string;
+}
+
+/** Vessel's fonts and the stand-ins chosen for missing ones, as every window needs them. */
+export interface FontState {
+  fonts: Array<VesselFont & { url: string }>;
+  /** Missing font (as the slides name it, lower-cased) → the font to draw it with on this computer. */
+  substitutes: Record<string, string>;
+}
+
 /** A saved service playlist file. */
 export interface PlaylistFileInfo {
   path: string;
@@ -510,6 +533,17 @@ export interface VesselApi {
   setMediaMuted(id: string, muted: boolean): Promise<MediaItem[]>;
   /** How a picture or video fits the screen as a background; null goes back to Preferences ▸ Media's choice. */
   setMediaScale(id: string, scale: MediaScale | null): Promise<MediaItem[]>;
+  /** Vessel's own fonts and the stand-ins chosen for missing ones. */
+  fontState(): Promise<FontState>;
+  /** Whether a font can be downloaded free (Google Fonts). */
+  isFreeFont(name: string): Promise<boolean>;
+  downloadFreeFont(name: string): Promise<FontState>;
+  /** Pick font files for `family` and keep them in Vessel's fonts folder; null if cancelled. */
+  addFontFiles(family: string): Promise<FontState | null>;
+  removeFont(id: string): Promise<FontState>;
+  /** Draw `missing` with `use` on this computer; null takes the stand-in away. */
+  setFontSubstitute(missing: string, use: string | null): Promise<FontState>;
+  onFontsChanged(listener: (state: FontState) => void): () => void;
   /** Blur, darken or fade a picture or video wherever it's a background; null puts it back as it was. */
   setMediaLook(id: string, look: MediaLook | null): Promise<MediaItem[]>;
   /** Note that a song was shown today (counted once a day); false if it was already noted. */

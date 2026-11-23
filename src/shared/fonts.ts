@@ -26,7 +26,40 @@ const spaced = (name: string): string => name.replace(/([a-z])([A-Z])/g, '$1 $2'
 
 const quote = (name: string): string => `"${name.replace(/"/g, '')}"`;
 
+// Stand-ins for fonts this computer doesn't have (the Missing fonts window): set
+// in each window from Vessel's font state, used wherever text is drawn.
+let substitutes: Record<string, string> = {};
+
+export function setFontSubstitutes(next: Record<string, string>): void {
+  substitutes = next ?? {};
+}
+
+/** The stand-in chosen for a font on this computer, if any. */
+export const substituteFor = (name: string): string | undefined => substitutes[name.trim().toLowerCase()];
+
+/** The names a font might be found under: as written, "HelveticaNeue" spaced out, and without its face ("Futura-Bold" → "Futura"). */
+export function fontNames(name: string): string[] {
+  const trimmed = name.trim();
+  const dash = trimmed.lastIndexOf('-');
+  const family = dash > 0 ? trimmed.slice(0, dash) : trimmed;
+  return [...new Set([trimmed, spaced(trimmed), spaced(family), family])].filter(Boolean);
+}
+
 export function cssFont(name: string, bold = false, italic = false): CssFont {
+  const sub = substituteFor(name);
+  if (sub && sub.toLowerCase() !== name.trim().toLowerCase()) {
+    // Drawn with the stand-in, keeping the original's weight and slant ("Gotham-Bold" → Montserrat bold).
+    const own = plainCssFont(name, bold, italic);
+    // "Gotham Bold" names its weight with a space, not a dash: keep that weight too.
+    const word = WEIGHTS.find(([re]) => re.test(name.trim().split(/\s+/).pop() ?? ''));
+    if (word && !bold) own.weight = word[1];
+    const with_ = plainCssFont(sub, own.weight >= 600, own.italic);
+    return { ...with_, weight: own.weight, family: `${with_.family.replace(/, system-ui, (sans-)?serif$/, '')}, ${own.family}` };
+  }
+  return plainCssFont(name, bold, italic);
+}
+
+function plainCssFont(name: string, bold = false, italic = false): CssFont {
   const trimmed = name.trim() || 'Helvetica';
   const dash = trimmed.lastIndexOf('-');
   let family = trimmed;

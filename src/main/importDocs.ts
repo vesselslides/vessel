@@ -9,6 +9,7 @@ import { lyricsToPresentation } from '../shared/import/lyrics';
 import { convertPptx } from '../shared/import/pptx';
 import { serializePresentation } from '../shared/pro/presentation';
 import { convertToPptx } from './convertSlides';
+import { addFontBytes } from './fonts';
 import type { OpenedFile } from '../shared/types';
 
 const safe = (name: string): string => name.replace(/[\\/:*?"<>|]/g, '_').replace(/^\.+/, '_') || 'Imported';
@@ -39,10 +40,12 @@ export async function importDocumentFile(path: string, opts: ImportOptions): Pro
     const bytes = CONVERTED_SLIDES.includes(ext) ? await convertToPptx(path) : new Uint8Array(await readFile(path));
     let folder: string | null = null;
     const saved = new Map<string, string>();
+    const fonts: Array<{ family: string; data: Uint8Array; ext: 'ttf' | 'otf'; bold: boolean; italic: boolean }> = [];
     const { presentation, report } = convertPptx(bytes, name, {
       look: opts.pptxAs,
       source,
       lyrics: opts,
+      saveFont: (family, font) => fonts.push({ family, ...font }),
       saveMedia: (zipPath, data) => {
         const known = saved.get(zipPath);
         if (known) return known;
@@ -54,6 +57,16 @@ export async function importDocumentFile(path: string, opts: ImportOptions): Pro
         return target;
       }
     });
+    // Fonts the file carries go in Vessel's fonts folder, so it looks right where they aren't installed.
+    for (const f of fonts) {
+      const both = f.bold && f.italic;
+      await addFontBytes(f.family, f.data, f.ext, {
+        source: 'embedded',
+        from: name,
+        // A family with several faces needs each one's weight; a single face serves them all.
+        ...(fonts.filter((x) => x.family === f.family).length > 1 ? { weight: f.bold ? 700 : 400, italic: f.italic || both || undefined } : {})
+      });
+    }
     const documentReport: DocumentImportReport = {
       source,
       look: opts.pptxAs,
@@ -68,7 +81,8 @@ export async function importDocumentFile(path: string, opts: ImportOptions): Pro
       ...(report.lyrics?.key ? { key: report.lyrics.key } : {}),
       ccli: report.lyrics?.ccli ?? false,
       skipped: report.skipped,
-      ...(opts.pptxAs === 'slideshow' ? { clicks: report.clicks ?? 0, stillEffects: report.stillEffects ?? 0 } : {})
+      ...(opts.pptxAs === 'slideshow' ? { clicks: report.clicks ?? 0, stillEffects: report.stillEffects ?? 0 } : {}),
+      ...(report.embeddedFonts ? { embeddedFonts: report.embeddedFonts } : {})
     };
     return { path, bytes: serializePresentation(presentation), documentReport };
   }

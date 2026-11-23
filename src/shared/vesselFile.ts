@@ -35,6 +35,8 @@ export interface VesselManifest {
   playlists: Array<{ file: string; name: string; items: number }>;
   themes: Theme[];
   media: Array<{ file: string; name: string; kind: BinKind }>;
+  /** Fonts from Vessel's fonts folder that the presentations use. */
+  fonts?: Array<{ file: string; family: string; weight?: number; italic?: boolean; source: 'embedded' | 'download' | 'file'; from?: string }>;
 }
 
 /** What to put in a Vessel file (from the Export window). */
@@ -124,6 +126,10 @@ export function readManifest(raw: unknown): VesselManifest | null {
     presentations: list<VesselManifest['presentations'][number]>(m.presentations, (p) => isFile(p.file) && typeof p.name === 'string'),
     playlists: list<VesselManifest['playlists'][number]>(m.playlists, (p) => isFile(p.file) && typeof p.name === 'string'),
     themes: list<Theme>(m.themes, (t) => typeof t.id === 'string' && typeof t.name === 'string' && typeof t.font === 'string'),
-    media: list<VesselManifest['media'][number]>(m.media, (x) => isFile(x.file) && typeof x.name === 'string')
+    media: list<VesselManifest['media'][number]>(m.media, (x) => isFile(x.file) && typeof x.name === 'string'),
+    fonts: list<NonNullable<VesselManifest['fonts']>[number]>(
+      m.fonts,
+      (f) => isFile(f.file) && f.file.startsWith('fonts/') && typeof f.family === 'string' && ['embedded', 'download', 'file'].includes(f.source)
+    )
   };
 }

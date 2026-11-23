@@ -20,6 +20,7 @@ import {
   type VesselReport
 } from '../shared/vesselFile';
 import { sameMedia, type SongIndex } from './songIndex';
+import { fontsUsedBy, type PackedFont, type SharedFont } from '../shared/pro/fontsUsed';
 import { unzipTo, zipPath, zipWriter } from './zipStream';
 
 /** "Name.pro" → "Name 2.pro" … until `taken` says it's free. */
@@ -33,7 +34,13 @@ function unique(name: string, taken: (candidate: string) => boolean): string {
 }
 
 /** Write a Vessel file to `target`. Missing songs and media are left out and named in `missing`. */
-export async function writeVesselFile(target: string, req: VesselExportRequest, app: string): Promise<{ manifest: VesselManifest; missing: string[] }> {
+export async function writeVesselFile(
+  target: string,
+  req: VesselExportRequest,
+  app: string,
+  /** Vessel's copies of fonts the presentations use, to pack along. */
+  fontsFor?: (families: string[]) => Promise<SharedFont[]>
+): Promise<{ manifest: VesselManifest; missing: string[] }> {
   const missing: string[] = [];
   // Presentations: the ones passed in, then any from disk (library songs, and every song in the playlists).
   // A presentation passed in with its path stands for that file (its unsaved edits included).
@@ -79,6 +86,11 @@ export async function writeVesselFile(target: string, req: VesselExportRequest, 
     service: { ...s, items: s.items.map((it) => (it.kind === 'presentation' && songFile.has(it.path) ? { ...it, path: songFile.get(it.path)! } : it)) }
   }));
 
+  // Fonts: Vessel's copies of the ones the presentations use (and the themes name).
+  const families = [...new Set([...entries.flatMap((e) => fontsUsedBy(e.presentation)), ...req.themes.map((t) => t.font)])];
+  const shared = fontsFor ? await fontsFor(families) : [];
+  const fonts: PackedFont[] = shared.map((f, i) => ({ family: f.family, weight: f.weight, italic: f.italic, source: f.source, from: f.from, file: zipPath('fonts', String(i + 1), basename(f.path)) }));
+
   const manifest: VesselManifest = {
     format: 'vessel',
     version: 1,
@@ -91,7 +103,8 @@ export async function writeVesselFile(target: string, req: VesselExportRequest, 
     presentations: entries.map((e) => ({ file: e.file, name: e.presentation.name || e.name, slides: e.presentation.cues.length })),
     playlists: playlists.map((p) => ({ file: p.file, name: p.name, items: p.service.items.length })),
     themes: req.themes,
-    media
+    media,
+    ...(fonts.length ? { fonts } : {})
   };
 
   const zip = zipWriter(target);
@@ -99,6 +112,7 @@ export async function writeVesselFile(target: string, req: VesselExportRequest, 
     await zip.add('manifest.json', new TextEncoder().encode(JSON.stringify(manifest, null, 2)));
     for (const e of entries) await zip.add(e.file, serializePresentation(relinkMedia(e.presentation, moves)));
     for (const p of playlists) await zip.add(p.file, encodeService(p.service));
+    for (const [i, f] of shared.entries()) await zip.add(fonts[i].file, f.path, false);
     for (const m of media) {
       const path = Object.keys(moves).find((k) => moves[k] === `${VESSEL_FILE_ROOT}/${m.file}`)!;
       await zip.add(m.file, path, false);
@@ -177,6 +191,8 @@ export interface AddTargets {
   songs?: SongIndex;
   /** Media already in the bin: the same file (name and size) is used rather than copied again. */
   existingMedia?: string[];
+  /** Keep a font that came packed along in Vessel's fonts folder. */
+  addFont?: (font: PackedFont, path: string) => Promise<void>;
 }
 
 /** Bytes of a file, or null if it isn't there. */
@@ -207,6 +223,13 @@ export async function addFromUnpacked(
     themesAfter: to.themes,
     mediaAdded: []
   };
+
+  // Fonts come along with whatever is added, so it looks as it did.
+  if (to.addFont)
+    for (const f of manifest.fonts ?? []) {
+      const path = join(unpacked, ...f.file.split('/'));
+      if (existsSync(path)) await to.addFont(f, path);
+    }
 
   // A chosen playlist brings its songs with it.
   const wanted = new Set(choice.presentations);

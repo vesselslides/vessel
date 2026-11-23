@@ -362,8 +362,23 @@ is shown as it was made, click by click, like PowerPoint's slide show.
 - **Looks.** Each slide keeps its background, pictures (SVG artwork from
   Canva and newer PowerPoint too, and how see-through it is), text boxes,
   fonts, line spacing and letter spacing. Text may reach past its box, as it
-  does in PowerPoint. Fonts the slides use need to be installed on this
-  computer.
+  does in PowerPoint.
+- **Fonts.** Fonts a PowerPoint carries inside it (PowerPoint's *Embed fonts*,
+  and Canva) are kept in Vessel's own fonts folder, `Documents/Vessel/Fonts`,
+  and used wherever this computer doesn't have them. If the presentation
+  still uses fonts this computer lacks, the **Fonts** window opens after the
+  import, and a *fonts missing* notice sits beside the presentation's name
+  (in Show and Edit) whenever it's opened on such a computer. For each font:
+  **Download (free)** for free fonts (from Google Fonts), **Choose font
+  file…** for one you own (.ttf or .otf), or **Use instead** with a font
+  here, the closest free look-alike suggested first, with a before-and-after
+  preview. A replacement goes **Just on this computer** (the song stays as it
+  is, so a computer with the real font still uses it; the notice then shows
+  the stand-in, to change) or **Change it in the song**. Slideshow text drawn
+  with another font shrinks to fit its box. Every screen can use Vessel's
+  fonts, they appear in the font lists in Edit and Themes, and Vessel files
+  and playlist bundles carry the ones their songs use, so the church
+  computer gets them too (share only fonts your licence allows).
 - **Clicks.** → , Space, the remote's Next and a clicker move one click at a
   time: points come in, pictures appear and go, then the next slide. ← takes
   clicks off; going back to an earlier slide shows it with every click made.
