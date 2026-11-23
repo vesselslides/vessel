@@ -917,7 +917,8 @@ export function Editor({
   onFocused,
   history,
   ccliLicence,
-  onMediaLook
+  onMediaLook,
+  fontsNotice
 }: {
   deck: Deck;
   presentation: Presentation;
@@ -930,6 +931,8 @@ export function Editor({
   ccliLicence: string;
   /** Adjust look saved "everywhere": the look goes on the file in the media bin. */
   onMediaLook: (item: MediaItem, look: MediaLook | null) => void;
+  /** "2 fonts missing", when this computer lacks fonts the song uses. */
+  fontsNotice?: React.ReactNode;
 }): React.JSX.Element {
   const [newGroupName, setNewGroupName] = useState('');
   // Chosen slides: the text and animation bars and the right-click menu change these. The first is chosen to start.
@@ -999,6 +1002,7 @@ export function Editor({
     <div className="editor">
       <div className="editor-head">
         <CommitInput className="title-input" value={deck.name} placeholder="Presentation name" onCommit={(name) => apply((p) => renamePresentation(p, name))} />
+        {fontsNotice}
         <span className="spacer" />
         <button title="Undo (⌘Z / Ctrl+Z)" onClick={history.undo} disabled={!history.canUndo}>
           Undo

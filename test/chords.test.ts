@@ -6,9 +6,11 @@ import {
   chordNumber,
   chordSheetLines,
   chordSheetToInline,
+  chordsIn,
   chordsInKey,
   guessKey,
   inlineToChordSheet,
+  isChordLine,
   joinInline,
   prettyChord,
   remapChords,
@@ -140,3 +142,23 @@ describe('chords in songs', () => {
     expect(tidyLyrics('Verse 1:\nG       D\nAmazing grace', true).text).toBe('[Verse 1]\n[G]Amazing [D]grace');
   });
 });
+
+describe('Chords joined by a dash', () => {
+  it('reads "A-D" as two chords, each over its own letter', () => {
+    expect(chordsIn('A-D')).toEqual([
+      { offset: 0, chord: 'A' },
+      { offset: 2, chord: 'D' }
+    ]);
+    expect(chordsIn('G/B–C')).toEqual([
+      { offset: 0, chord: 'G/B' },
+      { offset: 4, chord: 'C' }
+    ]);
+    // A chord with a dash of its own ("C-7") stays one chord; words with dashes aren't chords.
+    expect(chordsIn('C-7')).toEqual([{ offset: 0, chord: 'C-7' }]);
+    expect(chordsIn('Is-ra-el')).toBeNull();
+    expect(isChordLine('Bm             G         Em A-D')).toBe(true);
+    const sheet = chordSheetToInline('Bm        G     Em A-D\nBorn is the King of Israel today');
+    expect(sheet.text).toBe('[Bm]Born is th[G]e King[Em] of[A] I[D]srael today');
+  });
+});
+

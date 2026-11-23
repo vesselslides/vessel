@@ -3,6 +3,7 @@ import { createReadStream, existsSync } from 'node:fs';
 import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join, sep } from 'node:path';
 import { getSettings } from './settings';
+import { fontMime, isVesselFontFile } from './fonts';
 import { Readable } from 'node:stream';
 import { binKindOf, mediaName, normalizeLook } from '../shared/media';
 import type { MediaFolder, MediaItem, MediaScale } from '../shared/types';
@@ -29,13 +30,16 @@ export function registerMediaScheme(): void {
 export function handleMediaProtocol(): void {
   protocol.handle('vessel-media', async (request) => {
     const path = decodeURIComponent(new URL(request.url).pathname.replace(/^\//, ''));
-    if (!binKindOf(path) || !existsSync(path)) return new Response('Not found', { status: 404 });
+    // Media files, and fonts in Vessel's own fonts folder.
+    const font = isVesselFontFile(path);
+    if ((!binKindOf(path) && !font) || !existsSync(path)) return new Response('Not found', { status: 404 });
     const { size } = await stat(path);
-    const type = MIME[path.split('.').pop()!.toLowerCase()] ?? 'application/octet-stream';
+    const type = font ? fontMime(path) : (MIME[path.split('.').pop()!.toLowerCase()] ?? 'application/octet-stream');
     const range = /bytes=(\d*)-(\d*)/.exec(request.headers.get('range') ?? '');
     if (!range) {
       const body = Readable.toWeb(createReadStream(path)) as ReadableStream;
-      return new Response(body, { headers: { 'content-type': type, 'content-length': String(size), 'accept-ranges': 'bytes' } });
+      // Fonts load through @font-face, which needs leave to come from another origin.
+      return new Response(body, { headers: { 'content-type': type, 'content-length': String(size), 'accept-ranges': 'bytes', ...(font ? { 'access-control-allow-origin': '*' } : {}) } });
     }
     let start = range[1] ? Number(range[1]) : size - Number(range[2]);
     let end = range[1] && range[2] ? Number(range[2]) : size - 1;

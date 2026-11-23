@@ -59,6 +59,8 @@ export interface DocumentImportReport {
   /** Slideshows: clicks across all slides, and effects shown in place without their motion. */
   clicks?: number;
   stillEffects?: number;
+  /** Fonts the file carried, kept in Vessel's fonts folder. */
+  embeddedFonts?: string[];
 }
 
 const SOURCES: Record<string, DocumentImportReport['source']> = {

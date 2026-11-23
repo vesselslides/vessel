@@ -11,6 +11,7 @@ import { addToMediaFolderNamed, loadMediaBin } from './media';
 import { songIndex } from './songIndex';
 import { getSettings } from './settings';
 import { loadThemes, saveThemes } from './themes';
+import { addSharedFont, fontsFor } from './fonts';
 import { addFromUnpacked, clearUnpacked, previewOf, unpackVesselFile, writeVesselFile } from './vesselFile';
 
 const staged = new Map<string, { dir: string; manifest: VesselManifest }>();
@@ -24,7 +25,7 @@ export async function exportVesselFile(win: BrowserWindow | null, req: VesselExp
   };
   const target = win ? await dialog.showSaveDialog(win, save) : await dialog.showSaveDialog(save);
   if (target.canceled || !target.filePath) return null;
-  const { manifest, missing } = await writeVesselFile(target.filePath, req, `Vessel ${app.getVersion()}`);
+  const { manifest, missing } = await writeVesselFile(target.filePath, req, `Vessel ${app.getVersion()}`, fontsFor);
   log.info(`Vessel file saved: ${manifest.kind}, ${manifest.presentations.length} presentations, ${manifest.playlists.length} playlists, ${manifest.themes.length} themes, ${manifest.media.length} media${missing.length ? `, ${missing.length} missing` : ''}`);
   return { path: target.filePath, missing };
 }
@@ -68,7 +69,8 @@ export async function addFromVesselFile(choice: VesselChoice): Promise<VesselRep
     mediaFolder: join(dirname(s.libraryFolder), 'Media', title),
     themes: library.custom,
     songs,
-    existingMedia
+    existingMedia,
+    addFont: addSharedFont
   });
   if (report.themes) await saveThemes({ ...library, custom: report.themesAfter });
   // The media goes into the media bin, in a folder named after the file.

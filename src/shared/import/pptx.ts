@@ -20,6 +20,7 @@ import { xmlOf, zipFiles } from './documents';
 import { extractStanzas, stanzasToPresentation, type LyricsOptions, type LyricsReport } from './lyrics';
 import { writeAdvance } from '../pro/edit';
 import { slideAdvance, slideTiming, type BuildStep, type ShapeBuilds, type SlideTiming } from './pptxTiming';
+import { fontFromEot } from './eot';
 
 export interface PptxOptions {
   look: 'slideshow' | 'slides' | 'lyrics';
@@ -28,6 +29,8 @@ export interface PptxOptions {
   lyrics: LyricsOptions;
   /** Store a picture from the file (by its path in the zip) and return where it was saved, or null. */
   saveMedia?: (zipPath: string, data: Uint8Array) => string | null;
+  /** Keep a font the file carries (PowerPoint's "Embed fonts"), to draw it on computers without it. */
+  saveFont?: (family: string, font: { data: Uint8Array; ext: 'ttf' | 'otf'; bold: boolean; italic: boolean }) => void;
 }
 
 export interface PptxReport {
@@ -39,6 +42,8 @@ export interface PptxReport {
   notes: number;
   /** Things not brought across, by kind (tables, charts, videos…). */
   skipped: Record<string, number>;
+  /** Fonts the file carries, kept for drawing it (by family). */
+  embeddedFonts?: string[];
   /** Slideshow: clicks across all slides, and effects shown without their motion. */
   clicks?: number;
   stillEffects?: number;
@@ -685,6 +690,29 @@ export function convertPptx(bytes: Uint8Array, name: string, opts: PptxOptions):
   const pres = file.xml(presPath);
   if (!pres) throw new Error('This file has no PowerPoint presentation inside. Is it a .pptx?');
   const presRels = file.rels(presPath);
+  let embeddedFonts: string[] | undefined;
+  // Fonts the file carries (a font's regular, bold, italic and bold italic faces).
+  if (opts.saveFont && opts.look !== 'lyrics') {
+    const kept = new Set<string>();
+    for (const embedded of kids(kid(pres, 'p:embeddedFontLst'), 'p:embeddedFont')) {
+      const family = kid(embedded, 'p:font')?.attrs.typeface?.trim();
+      if (!family) continue;
+      for (const [tag, bold, italic] of [
+        ['p:regular', false, false],
+        ['p:bold', true, false],
+        ['p:italic', false, true],
+        ['p:boldItalic', true, true]
+      ] as const) {
+        const target = presRels.byId.get(kid(embedded, tag)?.attrs['r:id'] ?? '');
+        const bytes = target ? file.files.get(target) : undefined;
+        const font = bytes && fontFromEot(bytes);
+        if (!font) continue;
+        opts.saveFont(family, { ...font, bold, italic });
+        kept.add(family);
+      }
+    }
+    if (kept.size) embeddedFonts = [...kept];
+  }
   const size = kid(pres, 'p:sldSz');
   const cx = num(size?.attrs.cx, 12192000);
   const cy = num(size?.attrs.cy, 6858000);
@@ -790,6 +818,7 @@ export function convertPptx(bytes: Uint8Array, name: string, opts: PptxOptions):
     presentation.cueGroups.push(newCueGroup(g.name, g.cues));
   }
   report.slides = slides.length;
+  if (embeddedFonts) report.embeddedFonts = embeddedFonts;
   report.groups = groups.length;
   if (opts.look === 'slideshow')
     presentation.vesselSlideshow = { $typeName: 'vessel.format.Presentation.Slideshow', source: opts.source ?? 'PowerPoint', stillEffects: report.stillEffects ?? 0 };

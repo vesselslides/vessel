@@ -4,6 +4,7 @@ import type { Background } from '../../shared/types';
 import { MediaView } from './AudienceView';
 import { SlideCanvas } from './SlideCanvas';
 import { StarIcon } from './Icons';
+import { vesselFamilies } from './fonts';
 import { ThemeGallery } from './ThemeGallery';
 
 const COMMON_FONTS = [
@@ -21,7 +22,8 @@ export function useFontList(): string[] {
     if (!query) return;
     query()
       .then((list) => {
-        const families = [...new Set(list.map((f) => f.family))].sort((a, b) => a.localeCompare(b));
+        // With Vessel's own fonts (Documents/Vessel/Fonts), which every screen can draw too.
+        const families = [...new Set([...list.map((f) => f.family), ...vesselFamilies()])].sort((a, b) => a.localeCompare(b));
         if (families.length) setFonts(families);
       })
       .catch(() => undefined);
