@@ -616,6 +616,8 @@ export interface VesselApi {
   setRemoteEnabled(enabled: boolean): Promise<RemoteStatus>;
   newRemotePin(): Promise<RemoteStatus>;
   newRemotePresenterPin(): Promise<RemoteStatus>;
+  /** Windows: add a Windows Firewall rule for the remote (Windows asks for an administrator's OK). */
+  allowRemoteThroughFirewall(): Promise<RemoteStatus>;
   onRemoteStatus(listener: (status: RemoteStatus) => void): () => void;
   /** Send what phones should show. */
   setRemoteState(state: RemoteState): void;

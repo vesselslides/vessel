@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { RemoteServer } from '../src/main/remoteServer';
-import { parseRemoteCommand, type RemoteCommand, type RemoteState } from '../src/shared/remote';
+import { firewallVerdict, parseRules } from '../src/shared/firewall';
+import { parseRemoteCommand, rankAddresses, type RemoteCommand, type RemoteState } from '../src/shared/remote';
 import { INITIAL_TIMER } from '../src/shared/timer';
 
 const STATE: RemoteState = {
@@ -112,5 +113,48 @@ describe('remote server', () => {
     const { post, login } = await start();
     const { cookie } = await login('123456');
     expect((await post('/api/command', { type: 'message', text: 'x'.repeat(10_000) }, { Cookie: cookie })).status).toBe(400);
+  });
+});
+
+describe('Which address the QR code shows', () => {
+  const v4 = (address: string) => [{ address, family: 'IPv4', internal: false }];
+
+  it('puts the Wi-Fi first, ahead of WSL, Hyper-V, VirtualBox and VPNs, and drops self-assigned addresses', () => {
+    // As Windows lists them on a PC with WSL and VirtualBox: the virtual ones first.
+    const ranked = rankAddresses({
+      'vEthernet (WSL)': v4('172.25.240.1'),
+      'VirtualBox Host-Only Network': v4('192.168.56.1'),
+      'Ethernet 2': v4('169.254.12.9'),
+      Tailscale: v4('100.101.5.6'),
+      'Wi-Fi': v4('192.168.1.23'),
+      'Loopback Pseudo-Interface 1': [{ address: '127.0.0.1', family: 'IPv4', internal: true }]
+    });
+    expect(ranked.map((r) => r.network)).toEqual(['Wi-Fi', 'vEthernet (WSL)', 'VirtualBox Host-Only Network', 'Tailscale']);
+    expect(ranked[0].address).toBe('192.168.1.23');
+  });
+
+  it('keeps the order it was given among equals, and reads numeric families', () => {
+    const ranked = rankAddresses({ en0: [{ address: '10.0.0.5', family: 4, internal: false }], en1: v4('10.0.0.6') });
+    expect(ranked.map((r) => r.address)).toEqual(['10.0.0.5', '10.0.0.6']);
+  });
+});
+
+describe('Windows Firewall rules for the remote', () => {
+  it('reads the rules PowerShell lists', () => {
+    expect(parseRules('Allow|Private|4040-4049\r\nBlock|Public|Any\r\n\r\n')).toEqual([
+      { action: 'Allow', profile: 'Private', ports: '4040-4049' },
+      { action: 'Block', profile: 'Public', ports: 'Any' }
+    ]);
+  });
+
+  it('says blocked when a dismissed prompt left a block rule, even beside an allow', () => {
+    expect(firewallVerdict(parseRules('Allow|Private|Any\nBlock|Public|Any'), 4040)).toBe('blocked');
+  });
+
+  it('says allowed only for a rule covering the port, and missing with no rule', () => {
+    expect(firewallVerdict(parseRules('Allow|Any|4040-4049'), 4042)).toBe('allowed');
+    expect(firewallVerdict(parseRules('Allow|Any|5000,6000'), 4040)).toBe('missing');
+    expect(firewallVerdict(parseRules('Block|Any|5000'), 4040)).toBe('missing');
+    expect(firewallVerdict([], 4040)).toBe('missing');
   });
 });

@@ -98,6 +98,7 @@ const api: VesselApi = {
   setRemoteEnabled: (enabled) => ipcRenderer.invoke('remote:set-enabled', enabled),
   newRemotePin: () => ipcRenderer.invoke('remote:new-pin'),
   newRemotePresenterPin: () => ipcRenderer.invoke('remote:new-presenter-pin'),
+  allowRemoteThroughFirewall: () => ipcRenderer.invoke('remote:allow-firewall'),
   onRemoteStatus: (listener) => {
     const handler = (_e: unknown, status: RemoteStatus): void => listener(status);
     ipcRenderer.on('remote:status', handler);

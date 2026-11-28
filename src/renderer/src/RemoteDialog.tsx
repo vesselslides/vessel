@@ -1,6 +1,7 @@
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
 import type { RemoteStatus } from '../../shared/remote';
+import { ShieldIcon } from './Icons';
 
 /** Turn the phone remote on or off, and show how to connect. */
 export function RemoteDialog({
@@ -14,7 +15,11 @@ export function RemoteDialog({
 }): React.JSX.Element {
   const [busy, setBusy] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
-  const url = status?.urls[0];
+  const links = status?.links ?? status?.urls.map((u) => ({ url: u, network: '' })) ?? [];
+  // The QR code shows the likeliest address; click another to show that one instead.
+  const [chosen, setChosen] = useState<string | null>(null);
+  const url = links.find((l) => l.url === chosen)?.url ?? links[0]?.url;
+  const [firewallNote, setFirewallNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (!url) return setQr(null);
@@ -70,14 +75,61 @@ export function RemoteDialog({
             {qr && <img className="remote-qr" src={qr} alt={`QR code for ${url}`} />}
             <div className="remote-details">
               <div className="field-label">Open on the phone</div>
-              {status.urls.length ? (
-                status.urls.map((u) => (
-                  <div key={u} className="remote-url">
-                    {u}
-                  </div>
+              {links.length ? (
+                links.map((l) => (
+                  <button
+                    key={l.url}
+                    className={`remote-url ${l.url === url ? 'chosen' : ''}`}
+                    title={links.length > 1 ? 'Show this address in the QR code' : undefined}
+                    onClick={() => setChosen(l.url)}
+                  >
+                    <span className="remote-url-address">{l.url}</span>
+                    {l.network && <span className="remote-url-network">{l.network}</span>}
+                  </button>
                 ))
               ) : (
                 <p className="error">This computer isn't on a network.</p>
+              )}
+              {links.length > 1 && <div className="hint">Not connecting? Try another address: click it to show it in the QR code.</div>}
+              {status.firewall && status.firewall !== 'allowed' && (
+                <div className="remote-firewall">
+                  <ShieldIcon size={18} />
+                  <div>
+                    <div className="field-label">Windows Firewall</div>
+                    <div className="hint">
+                      {status.firewall === 'checking'
+                        ? 'Checking whether phones can reach Vessel…'
+                        : status.firewall === 'blocked'
+                          ? 'Windows Firewall is blocking phones from reaching Vessel.'
+                          : status.firewall === 'missing'
+                            ? "Vessel isn't allowed through Windows Firewall yet, so phones may not reach it."
+                            : "Couldn't check Windows Firewall. If phones can't connect, allow Vessel through it."}
+                      {firewallNote && <> {firewallNote}</>}
+                    </div>
+                  </div>
+                  {status.firewall !== 'checking' && (
+                    <button
+                      className="primary"
+                      disabled={busy}
+                      title="Windows asks for an administrator's OK"
+                      onClick={() =>
+                        void run(async () => {
+                          setFirewallNote(null);
+                          const next = await window.vessel.allowRemoteThroughFirewall();
+                          if (next.firewall !== 'allowed') setFirewallNote('It wasn’t allowed: choose Yes when Windows asks.');
+                          return next;
+                        })
+                      }
+                    >
+                      Allow Vessel…
+                    </button>
+                  )}
+                </div>
+              )}
+              {status.firewall === 'allowed' && (
+                <div className="hint remote-firewall-ok">
+                  <ShieldIcon size={14} /> Windows Firewall lets phones reach Vessel.
+                </div>
               )}
               <div className="remote-access">
                 <div>
@@ -103,8 +155,8 @@ export function RemoteDialog({
           </div>
         )}
         <p className="hint">
-          The phone must be on the same network as this computer. The first time, your computer may ask whether Vessel can accept incoming network
-          connections. Choose Allow.
+          The phone must be on the same Wi-Fi as this computer (not a guest network, which keeps devices apart). The first time, your computer may
+          ask whether Vessel can accept incoming network connections. Choose Allow.
         </p>
         <div className="modal-actions">
           <button className="primary" onClick={onClose}>

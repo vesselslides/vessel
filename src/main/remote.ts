@@ -4,8 +4,9 @@ import { ipcMain, type BrowserWindow } from 'electron';
 import { createHash } from 'node:crypto';
 import { hostname, networkInterfaces } from 'node:os';
 import type { ExportJob } from '../shared/exports';
-import type { PresenterState, RemoteRole, RemoteState, RemoteStatus } from '../shared/remote';
+import { rankAddresses, type FirewallState, type PresenterState, type RemoteLink, type RemoteRole, type RemoteState, type RemoteStatus } from '../shared/remote';
 import { slidePictures } from './exports';
+import { allowThroughFirewall, checkFirewall } from './firewall';
 import { describe, log } from './log';
 import { PRESENTER_ASSETS } from './presenterPage';
 import { REMOTE_ASSETS } from './remotePage';
@@ -53,26 +54,38 @@ async function drawPictures(): Promise<void> {
   if (pictureJob && pictureJob.key !== want.key) void drawPictures();
 }
 
-/** Addresses a phone on the same network can open. */
-function urls(port: number): string[] {
-  const out: string[] = [];
-  for (const list of Object.values(networkInterfaces())) {
-    for (const a of list ?? []) if (a.family === 'IPv4' && !a.internal) out.push(`http://${a.address}:${port}`);
-  }
+/** Addresses a phone on the same network can open, the likeliest first. */
+function links(port: number): RemoteLink[] {
+  const out = rankAddresses(networkInterfaces()).map(({ address, network }) => ({ url: `http://${address}:${port}`, network }));
   const host = hostname();
-  if (host.endsWith('.local')) out.push(`http://${host}:${port}`);
+  if (host.endsWith('.local')) out.push({ url: `http://${host}:${port}`, network: 'Bonjour name' });
   return out;
+}
+
+/** Windows only: whether Windows Firewall lets phones in, checked when the remote starts. */
+let firewall: FirewallState | undefined;
+
+async function refreshFirewall(): Promise<void> {
+  const port = server?.port;
+  if (process.platform !== 'win32' || !port) return;
+  firewall = 'checking';
+  void pushStatus();
+  firewall = await checkFirewall(port);
+  void pushStatus();
 }
 
 async function status(): Promise<RemoteStatus> {
   const s = await getSettings();
   const port = server?.port ?? null;
+  const found = port ? links(port) : [];
   return {
     enabled: !!server,
     pin: s.remotePin ?? '',
     presenterPin: s.remotePresenterPin ?? '',
     port,
-    urls: port ? urls(port) : [],
+    urls: found.map((l) => l.url),
+    links: found,
+    ...(process.platform === 'win32' && server ? { firewall: firewall ?? 'checking' } : {}),
     clients: server?.clientCount ?? 0,
     presenters: server?.presenterCount ?? 0,
     error: lastError
@@ -108,6 +121,7 @@ async function start(): Promise<void> {
     await next.start(s.remotePort ?? DEFAULT_PORT);
     server = next;
     lastError = undefined;
+    void refreshFirewall();
     // Phones want the current picture straight away.
     operator()?.webContents.send('remote:request-state');
   } catch (err) {
@@ -154,7 +168,15 @@ export function setupRemote(getOperator: () => BrowserWindow | null, loadPrintPa
     server?.signOutRole('presenter');
     return status();
   });
-  ipcMain.on('remote:state', (_e, state: RemoteState) => server?.setState(state));
+  ipcMain.handle('remote:allow-firewall', async () => {
+    const s = await getSettings();
+    const from = s.remotePort ?? DEFAULT_PORT;
+    // The server tries ten ports from the chosen one, so allow them all.
+    await allowThroughFirewall([from, from + 9]);
+    await refreshFirewall();
+    return status();
+  });
+  ipcMain.on('remote:state',(_e, state: RemoteState) => server?.setState(state));
   ipcMain.on('remote:presenter-state', (_e, state: PresenterState) => {
     presenter = state;
     pushPresenter();
