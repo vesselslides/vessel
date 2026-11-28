@@ -301,6 +301,12 @@ export const LockIcon = (p: IconProps): React.JSX.Element => (
   </Icon>
 );
 
+export const ShieldIcon = (p: IconProps): React.JSX.Element => (
+  <Icon {...p}>
+    <path d="M12 3.5 5 6v5.5c0 4.2 2.9 7.6 7 9 4.1-1.4 7-4.8 7-9V6z" />
+  </Icon>
+);
+
 export const FolderIcon = (p: IconProps): React.JSX.Element => (
   <Icon {...p}>
     <path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" />

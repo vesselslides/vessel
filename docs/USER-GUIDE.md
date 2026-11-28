@@ -242,7 +242,12 @@ in-app tour (the **?** button at the top right) shows where things are, and
   tap any slide or song in the service, and runs the stage timer and stage
   messages. Wrong PINs lock the address out for a minute after 5 tries; *New
   PIN* signs every device out. The first time, the computer may ask whether
-  Vessel can accept incoming connections: choose Allow.
+  Vessel can accept incoming connections: choose Allow. The QR code shows the
+  Wi-Fi or Ethernet address first, ahead of virtual adapters and VPNs; each
+  address names its network, and clicking one puts it in the QR code. On
+  Windows, the Remote window checks Windows Firewall: if it's blocking phones
+  (or that first prompt never appeared), **Allow Vessel…** adds a rule for the
+  remote's ports after Windows asks for an administrator's OK.
 - **Presenter remote:** the Remote window also shows a *Presenter PIN* for the
   person speaking. On their phone or tablet they see the slide on screen and
   the next one, the notes for the slide on screen in large print (A– / A+ to

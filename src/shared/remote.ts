@@ -118,9 +118,57 @@ export interface RemoteStatus {
   /** The presenter view's own PIN. */
   presenterPin: string;
   port: number | null;
+  /** Addresses to open, the likeliest first (the QR code uses the first). */
   urls: string[];
+  /** The same addresses with the network each is on ("Wi-Fi", "vEthernet (WSL)"). */
+  links?: RemoteLink[];
+  /** Windows only: whether Windows Firewall lets phones reach Vessel. */
+  firewall?: FirewallState;
   clients: number;
   /** Of those, how many are presenters. */
   presenters: number;
   error?: string;
+}
+
+/** An address a phone can open, and the network it's on. */
+export interface RemoteLink {
+  url: string;
+  network: string;
+}
+
+/**
+ * What Windows Firewall does with phones reaching Vessel: `allowed`,
+ * `blocked` (a block rule, often left by a dismissed "allow access?" prompt),
+ * `missing` (no rule yet, so Windows may block it without asking), or `unknown`.
+ */
+export type FirewallState = 'checking' | 'allowed' | 'blocked' | 'missing' | 'unknown';
+
+/** Adapters a phone on the Wi-Fi can't reach: virtual machines, WSL, VPNs, tunnels. */
+const VIRTUAL_NETWORK =
+  /vethernet|wsl|hyper-?v|default switch|virtualbox|vbox|vmware|vmnet|docker|tailscale|zerotier|hamachi|wireguard|openvpn|nordlynx|\bvpn|\btap\b|tap-|\btun|utun|bridge|llw|awdl|loopback|bluetooth|npcap|parallels|vnic/i;
+
+const isPrivateLan = (ip: string): boolean => /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip);
+
+type Interfaces = Record<string, Array<{ address: string; family: string | number; internal: boolean }> | undefined>;
+
+/**
+ * The IPv4 addresses a phone on the same network might open, likeliest first:
+ * real Wi-Fi and Ethernet on a home or church network before virtual adapters
+ * and VPNs. Self-assigned (169.254) addresses are left out: that adapter has
+ * no network.
+ */
+export function rankAddresses(interfaces: Interfaces): Array<{ address: string; network: string }> {
+  const found: Array<{ address: string; network: string; score: number; order: number }> = [];
+  for (const [network, list] of Object.entries(interfaces)) {
+    for (const a of list ?? []) {
+      const v4 = a.family === 'IPv4' || a.family === 4;
+      if (!v4 || a.internal || a.address.startsWith('169.254.')) continue;
+      let score = 0;
+      if (VIRTUAL_NETWORK.test(network)) score -= 100;
+      if (isPrivateLan(a.address)) score += 10;
+      if (/wi-?fi|wlan|wireless|ethernet|^en\d|^eth\d/i.test(network)) score += 5;
+      found.push({ address: a.address, network, score, order: found.length });
+    }
+  }
+  return found.sort((a, b) => b.score - a.score || a.order - b.order).map(({ address, network }) => ({ address, network }));
 }
